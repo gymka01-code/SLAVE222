@@ -347,13 +347,16 @@ async function generateAndShareStory(user, showToast, onSetPending) {
   ctx.lineWidth = 12; ctx.strokeStyle = '#E8C547'; ctx.stroke();
   ctx.fillStyle = '#1e1e1e'; ctx.fill();
   ctx.fillStyle = '#E8C547'; ctx.font = '800 130px Inter';
-  ctx.fillText('⛓️', 540, 645); // Иконка цепи вместо фото
+  ctx.fillText('⛓️', 540, 645);
 
   ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 75px Inter'; ctx.fillText(user.first_name || user.username || 'Игрок', 540, 950);
   ctx.fillStyle = 'rgba(232,197,71,0.7)'; ctx.font = '600 35px Inter'; ctx.letterSpacing = '4px'; ctx.fillText('МОЯ СТОИМОСТЬ', 540, 1100);
   ctx.fillStyle = '#E8C547'; ctx.font = '800 130px Inter'; ctx.letterSpacing = '0px'; ctx.fillText(`${user.price.toFixed(0)} RC`, 540, 1220);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '600 48px Inter'; ctx.fillText('Проверь, у кого ты в рабстве!', 540, 1600);
+  ctx.fillStyle = '#E8C547'; ctx.roundRect(240, 1420, 600, 100, 28); ctx.fill();
+  ctx.fillStyle = '#000000'; ctx.font = '800 38px Inter'; ctx.fillText('🔗 ИГРАТЬ ПО ССЫЛКЕ', 540, 1485);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '600 48px Inter'; ctx.fillText('Проверь, у кого ты в рабстве!', 540, 1720);
 
   try {
     showToast('⏳ Подготовка Story...');
@@ -389,7 +392,7 @@ function JobProbsModal({ jobs, vipLevel, onClose, onSend, slaveName }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-handle"/>
         <div className="modal-title">💼 Отправить на работу</div>
-        <div className="f13 text-muted" style={{marginBottom:16}}>Раб: <span className="fw6 text-2">{slaveName}</span></div>
+        <div className="f13 text-muted" style={{marginBottom:16}}>Раб: <span className="fw6 text-gold">{slaveName}</span></div>
 
         <div className="job-tier">
           <div className="job-tier-head text-2">🟢 Обычные — 70% шанс</div>
@@ -701,7 +704,7 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
       <div className="section">
         <input className="input" placeholder="Поиск по имени или @username" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key==='Enter' && doSearch()}/>
         <div className="row mt12"><input className="input" placeholder="Мин RC" type="number" style={{flex:1}} value={minP} onChange={e => setMinP(e.target.value)}/><input className="input" placeholder="Макс RC" type="number" style={{flex:1}} value={maxP} onChange={e => setMaxP(e.target.value)}/></div>
-        <div className="row mt12"><button className="btn btn-primary" style={{flex:1}} onClick={() => doSearch()}>{loading ? <div className="spinner" style={{width:18,height:18,borderWidth:2}}/> : '🔍 Найти'}</button><button className="btn btn-ghost" style={{flex:1}} onClick={() => doSearch(true)}>🎲 Случайная</button></div>
+        <div className="row mt12"><button className="btn btn-primary" style={{flex:1}} onClick={() => doSearch()}>{loading ? <div className="spinner" style={{width:18,height:18,borderWidth:2}}/> : '🔍 Найти'}</button><button className="btn btn-ghost" style={{flex:1}} onClick={() => doSearch(true)}>🎲 Случайные</button></div>
         <button className="btn btn-ghost mt12" onClick={() => doSearch(false,true)}>🆕 Новые игроки</button>
       </div>
 
@@ -1266,7 +1269,7 @@ function App() {
                   <input className="input" placeholder="Название (Для кнопки)" value={spTitle} onChange={e=>setSpTitle(e.target.value)}/>
                   <input className="input" placeholder="Ссылка (https://t.me/...)" value={spUrl} onChange={e=>setSpUrl(e.target.value)}/>
                   <input className="input" type="number" placeholder="Награда RC" value={spRc} onChange={e=>setSpRc(e.target.value)}/>
-                  <div className="row mt12"><button className="btn btn-ghost" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Обычный</button><button className="btn btn-primary" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:true}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Главный (Обяз.)</button></div>
+                  <div className="row mt12"><button className="btn btn-ghost" style={{flex:1}} onClick={async ()=>{ if(!spId||!spTitle||!spUrl||!spRc) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Обычный</button><button className="btn btn-primary" style={{flex:1}} onClick={async ()=>{ if(!spId||!spTitle||!spUrl||!spRc) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:true}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Главный (Обяз.)</button></div>
                 </div>
                 {sponsors.map(s => (
                   <div className="card row-sb" key={s.id} style={{margin:0}}>
