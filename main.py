@@ -44,6 +44,12 @@ rdb: aioredis.Redis = None
 story_cache: dict = {}
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS user_chats (
+    id SERIAL PRIMARY KEY, sender_id BIGINT, receiver_id BIGINT, 
+    text TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW()
+);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS max_slaves_override INT DEFAULT NULL;
+
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY, username TEXT, first_name TEXT, photo_url TEXT,
     balance DECIMAL DEFAULT 50, current_price DECIMAL DEFAULT 100, owner_id BIGINT,
@@ -450,6 +456,7 @@ class AdminEditReq(BaseModel):
     user_id: int; balance: Optional[float] = None; price: Optional[float] = None
     custom_name: Optional[str] = None; is_banned: Optional[bool] = None
     free_slave: Optional[bool] = None; ban_reason: Optional[str] = None
+    vip_level: Optional[int] = None; max_slaves_override: Optional[int] = None
 class SeasonReq(BaseModel): password: str
 class BroadcastReq(BaseModel): text: str
 class AdminChatSendReq(BaseModel): target_uid: int; text: str = ""; reply_to_id: Optional[int] = None
@@ -495,11 +502,14 @@ async def _full_profile(uid: int) -> dict:
         
     await db.execute("UPDATE users SET slaves_count=$1 WHERE id=$2", len(slaves), uid)
 
-    # Макс лимит рабов
-    max_slaves = 15
-    if u['vip_level'] == 1: max_slaves = 20
-    elif u['vip_level'] == 2: max_slaves = 30
-    elif u['vip_level'] >= 3: max_slaves = 50
+   # Макс лимит рабов
+    if u.get('max_slaves_override') is not None:
+        max_slaves = u['max_slaves_override']
+    else:
+        max_slaves = 15
+        if u['vip_level'] == 1: max_slaves = 20
+        elif u['vip_level'] == 2: max_slaves = 30
+        elif u['vip_level'] >= 3: max_slaves = 50
 
     last_story = await db.fetchrow("SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", uid)
     story_cooldown_until = None
@@ -959,9 +969,17 @@ async def admin_edit(req: AdminEditReq, _: dict = Depends(get_admin_user)):
     if req.price is not None: add("current_price", req.price)
     if req.is_banned is not None: add("is_banned", req.is_banned)
     if req.ban_reason is not None: add("ban_reason", req.ban_reason if req.ban_reason else None)
+    if req.vip_level is not None: add("vip_level", req.vip_level)
+    
+    if req.max_slaves_override is not None:
+        add("max_slaves_override", req.max_slaves_override if req.max_slaves_override >= 0 else None)
+
     if req.free_slave: parts += ["owner_id=NULL","custom_name=NULL","job_id=NULL","job_assigned_at=NULL"]
     if req.custom_name is not None: add("custom_name", req.custom_name or None)
-    if parts: vals.append(req.user_id); await db.execute(f"UPDATE users SET {','.join(parts)} WHERE id=${len(vals)}", *vals)
+    
+    if parts: 
+        vals.append(req.user_id)
+        await db.execute(f"UPDATE users SET {','.join(parts)} WHERE id=${len(vals)}", *vals)
     return {"ok": True}
 
 @app.post("/api/admin/users/cosmetic")
@@ -1126,5 +1144,44 @@ async def remove_admin(req: AdminManageReq, _: dict = Depends(get_super_admin)):
 
 @app.get("/")
 async def serve(): return FileResponse("index.html")
+
+class SendChatReq(BaseModel): target_uid: int; text: str
+
+@app.get("/api/chat/list")
+async def get_chat_list(user: dict = Depends(get_current_user)):
+    uid = user['id']
+    rows = await db.fetch("""
+        SELECT 
+            CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as other_user_id,
+            MAX(created_at) as last_msg_time,
+            COUNT(CASE WHEN receiver_id = $1 AND is_read = FALSE THEN 1 END) as unread_count
+        FROM user_chats WHERE sender_id = $1 OR receiver_id = $1 
+        GROUP BY other_user_id ORDER BY last_msg_time DESC
+    """, uid)
+    
+    result = []
+    for r in rows:
+        u = await db.fetchrow("SELECT id, first_name, photo_url, is_admin_flag FROM users WHERE id=$1", r['other_user_id'])
+        if u:
+            result.append({
+                "user_id": u['id'], "first_name": u['first_name'], "photo_url": u['photo_url'],
+                "is_admin_flag": u['is_admin_flag'], "unread": r['unread_count']
+            })
+    return result
+
+@app.get("/api/chat/messages/{target_uid}")
+async def get_chat_messages(target_uid: int, user: dict = Depends(get_current_user)):
+    uid = user['id']
+    await db.execute("UPDATE user_chats SET is_read=TRUE WHERE sender_id=$1 AND receiver_id=$2", target_uid, uid)
+    rows = await db.fetch("SELECT * FROM user_chats WHERE (sender_id=$1 AND receiver_id=$2) OR (sender_id=$2 AND receiver_id=$1) ORDER BY created_at ASC", uid, target_uid)
+    return [dict(r) for r in rows]
+
+@app.post("/api/chat/send")
+async def send_chat_message(req: SendChatReq, user: dict = Depends(get_current_user)):
+    text = req.text.strip()[:1000]
+    if not text: return {"ok": False}
+    await db.execute("INSERT INTO user_chats (sender_id, receiver_id, text) VALUES ($1,$2,$3)", user['id'], req.target_uid, text)
+    asyncio.create_task(push(req.target_uid, f"✉️ У вас новое личное сообщение!\nЗайдите в игру, раздел 'Сообщения'."))
+    return {"ok": True}
 
 if __name__ == "__main__": uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), workers=1)
