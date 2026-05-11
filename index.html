@@ -9,29 +9,31 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@400;600;700&display=swap');
 
 :root {
-  /* Apple-style dark palette */
-  --bg:        #000000;
-  --bg2:       #0f0f0f;
-  --bg3:       #1c1c1e;
-  --bg4:       #2c2c2e;
-  --border:    rgba(255,255,255,0.08);
-  --border2:   rgba(255,255,255,0.14);
-  --gold:      #FFD60A;
-  --gold2:     #F0C000;
-  --red:       #FF453A;
-  --green:     #30D158;
-  --blue:      #0A84FF;
-  --purple:    #BF5AF2;
-  --text:      #FFFFFF;
-  --text2:     rgba(255,255,255,0.72);
-  --text3:     rgba(255,255,255,0.40);
-  --card:      rgba(28,28,30,0.9);
-  --r:         16px;
-  --r2:        12px;
-  --font:      'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  /* Ultra-premium dark palette */
+  --bg:        #050505;
+  --bg2:       #0a0a0a;
+  --bg3:       #141414;
+  --bg4:       #1e1e1e;
+  --border:    rgba(255,255,255,0.06);
+  --border2:   rgba(255,255,255,0.10);
+  --gold:      #E8C547;
+  --gold2:     #C9A82C;
+  --gold-glow: rgba(232,197,71,0.18);
+  --red:       #E84040;
+  --green:     #27C264;
+  --blue:      #1A7FE8;
+  --purple:    #9B52E8;
+  --text:      #F0EDE8;
+  --text2:     rgba(240,237,232,0.68);
+  --text3:     rgba(240,237,232,0.36);
+  --card:      rgba(20,20,20,0.95);
+  --r:         18px;
+  --r2:        13px;
+  --font:      'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Cormorant Garamond', serif;
 }
 
 * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
@@ -44,6 +46,7 @@ body {
   line-height: 1.5;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── SCROLLABLE ── */
@@ -62,23 +65,23 @@ body {
 /* ── NAV ── */
 .nav {
   display: flex; align-items: flex-start; justify-content: space-around;
-  padding: 10px 4px max(12px, env(safe-area-inset-bottom));
-  background: rgba(0,0,0,0.85);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border-top: 0.5px solid var(--border2);
+  padding: 10px 4px max(14px, env(safe-area-inset-bottom));
+  background: rgba(5,5,5,0.92);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border-top: 0.5px solid rgba(232,197,71,0.12);
   flex-shrink: 0;
 }
 .nav-btn {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   background: none; border: none; color: var(--text3); cursor: pointer;
-  padding: 4px 12px; border-radius: 10px; transition: color .15s;
+  padding: 4px 12px; border-radius: 12px; transition: color .18s, transform .18s;
   font-family: var(--font); font-size: 10px; font-weight: 500;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.5px; text-transform: uppercase;
 }
 .nav-btn .ico { font-size: 22px; line-height: 1; }
 .nav-btn.active { color: var(--gold); }
-.nav-btn:active { opacity: 0.6; }
+.nav-btn:active { opacity: 0.6; transform: scale(0.93); }
 
 /* ── HEADER ── */
 .hdr {
@@ -86,10 +89,10 @@ body {
   flex-shrink: 0;
 }
 .hdr-title {
-  font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
-  color: var(--text);
+  font-size: 30px; font-weight: 700; letter-spacing: -0.5px;
+  color: var(--text); font-family: var(--font-display);
 }
-.hdr-sub { font-size: 13px; color: var(--text3); margin-top: 2px; font-weight: 400; }
+.hdr-sub { font-size: 12px; color: var(--text3); margin-top: 2px; font-weight: 400; letter-spacing: 0.8px; text-transform: uppercase; }
 
 /* ── CARDS ── */
 .card {
@@ -97,34 +100,43 @@ body {
   border: 0.5px solid var(--border2);
   border-radius: var(--r);
   padding: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 0.5px 0 rgba(255,255,255,0.05);
 }
-.card-press { transition: opacity .12s; cursor: pointer; }
-.card-press:active { opacity: 0.7; }
+.card-press { transition: opacity .12s, transform .12s; cursor: pointer; }
+.card-press:active { opacity: 0.7; transform: scale(0.98); }
 
 /* ── HERO PROFILE ── */
 .hero {
   margin: 8px 16px 0;
-  background: linear-gradient(145deg, #1c1c1e 0%, #2c2c2e 100%);
-  border: 0.5px solid var(--border2);
-  border-radius: 20px;
-  padding: 20px;
+  background: linear-gradient(145deg, #141414 0%, #1a1a1a 100%);
+  border: 0.5px solid rgba(232,197,71,0.15);
+  border-radius: 22px;
+  padding: 22px;
   position: relative; overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6), inset 0 0.5px 0 rgba(255,255,255,0.06), 0 0 0 0.5px rgba(232,197,71,0.06);
 }
 .hero::before {
-  content: ''; position: absolute; top: -60px; right: -40px;
-  width: 160px; height: 160px;
-  background: radial-gradient(circle, rgba(255,214,10,0.08) 0%, transparent 70%);
+  content: ''; position: absolute; top: -80px; right: -60px;
+  width: 220px; height: 220px;
+  background: radial-gradient(circle, rgba(232,197,71,0.06) 0%, transparent 70%);
+  border-radius: 50%; pointer-events: none;
+}
+.hero::after {
+  content: ''; position: absolute; bottom: -40px; left: -20px;
+  width: 140px; height: 140px;
+  background: radial-gradient(circle, rgba(232,197,71,0.03) 0%, transparent 70%);
   border-radius: 50%; pointer-events: none;
 }
 .hero-row { display: flex; align-items: center; gap: 16px; }
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .avatar {
   width: 68px; height: 68px; border-radius: 50%;
-  background: linear-gradient(135deg, #3a3a3c, #2c2c2e);
+  background: linear-gradient(135deg, #1e1e1e, #141414);
   display: flex; align-items: center; justify-content: center;
   font-size: 26px; font-weight: 700; color: var(--gold);
-  font-family: var(--font); overflow: hidden;
-  border: 2px solid rgba(255,214,10,0.3);
+  font-family: var(--font-display); overflow: hidden;
+  border: 1.5px solid rgba(232,197,71,0.35);
+  box-shadow: 0 0 20px rgba(232,197,71,0.12), 0 4px 16px rgba(0,0,0,0.6);
 }
 .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
 .avatar-sm {
@@ -132,7 +144,7 @@ body {
   background: var(--bg4);
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; font-weight: 700; color: var(--text3);
-  overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--border);
+  overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--border2);
 }
 .avatar-sm img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
 .vip-badge {
@@ -140,28 +152,29 @@ body {
   background: var(--bg); border-radius: 50%;
   width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; border: 1px solid var(--border2);
+  font-size: 13px; border: 1px solid rgba(232,197,71,0.2);
 }
 .hero-name {
-  font-size: 18px; font-weight: 700; letter-spacing: -0.3px;
+  font-size: 19px; font-weight: 700; letter-spacing: -0.3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.hero-handle { font-size: 13px; color: var(--text3); margin-top: 1px; }
+.hero-handle { font-size: 12px; color: var(--text3); margin-top: 1px; letter-spacing: 0.3px; }
 .hero-status { font-size: 13px; margin-top: 4px; }
 .hero-stats {
   display: grid; grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px; margin-top: 16px;
+  gap: 8px; margin-top: 18px;
 }
 .stat {
-  background: rgba(255,255,255,0.05);
-  border: 0.5px solid var(--border);
-  border-radius: var(--r2); padding: 12px 8px; text-align: center;
+  background: rgba(255,255,255,0.03);
+  border: 0.5px solid rgba(255,255,255,0.06);
+  border-radius: var(--r2); padding: 13px 8px; text-align: center;
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.04);
 }
 .stat-val {
-  font-size: 18px; font-weight: 700; color: var(--text);
-  letter-spacing: -0.5px;
+  font-size: 19px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.5px; font-family: var(--font-display);
 }
-.stat-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; font-weight: 500; }
+.stat-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 500; letter-spacing: 0.4px; text-transform: uppercase; }
 
 /* ── EFFECTS ── */
 .effects-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
@@ -180,24 +193,26 @@ body {
 .btn {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   border: none; border-radius: var(--r2); cursor: pointer;
-  font-family: var(--font); font-weight: 600; letter-spacing: -0.1px;
-  transition: opacity .12s; padding: 14px 20px; width: 100%;
+  font-family: var(--font); font-weight: 600; letter-spacing: 0.2px;
+  transition: opacity .15s, transform .15s, box-shadow .15s; padding: 14px 20px; width: 100%;
   font-size: 15px;
 }
-.btn:active { opacity: 0.7; }
-.btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.btn-primary { background: var(--gold); color: #000; }
-.btn-danger   { background: var(--red); color: #fff; }
-.btn-ghost    { background: rgba(255,255,255,0.08); color: var(--text); border: 0.5px solid var(--border2); }
+.btn:active { opacity: 0.75; transform: scale(0.97); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--gold); color: #000; box-shadow: 0 4px 20px rgba(232,197,71,0.3); }
+.btn-primary:active { box-shadow: 0 2px 8px rgba(232,197,71,0.15); }
+.btn-danger   { background: var(--red); color: #fff; box-shadow: 0 4px 16px rgba(232,64,64,0.25); }
+.btn-ghost    { background: rgba(255,255,255,0.06); color: var(--text); border: 0.5px solid var(--border2); }
+.btn-ghost:hover { background: rgba(255,255,255,0.09); }
 .btn-green    { background: var(--green); color: #000; }
 .btn-blue     { background: var(--blue); color: #fff; }
-.btn-sm { padding: 9px 14px; font-size: 13px; border-radius: 10px; width: auto; }
+.btn-sm { padding: 9px 16px; font-size: 13px; border-radius: 10px; width: auto; }
 
 /* ── SECTIONS ── */
 .section { padding: 0 16px; margin-top: 16px; }
 .section-title {
-  font-size: 12px; font-weight: 600; color: var(--text3);
-  letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px;
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px;
 }
 
 /* ── LIST ITEMS ── */
@@ -251,15 +266,15 @@ body {
 /* ── TABS ── */
 .tabs {
   display: flex; background: var(--bg);
-  border-bottom: 0.5px solid var(--border);
+  border-bottom: 0.5px solid rgba(232,197,71,0.1);
   flex-shrink: 0; padding: 0 4px;
 }
 .tab {
   flex: 1; padding: 12px 6px; text-align: center; cursor: pointer;
-  font-size: 12px; font-weight: 600; color: var(--text3);
-  border-bottom: 2px solid transparent; border-top: none;
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  border-bottom: 1.5px solid transparent; border-top: none;
   border-left: none; border-right: none;
-  background: none; transition: all .15s; letter-spacing: 0.3px;
+  background: none; transition: all .15s; letter-spacing: 0.5px; text-transform: uppercase;
 }
 .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 
@@ -323,20 +338,21 @@ body {
 
 /* ── MODAL ── */
 .overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
   z-index: 100; display: flex; align-items: flex-end;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 .modal {
-  background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px;
-  border-top: 0.5px solid var(--border2);
+  background: var(--bg2); border-top-left-radius: 28px; border-top-right-radius: 28px;
+  border-top: 0.5px solid rgba(232,197,71,0.12);
   padding: 20px 20px max(24px, env(safe-area-inset-bottom));
   width: 100%; max-height: 88vh; overflow-y: auto;
-  animation: slideUp .28s cubic-bezier(.32,0,.67,0);
+  animation: slideUp .3s cubic-bezier(.32,0,.15,1);
+  box-shadow: 0 -16px 64px rgba(0,0,0,0.7);
 }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.modal-handle { width:36px; height:4px; border-radius:2px; background:var(--bg4); margin:0 auto 20px; }
-.modal-title  { font-size:18px; font-weight:700; letter-spacing:-0.3px; margin-bottom:16px; }
+.modal-handle { width:40px; height:3px; border-radius:2px; background:var(--bg4); margin:0 auto 20px; opacity:0.6; }
+.modal-title  { font-size:19px; font-weight:700; letter-spacing:-0.3px; margin-bottom:16px; font-family:var(--font-display); }
 
 /* ── ADMIN ── */
 .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -398,65 +414,107 @@ body {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   padding: 40px 24px; text-align: center;
+  animation: banReveal .5s ease;
 }
-.ban-icon { font-size: 72px; margin-bottom: 24px; }
-.ban-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: var(--red); margin-bottom: 12px; }
-.ban-sub { font-size: 15px; color: var(--text2); line-height: 1.6; max-width: 300px; margin-bottom: 36px; }
+@keyframes banReveal { from{opacity:0} to{opacity:1} }
+.ban-screen::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(232,64,64,0.12) 0%, transparent 60%);
+  pointer-events: none;
+}
+.ban-screen::after {
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,0,0.01) 2px, rgba(255,0,0,0.01) 4px);
+  pointer-events: none;
+}
+.ban-icon { font-size: 80px; margin-bottom: 24px; filter: grayscale(0.3); position: relative; z-index: 1; }
+.ban-title {
+  font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--red);
+  margin-bottom: 12px; font-family: var(--font-display); position: relative; z-index: 1;
+}
+.ban-sub {
+  font-size: 15px; color: var(--text2); line-height: 1.7; max-width: 300px;
+  margin-bottom: 40px; position: relative; z-index: 1;
+}
+.ban-reason-box {
+  background: rgba(232,64,64,0.08); border: 0.5px solid rgba(232,64,64,0.25);
+  border-radius: 14px; padding: 14px 18px; margin-bottom: 32px;
+  font-size: 13px; color: var(--text2); line-height: 1.5; max-width: 280px;
+  position: relative; z-index: 1;
+}
+.ban-support-btn {
+  background: var(--red); color: #fff;
+  border: none; border-radius: 16px;
+  padding: 16px 32px; font-family: var(--font);
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 8px 32px rgba(232,64,64,0.4);
+  position: relative; z-index: 1;
+  transition: transform .15s, box-shadow .15s;
+}
+.ban-support-btn:active { transform: scale(0.96); box-shadow: 0 4px 16px rgba(232,64,64,0.3); }
 
 /* ── STORY PREVIEW CARD (#12) ── */
 .story-card-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
 }
 .story-card {
-  width: 240px; height: 400px;
-  background: linear-gradient(160deg, #0a0a0a 0%, #1a0a2e 40%, #0d1a3a 100%);
-  border-radius: 20px; border: 0.5px solid rgba(255,214,10,0.3);
+  width: 240px; height: 420px;
+  background: linear-gradient(160deg, #060606 0%, #110820 40%, #080e20 100%);
+  border-radius: 22px; border: 0.5px solid rgba(232,197,71,0.25);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 24px 20px; gap: 12px; position: relative; overflow: hidden;
-  box-shadow: 0 0 40px rgba(255,214,10,0.08), 0 20px 60px rgba(0,0,0,0.6);
+  padding: 28px 20px; gap: 12px; position: relative; overflow: hidden;
+  box-shadow: 0 0 60px rgba(232,197,71,0.08), 0 24px 80px rgba(0,0,0,0.8);
+  cursor: default;
 }
 .story-card::before {
-  content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
-  width: 200px; height: 200px;
-  background: radial-gradient(circle, rgba(255,214,10,0.12) 0%, transparent 70%);
+  content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+  width: 260px; height: 260px;
+  background: radial-gradient(circle, rgba(232,197,71,0.1) 0%, transparent 70%);
   border-radius: 50%;
 }
 .story-card::after {
-  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
-  background: linear-gradient(to top, rgba(255,214,10,0.05), transparent);
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 100px;
+  background: linear-gradient(to top, rgba(232,197,71,0.04), transparent);
 }
-.story-logo { font-size: 13px; font-weight: 800; letter-spacing: 2px; color: var(--gold); opacity: 0.7; text-transform: uppercase; }
+.story-logo { font-size: 11px; font-weight: 800; letter-spacing: 3px; color: var(--gold); opacity: 0.8; text-transform: uppercase; }
 .story-avatar-ring {
-  width: 90px; height: 90px; border-radius: 50%;
-  border: 2.5px solid var(--gold);
-  box-shadow: 0 0 20px rgba(255,214,10,0.3);
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 28px rgba(232,197,71,0.35);
   overflow: hidden; display: flex; align-items: center; justify-content: center;
-  background: var(--bg4); font-size: 32px; font-weight: 700; color: var(--gold);
+  background: var(--bg4); font-size: 36px; font-weight: 700; color: var(--gold);
+  font-family: var(--font-display);
 }
 .story-avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
-.story-user-name { font-size: 16px; font-weight: 700; color: #fff; text-align: center; }
-.story-price-label { font-size: 11px; color: rgba(255,214,10,0.7); letter-spacing: 1px; text-transform: uppercase; }
-.story-price-value { font-size: 28px; font-weight: 800; color: var(--gold); letter-spacing: -0.5px; }
-.story-cta { font-size: 12px; color: rgba(255,255,255,0.5); text-align: center; line-height: 1.4; }
-.story-chain { font-size: 24px; }
+.story-user-name { font-size: 17px; font-weight: 700; color: #fff; text-align: center; font-family: var(--font-display); }
+.story-price-label { font-size: 10px; color: rgba(232,197,71,0.65); letter-spacing: 2px; text-transform: uppercase; }
+.story-price-value { font-size: 32px; font-weight: 700; color: var(--gold); letter-spacing: -1px; font-family: var(--font-display); line-height: 1; }
+.story-cta { font-size: 11px; color: rgba(255,255,255,0.45); text-align: center; line-height: 1.5; }
+.story-chain { font-size: 26px; }
 
-/* ── PREMIUM DESIGN ENHANCEMENTS (#11) ── */
-.hero {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,255,255,0.06);
+/* ── PREMIUM DESIGN ENHANCEMENTS ── */
+.rank-item:first-child { background: linear-gradient(90deg, rgba(232,197,71,0.04), transparent); }
+.rank-val { font-family: var(--font-display); }
+.player-card { border-radius: var(--r); }
+.pc-name { font-weight: 600; }
+.stories-card {
+  margin: 12px 16px;
+  background: linear-gradient(135deg, #111111, #181818);
+  border: 0.5px solid rgba(232,197,71,0.2);
+  border-radius: 22px; padding: 22px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 0.5px 0 rgba(255,255,255,0.05);
 }
-.card {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+.stories-card::before {
+  content:''; position:absolute; bottom:-30px; right:-30px;
+  width:130px; height:130px;
+  background: radial-gradient(circle, rgba(232,197,71,0.08) 0%, transparent 70%);
+  border-radius:50%;
 }
-.btn-primary {
-  box-shadow: 0 4px 16px rgba(255,214,10,0.25);
-  letter-spacing: 0.1px;
-}
-.btn-primary:active { box-shadow: none; }
-.shop-item {
-  transition: border-color .15s;
-}
-.shop-item:hover { border-color: rgba(255,214,10,0.3); }
-.rank-item:first-child { background: linear-gradient(90deg, rgba(255,214,10,0.04), transparent); }
+.stories-ico { font-size:32px; margin-bottom:8px; }
+.stories-title { font-size:17px; font-weight:700; font-family:var(--font-display); }
+.stories-sub { font-size:13px; color:var(--text3); margin-top:4px; line-height:1.5; }
+.stories-timer { font-size:24px; font-weight:700; color:var(--gold); margin-top:8px; font-family:var(--font-display); letter-spacing:-0.5px; }
 
 /* ── PROTECTION BADGE ── */
 .protection-badge {
@@ -501,25 +559,6 @@ body {
 .job-tier-info { flex:1; }
 .job-tier-name { font-size:13px; font-weight:500; }
 .job-tier-rc   { font-size:11px; color:var(--text3); }
-
-/* ── STORIES ── */
-.stories-card {
-  margin: 12px 16px;
-  background: linear-gradient(135deg, #1c1c1e, #2c2c2e);
-  border: 0.5px solid rgba(255,214,10,0.25);
-  border-radius: 20px; padding: 20px;
-  position: relative; overflow: hidden;
-}
-.stories-card::before {
-  content:''; position:absolute; bottom:-30px; right:-30px;
-  width:120px; height:120px;
-  background: radial-gradient(circle, rgba(255,214,10,0.1) 0%, transparent 70%);
-  border-radius:50%;
-}
-.stories-ico { font-size:32px; margin-bottom:8px; }
-.stories-title { font-size:16px; font-weight:700; }
-.stories-sub { font-size:13px; color:var(--text3); margin-top:4px; }
-.stories-timer { font-size:22px; font-weight:700; color:var(--gold); margin-top:8px; }
 
 /* ── PROFILE VIEW (other user) ── */
 .back-btn {
@@ -700,6 +739,40 @@ function JobProbsModal({ jobs, vipLevel, onClose, onSend, slaveName }) {
   );
 }
 
+// ── ADMIN GHOST TOGGLE (Point 2) ──────────────────────────────────────────────
+function AdminGhostToggle({ userId, initialHidden, onToast }) {
+  const [hidden, setHidden] = useState(initialHidden || false);
+  const [loading, setLoading] = useState(false);
+
+  async function toggle() {
+    setLoading(true);
+    try {
+      const newVal = !hidden;
+      await post('/api/admin/toggle_hidden', { hidden: newVal });
+      setHidden(newVal);
+      onToast(newVal ? '👻 Вы скрыты из рейтингов и поиска' : '👁 Вы снова видимы');
+    } catch(e) {
+      onToast('❌ ' + e.message);
+    }
+    setLoading(false);
+  }
+
+  return (
+    <button onClick={toggle} disabled={loading}
+      style={{
+        background: hidden ? 'rgba(232,197,71,0.15)' : 'rgba(255,255,255,0.06)',
+        border: `0.5px solid ${hidden ? 'rgba(232,197,71,0.4)' : 'rgba(255,255,255,0.1)'}`,
+        borderRadius: 12, padding: '8px 16px', cursor: 'pointer',
+        color: hidden ? 'var(--gold)' : 'var(--text3)',
+        fontSize: 13, fontWeight: 600, fontFamily: 'var(--font)',
+        transition: 'all .2s', minWidth: 80, textAlign: 'center',
+        opacity: loading ? 0.5 : 1,
+      }}>
+      {loading ? '...' : hidden ? '🟡 Скрыт' : '⚫ Виден'}
+    </button>
+  );
+}
+
 // ── PROFILE SCREEN ──────────────────────────────────────────────────────────
 function ProfileScreen({ user, onRefresh, onViewProfile }) {
   const [toast, showToast] = useToast();
@@ -766,14 +839,17 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
     }
   }
 
-  // #12: open stories preview — fetch share data then show card
+  // #5: open stories preview — show immediately with local data, fetch in background
   async function openStoriesPreview() {
     if (user.story_cooldown_until && new Date(user.story_cooldown_until) > new Date()) return;
+    // Show immediately with current user data
+    setStoriesShareData({ photo_url: user.photo_url, name: user.first_name || user.username, price: user.price });
+    setShowStoriesPreview(true);
+    // Fetch updated data in background
     try {
       const data = await get('/api/stories/share_data');
       setStoriesShareData(data);
-      setShowStoriesPreview(true);
-    } catch { setShowStoriesPreview(true); }
+    } catch {}
   }
 
   const workingSlave = sendWorkSlave
@@ -858,19 +934,34 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
           </button>
         </div>
 
-        {/* #12: Stories with preview card */}
+        {/* Point 2: Admin Ghost Mode */}
+        {user.is_admin && (
+          <div className="section">
+            <div className="card" style={{padding:'14px 16px'}}>
+              <div className="row-sb">
+                <div>
+                  <div className="fw6" style={{fontSize:14}}>👻 Режим призрака</div>
+                  <div className="text-muted f12 mt4">Скрыть себя из рейтингов и поиска</div>
+                </div>
+                <AdminGhostToggle userId={user.id} initialHidden={user.admin_hidden} onToast={showToast}/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stories with instant preview card */}
         <div className="stories-card">
           <div className="stories-ico">📸</div>
           <div className="stories-title">Stories Бонус</div>
-          <div className="stories-sub">Опубликуйте Story о нас — получите +250 RC и случайный предмет</div>
+          <div className="stories-sub">Опубликуй Story с нашей карточкой — получи +250 RC</div>
           {user.story_cooldown_until && storiesCountdown > 0 ? (
             <>
               <div className="stories-timer">{fmtCountdown(storiesCountdown)}</div>
               <div className="f12 text-muted mt4">до следующей возможности</div>
             </>
           ) : (
-            <button className="btn btn-primary mt12" style={{borderRadius:12}} onClick={openStoriesPreview}>
-              Получить бонус ✨
+            <button className="btn btn-primary mt12" style={{borderRadius:14}} onClick={openStoriesPreview}>
+              ✨ Получить карточку
             </button>
           )}
         </div>
@@ -1817,6 +1908,20 @@ function AdminScreen({ user }) {
     } catch(e) { showToast('❌ '+e.message); }
   }
 
+  // Point 1: Grant cosmetics to user
+  async function grantCosmetic() {
+    if (!cosmeticIdent.trim()) return;
+    try {
+      await post('/api/admin/users/grant_cosmetic', {
+        identifier: cosmeticIdent.trim(),
+        field: cosmeticField,
+        value: cosmeticValue,
+      });
+      showToast('✅ Косметика выдана!');
+      setCosmeticIdent(''); setCosmeticValue('');
+    } catch(e) { showToast('❌ '+e.message); }
+  }
+
   return (
     <div className="screen">
       {toast && <div className="toast">{toast}</div>}
@@ -1860,8 +1965,65 @@ function AdminScreen({ user }) {
 
         {/* USERS */}
         {tab==='users' && (
-          <div className="section">
-            <div className="row" style={{marginBottom:12}}>
+          <div className="section gap12">
+            {/* Point 1: Grant Cosmetics Section */}
+            <div className="card" style={{background:'rgba(232,197,71,0.04)',border:'0.5px solid rgba(232,197,71,0.15)'}}>
+              <div className="section-title" style={{color:'var(--gold)'}}>🎨 Выдать косметику пользователю</div>
+              <div className="gap8">
+                <input className="input" placeholder="Ник / @username / ID"
+                  value={cosmeticIdent} onChange={e => setCosmeticIdent(e.target.value)}/>
+                <div className="row" style={{gap:6}}>
+                  <select className="input" style={{flex:1,padding:'11px 12px',fontSize:13}}
+                    value={cosmeticField} onChange={e => { setCosmeticField(e.target.value); setCosmeticValue(''); }}>
+                    <option value="name_color">🎨 Цвет ника</option>
+                    <option value="avatar_frame">🖼 Рамка аватара</option>
+                    <option value="emoji_status">😀 Эмодзи</option>
+                  </select>
+                </div>
+                {cosmeticField === 'name_color' && (
+                  <div className="row" style={{gap:6,flexWrap:'wrap'}}>
+                    {[['default','Стандарт','var(--text)'],['ruby','Рубин','var(--red)'],['gold','Золото','var(--gold)'],['neon','Неон','var(--green)'],['blue','Синий','var(--blue)'],['purple','Фиолет','var(--purple)']].map(([v,l,c]) => (
+                      <button key={v} onClick={() => setCosmeticValue(v)}
+                        style={{background: cosmeticValue===v ? c : 'rgba(255,255,255,0.06)', color: cosmeticValue===v ? '#000' : c,
+                          border:`0.5px solid ${c}`, borderRadius:10, padding:'7px 12px', fontSize:12, fontWeight:600,
+                          cursor:'pointer', fontFamily:'var(--font)', opacity: cosmeticValue===v ? 1 : 0.7}}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {cosmeticField === 'avatar_frame' && (
+                  <div className="row" style={{gap:6,flexWrap:'wrap'}}>
+                    {[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l]) => (
+                      <button key={v} onClick={() => setCosmeticValue(v)}
+                        style={{background: cosmeticValue===v ? 'var(--gold)' : 'rgba(255,255,255,0.06)', color: cosmeticValue===v ? '#000' : 'var(--text2)',
+                          border:'0.5px solid var(--border2)', borderRadius:10, padding:'7px 12px', fontSize:12, fontWeight:600,
+                          cursor:'pointer', fontFamily:'var(--font)'}}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {cosmeticField === 'emoji_status' && (
+                  <div className="row" style={{gap:8,flexWrap:'wrap'}}>
+                    {['','💎','👑','🔥','⚡','🌟','💀','🏆','🎖','🦁','🐺','🌙'].map((e,i) => (
+                      <button key={i} onClick={() => setCosmeticValue(e)}
+                        style={{background: cosmeticValue===e ? 'var(--gold)' : 'rgba(255,255,255,0.06)',
+                          border:'0.5px solid var(--border2)', borderRadius:10, padding:'8px 12px', fontSize:16,
+                          cursor:'pointer', outline: cosmeticValue===e ? '2px solid var(--gold)' : 'none'}}>
+                        {e || '✕'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button className="btn btn-primary" onClick={grantCosmetic} disabled={!cosmeticIdent.trim() || !cosmeticValue && cosmeticField!=='emoji_status'}>
+                  🎁 Выдать
+                </button>
+              </div>
+            </div>
+
+            <div className="divider"/>
+            <div className="row" style={{marginBottom:4}}>
               <input className="input" placeholder="Поиск по нику/ID" value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
                 onKeyDown={e => e.key==='Enter' && loadUsers(searchQ)} style={{flex:1}}/>
@@ -2058,6 +2220,7 @@ function App() {
   const [tab, setTab]     = useState('profile');
   const [error, setError] = useState(null);
   const [viewingUid, setViewingUid] = useState(null);  // FIX #4
+  const [banSupportMode, setBanSupportMode] = useState(false); // Point 3: banned user goes to support
   const [toast, showToast] = useToast();
 
   async function init() {
@@ -2116,6 +2279,41 @@ function App() {
     </div>
   );
 
+  // Point 3: BAN SCREEN — full screen block with support-only chat
+  if (user.is_banned) {
+    if (banSupportMode) {
+      return (
+        <div className="app">
+          <SupportScreen user={user}/>
+          <nav className="nav">
+            <button className="nav-btn active" style={{color:'var(--red)'}}>
+              <span className="ico">💬</span>
+              Поддержка
+            </button>
+          </nav>
+        </div>
+      );
+    }
+    return (
+      <div className="ban-screen">
+        <div className="ban-icon">🚫</div>
+        <div className="ban-title">Доступ ограничен</div>
+        <div className="ban-sub">
+          Ваш аккаунт заблокирован администрацией. Если вы считаете это ошибкой — обратитесь в поддержку.
+        </div>
+        {user.ban_reason && (
+          <div className="ban-reason-box">
+            <div style={{fontSize:11,color:'var(--text3)',marginBottom:4,letterSpacing:'1px',textTransform:'uppercase'}}>Причина</div>
+            {user.ban_reason}
+          </div>
+        )}
+        <button className="ban-support-btn" onClick={() => setBanSupportMode(true)}>
+          💬 Написать в поддержку
+        </button>
+      </div>
+    );
+  }
+
   // FIX #4: viewing another user's profile
   if (viewingUid && viewingUid !== user.id) {
     return (
@@ -2159,7 +2357,7 @@ function App() {
       {tab==='top'     && <TopScreen onViewProfile={handleViewProfile}/>}
       {tab==='shop'    && <ShopScreen user={user} onRefresh={refreshUser}/>}
       {tab==='support' && <SupportScreen user={user}/>}
-      {tab==='admin'   && user.is_admin && <AdminScreen/>}
+      {tab==='admin'   && user.is_admin && <AdminScreen user={user}/>}
 
       <nav className="nav">
         {tabs.map(t => (
