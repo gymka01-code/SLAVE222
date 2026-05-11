@@ -480,7 +480,8 @@ async def _full_profile(uid: int) -> dict:
     
     slaves = []
     for s in slaves_raw:
-        job_finishes_at = (s['job_assigned_at'] + timedelta(hours=2)).isoformat() if s['job_assigned_at'] else None
+        # Добавлено + "Z" для правильного часового пояса на фронтенде
+        job_finishes_at = (s['job_assigned_at'] + timedelta(hours=2)).isoformat() + "Z" if s['job_assigned_at'] else None
         slaves.append({
             "id": s['id'], "username": s['username'], "first_name": s['first_name'], 
             "photo_url": s['photo_url'], "custom_name": s['custom_name'], 
@@ -489,7 +490,7 @@ async def _full_profile(uid: int) -> dict:
             "min_yield_perc": float(s['min_yield'] or 0) * 100, 
             "max_yield_perc": float(s['max_yield'] or 0) * 100, 
             "job_finishes_at": job_finishes_at,
-            "purchase_protection_until": s['purchase_protection_until'].isoformat() if s['purchase_protection_until'] else None
+            "purchase_protection_until": s['purchase_protection_until'].isoformat() + "Z" if s['purchase_protection_until'] else None
         })
         
     await db.execute("UPDATE users SET slaves_count=$1 WHERE id=$2", len(slaves), uid)
@@ -502,7 +503,8 @@ async def _full_profile(uid: int) -> dict:
 
     last_story = await db.fetchrow("SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", uid)
     story_cooldown_until = None
-    if last_story and (last_story['created_at'] + timedelta(hours=24)) > now: story_cooldown_until = (last_story['created_at'] + timedelta(hours=24)).isoformat()
+    if last_story and (last_story['created_at'] + timedelta(hours=24)) > now: 
+        story_cooldown_until = (last_story['created_at'] + timedelta(hours=24)).isoformat() + "Z"
     
     # Инфа о текущем событии
     ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
@@ -628,10 +630,10 @@ async def send_to_work(req: SendWorkReq, user: dict = Depends(get_current_user))
 @app.get("/api/jobs")
 async def get_jobs(_: dict = Depends(get_current_user)): 
     jobs = await get_jobs_list()
-    # Конвертируем yield для фронтенда (3% вместо 0.03)
+    # Конвертируем yield для фронтенда и округляем до 1 знака после запятой
     for j in jobs:
-        j['min_yield'] = float(j['min_yield']) * 100
-        j['max_yield'] = float(j['max_yield']) * 100
+        j['min_yield'] = round(float(j['min_yield']) * 100, 1)
+        j['max_yield'] = round(float(j['max_yield']) * 100, 1)
     return jobs
 
 @app.post("/api/selfbuy")
