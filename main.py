@@ -181,18 +181,18 @@ ON CONFLICT DO NOTHING;
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 def verify_webapp(init_data: str) -> Optional[dict]:
-    """Verify Telegram WebApp initData signature."""
     try:
         from urllib.parse import unquote
         parsed = dict(x.split("=", 1) for x in init_data.split("&") if "=" in x)
         check_hash = parsed.pop("hash", "")
         data_check = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
-        secret  = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        secret   = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
         computed = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+        print(f"[auth] hash_ok={hmac.compare_digest(computed, check_hash)} check_hash={check_hash[:10]}... computed={computed[:10]}...")
         if hmac.compare_digest(computed, check_hash):
             return json.loads(unquote(parsed.get("user", "{}")))
     except Exception as e:
-        print(f"[auth] verify error: {e}")
+        print(f"[auth] exception: {e}")
     return None
 
 async def get_jobs_list() -> list:
