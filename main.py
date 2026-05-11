@@ -23,11 +23,11 @@ from pydantic import BaseModel
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
-BOT_TOKEN    = os.getenv("BOT_TOKEN",    "YOUR_BOT_TOKEN")
+BOT_TOKEN    = os.getenv("BOT_TOKEN",    "8606742629:AAE0l0AylYWg7Rjgk167GBkchFjBEtf2JFw")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://rabstvo:rabstvo@localhost/rabstvo")
 REDIS_URL    = os.getenv("REDIS_URL",    "redis://localhost:6379")
-WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://yourdomain.com")
-ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "000000000").split(",")))
+WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://slave222-production.up.railway.app")
+ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "7502434760").split(",")))
 SEASON_PASS  = "Niva01102007"
 
 # ─── GLOBALS ──────────────────────────────────────────────────────────────────
