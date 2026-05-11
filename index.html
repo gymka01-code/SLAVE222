@@ -377,6 +377,94 @@ body {
 .clr-gold { color:#FFD60A; }
 .clr-neon { color:#30D158; }
 
+/* ── ADMIN GRADIENT NAME (#9) ── */
+.admin-gradient-name {
+  background: linear-gradient(90deg, #FFD60A 0%, #FF9F0A 16%, #FF6B6B 33%, #BF5AF2 50%, #0A84FF 66%, #30D158 83%, #FFD60A 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: adminShimmer 2.5s linear infinite;
+  font-weight: 700;
+}
+@keyframes adminShimmer {
+  to { background-position: 200% center; }
+}
+
+/* ── BAN SCREEN (#10) ── */
+.ban-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 24px; text-align: center;
+}
+.ban-icon { font-size: 72px; margin-bottom: 24px; }
+.ban-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: var(--red); margin-bottom: 12px; }
+.ban-sub { font-size: 15px; color: var(--text2); line-height: 1.6; max-width: 300px; margin-bottom: 36px; }
+
+/* ── STORY PREVIEW CARD (#12) ── */
+.story-card-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.story-card {
+  width: 240px; height: 400px;
+  background: linear-gradient(160deg, #0a0a0a 0%, #1a0a2e 40%, #0d1a3a 100%);
+  border-radius: 20px; border: 0.5px solid rgba(255,214,10,0.3);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px 20px; gap: 12px; position: relative; overflow: hidden;
+  box-shadow: 0 0 40px rgba(255,214,10,0.08), 0 20px 60px rgba(0,0,0,0.6);
+}
+.story-card::before {
+  content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(255,214,10,0.12) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.story-card::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
+  background: linear-gradient(to top, rgba(255,214,10,0.05), transparent);
+}
+.story-logo { font-size: 13px; font-weight: 800; letter-spacing: 2px; color: var(--gold); opacity: 0.7; text-transform: uppercase; }
+.story-avatar-ring {
+  width: 90px; height: 90px; border-radius: 50%;
+  border: 2.5px solid var(--gold);
+  box-shadow: 0 0 20px rgba(255,214,10,0.3);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  background: var(--bg4); font-size: 32px; font-weight: 700; color: var(--gold);
+}
+.story-avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
+.story-user-name { font-size: 16px; font-weight: 700; color: #fff; text-align: center; }
+.story-price-label { font-size: 11px; color: rgba(255,214,10,0.7); letter-spacing: 1px; text-transform: uppercase; }
+.story-price-value { font-size: 28px; font-weight: 800; color: var(--gold); letter-spacing: -0.5px; }
+.story-cta { font-size: 12px; color: rgba(255,255,255,0.5); text-align: center; line-height: 1.4; }
+.story-chain { font-size: 24px; }
+
+/* ── PREMIUM DESIGN ENHANCEMENTS (#11) ── */
+.hero {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,255,255,0.06);
+}
+.card {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.btn-primary {
+  box-shadow: 0 4px 16px rgba(255,214,10,0.25);
+  letter-spacing: 0.1px;
+}
+.btn-primary:active { box-shadow: none; }
+.shop-item {
+  transition: border-color .15s;
+}
+.shop-item:hover { border-color: rgba(255,214,10,0.3); }
+.rank-item:first-child { background: linear-gradient(90deg, rgba(255,214,10,0.04), transparent); }
+
+/* ── PROTECTION BADGE ── */
+.protection-badge {
+  font-size: 10px; font-weight: 600; color: var(--blue);
+  background: rgba(10,132,255,0.12); border: 0.5px solid rgba(10,132,255,0.3);
+  border-radius: 6px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px;
+}
+
 /* ── LOADING ── */
 .spinner {
   width:32px; height:32px; border:2.5px solid var(--bg4);
@@ -496,11 +584,23 @@ function Avatar({ user, size=44 }) {
 
 // ── PLAYER NAME ──
 function PlayerName({ user, style }) {
+  const isAdmin = user.is_admin || user.is_admin_flag;
   const clr   = user.name_color && user.name_color !== 'default' ? `clr-${user.name_color}` : '';
-  const emoji = user.emoji_status ? user.emoji_status + ' ' : '';
+  const emoji = isAdmin ? '⚜️ ' : (user.emoji_status ? user.emoji_status + ' ' : '');
   const name  = user.custom_name
     ? `${user.custom_name} (${user.first_name || user.username || `#${user.id}`})`
     : (user.first_name || user.username || `#${user.id}`);
+
+  if (isAdmin) {
+    return (
+      <span className="admin-gradient-name" style={style}>
+        {emoji}{name}
+        {user.vip_level >= 3 && ' 👑'}
+        {user.vip_level === 2 && ' 🥈'}
+        {user.vip_level === 1 && ' 🥉'}
+      </span>
+    );
+  }
   return (
     <span className={clr} style={style}>
       {emoji}{name}
@@ -608,6 +708,8 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
   const [loading, setLoading] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [sendWorkSlave, setSendWorkSlave] = useState(null);
+  const [showStoriesPreview, setShowStoriesPreview] = useState(false);
+  const [storiesShareData, setStoriesShareData] = useState(null);
   const storiesCountdown = useCountdown(user.story_cooldown_until);
 
   // FIX #12: use actual bot username
@@ -652,6 +754,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
     try {
       const r = await post('/api/stories/claim');
       showToast('📸 ' + r.msg);
+      setShowStoriesPreview(false);
       onRefresh();
     } catch(e) {
       const msg = e.message;
@@ -661,6 +764,16 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
         showToast('❌ ' + msg);
       }
     }
+  }
+
+  // #12: open stories preview — fetch share data then show card
+  async function openStoriesPreview() {
+    if (user.story_cooldown_until && new Date(user.story_cooldown_until) > new Date()) return;
+    try {
+      const data = await get('/api/stories/share_data');
+      setStoriesShareData(data);
+      setShowStoriesPreview(true);
+    } catch { setShowStoriesPreview(true); }
   }
 
   const workingSlave = sendWorkSlave
@@ -673,7 +786,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
 
       <div className="hdr">
         <div className="hdr-title">⛓ Рабство</div>
-        <div className="hdr-sub">Сезон · Социальная стратегия</div>
+        <div className="hdr-sub">Сезон 1 · Социальная стратегия</div>
       </div>
       <div className="content">
 
@@ -711,6 +824,12 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
               <div className="stat-val">{user.slaves_count}</div>
               <div className="stat-lbl">⛓ Рабов</div>
             </div>
+            {user.total_income_per_hour > 0 && (
+              <div className="stat" style={{gridColumn:'1/-1'}}>
+                <div className="stat-val text-green">+{user.total_income_per_hour.toFixed(1)}</div>
+                <div className="stat-lbl">📈 RC/ч от рабов</div>
+              </div>
+            )}
           </div>
           {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (
             <div className="effects-row">
@@ -739,7 +858,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
           </button>
         </div>
 
-        {/* FIX #11: Stories with timer */}
+        {/* #12: Stories with preview card */}
         <div className="stories-card">
           <div className="stories-ico">📸</div>
           <div className="stories-title">Stories Бонус</div>
@@ -750,49 +869,56 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
               <div className="f12 text-muted mt4">до следующей возможности</div>
             </>
           ) : (
-            <button className="btn btn-primary mt12" style={{borderRadius:12}} onClick={claimStories}>
+            <button className="btn btn-primary mt12" style={{borderRadius:12}} onClick={openStoriesPreview}>
               Получить бонус ✨
             </button>
           )}
         </div>
 
-        {/* FIX #4: Slaves list with profile click + send to work button */}
         {user.slaves.length > 0 && (
           <div className="section">
             <div className="section-title">Мои рабы ({user.slaves_count})</div>
             <div className="card">
-              {user.slaves.map(s => (
-                <div className="list-item" key={s.id}>
-                  <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
-                    <Avatar user={s} size={44}/>
-                  </div>
-                  <div className="li-info" style={{cursor:'pointer'}} onClick={() => onViewProfile(s.id)}>
-                    <div className="li-name">
-                      {s.custom_name
-                        ? <><span className="text-gold">{s.custom_name}</span> <span className="text-muted f12">({s.first_name||s.username})</span></>
-                        : (s.first_name || s.username || `#${s.id}`)}
+              {user.slaves.map(s => {
+                const protectedUntil = s.purchase_protection_until ? new Date(s.purchase_protection_until) : null;
+                const isProtected = protectedUntil && protectedUntil > new Date();
+                return (
+                  <div className="list-item" key={s.id}>
+                    <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
+                      <Avatar user={s} size={44}/>
                     </div>
-                    <div className="li-sub">
-                      {s.working ? `${s.job_emoji} ${s.job_title}` : '😴 Не работает'}
-                      {' · '}{s.price.toFixed(0)} RC
+                    <div className="li-info" style={{cursor:'pointer'}} onClick={() => onViewProfile(s.id)}>
+                      <div className="li-name">
+                        {s.custom_name
+                          ? <><span className="text-gold">{s.custom_name}</span> <span className="text-muted f12">({s.first_name||s.username})</span></>
+                          : (s.first_name || s.username || `#${s.id}`)}
+                      </div>
+                      <div className="li-sub">
+                        {s.working
+                          ? <><span>{s.job_emoji} {s.job_title}</span><span className="text-green"> · +{s.income_per_hour_effective.toFixed(1)} RC/ч</span></>
+                          : <span>😴 Не работает</span>}
+                      </div>
+                      <div className="row mt4" style={{gap:6}}>
+                        <span className="f11 text-muted">{s.price.toFixed(0)} RC</span>
+                        {isProtected && <span className="protection-badge">🔒 защита</span>}
+                      </div>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:5,alignItems:'flex-end'}}>
+                      <button className="btn btn-primary btn-sm"
+                        onClick={() => setSendWorkSlave(s.id)}>
+                        💼
+                      </button>
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>
+                        ✏️
+                      </button>
                     </div>
                   </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:5,alignItems:'flex-end'}}>
-                    {/* FIX #2: manual send to work */}
-                    <button className="btn btn-primary btn-sm"
-                      onClick={() => setSendWorkSlave(s.id)}>
-                      💼
-                    </button>
-                    <button className="btn btn-ghost btn-sm"
-                      onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>
-                      ✏️
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="f12 text-muted mt8">
-              💡 Нажмите 💼 чтобы отправить раба на работу. Нажмите на имя чтобы открыть профиль.
+              💡 Нажмите 💼 чтобы отправить раба на работу. Зелёный доход — RC/ч с этого раба.
             </div>
           </div>
         )}
@@ -807,6 +933,50 @@ function ProfileScreen({ user, onRefresh, onViewProfile }) {
           onClose={() => setSendWorkSlave(null)}
           onSend={() => doSendWork(sendWorkSlave)}
         />
+      )}
+
+      {/* #12: Stories Preview Modal */}
+      {showStoriesPreview && (
+        <div className="overlay" onClick={() => setShowStoriesPreview(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title" style={{textAlign:'center'}}>📸 Ваша Story</div>
+            <div className="f12 text-muted" style={{textAlign:'center',marginBottom:20}}>
+              Скриншотьте карточку, опубликуйте Story и получите бонус
+            </div>
+            <div className="story-card-wrap">
+              <div className="story-card">
+                <div className="story-logo">⛓ РАБСТВО · СЕЗОН 1</div>
+                <div className="story-avatar-ring">
+                  {storiesShareData?.photo_url
+                    ? <img src={storiesShareData.photo_url} alt=""/>
+                    : (user.first_name?.[0] || '?')}
+                </div>
+                <div className="story-user-name">{storiesShareData?.name || user.first_name || user.username}</div>
+                <div className="story-price-label">моя стоимость</div>
+                <div className="story-price-value">
+                  {(storiesShareData?.price || user.price).toFixed(0)} RC
+                </div>
+                <div className="story-chain">⛓</div>
+                <div className="story-cta">Купи меня в игре<br/>РАБСТВО в Telegram</div>
+              </div>
+            </div>
+            <div className="gap8 mt16">
+              <button className="btn btn-ghost"
+                onClick={() => {
+                  const txt = storiesShareData?.share_text || `💰 Моя цена в РАБСТВО: ${user.price.toFixed(0)} RC!`;
+                  navigator.clipboard?.writeText(txt);
+                  showToast('📋 Текст скопирован!');
+                }}>
+                📋 Скопировать текст для подписи
+              </button>
+              <button className="btn btn-primary" onClick={claimStories}>
+                ✅ Подать заявку на бонус (+250 RC)
+              </button>
+              <button className="btn btn-ghost" onClick={() => setShowStoriesPreview(false)}>Отмена</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Rename modal */}
@@ -1044,18 +1214,24 @@ function SearchScreen({ user, onBuy, onViewProfile }) {
                 <div onClick={() => onViewProfile(p.id)} style={{cursor:'pointer'}}>
                   <Avatar user={p} size={44}/>
                 </div>
-                <div className="pc-meta" onClick={() => setSelected(p)} style={{cursor:'pointer'}}>
+                <div className="pc-meta" onClick={() => p.owner_id !== user.id && setSelected(p)} style={{cursor:'pointer'}}>
                   <div className="pc-name">
-                    {p.custom_name
-                      ? <><span className="text-gold">{p.custom_name}</span> <span className="text-muted f12">({p.first_name||p.username})</span></>
-                      : (p.first_name || p.username || `#${p.id}`)}
+                    {p.is_admin_flag
+                      ? <span className="admin-gradient-name">⚜️ {p.custom_name || p.first_name || p.username || `#${p.id}`}</span>
+                      : (p.custom_name
+                        ? <><span className="text-gold">{p.custom_name}</span> <span className="text-muted f12">({p.first_name||p.username})</span></>
+                        : (p.first_name || p.username || `#${p.id}`))
+                    }
                     {p.vip_level>=3&&' 👑'}{p.vip_level===2&&' 🥈'}{p.vip_level===1&&' 🥉'}
                   </div>
                   <div className="pc-sub">@{p.username||p.id}</div>
                 </div>
                 <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
                   <div className="pc-price">{parseFloat(p.current_price).toFixed(0)} RC</div>
-                  <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>
+                  {p.owner_id === user.id
+                    ? <span className="f11 fw6" style={{padding:'5px 10px',background:'var(--bg4)',borderRadius:8,color:'var(--text3)'}}>⛓ Ваш</span>
+                    : <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>
+                  }
                 </div>
               </div>
             ))}
@@ -1233,6 +1409,24 @@ function ShopScreen({ user, onRefresh }) {
     setLoading(l => ({...l, [key]: false}));
   }
 
+  // #6: buy with in-game RC
+  async function buyItemRC(itemType, cosmeticId=null) {
+    const key = 'rc_' + itemType + (cosmeticId||'');
+    setLoading(l => ({...l, [key]: true}));
+    try {
+      const body = { item_type: itemType };
+      if (cosmeticId) body.cosmetic_id = cosmeticId;
+      if (itemType === 'chains') {
+        if (!selectedSlave) { showToast('Выберите раба для оков'); setLoading(l => ({...l, [key]: false})); return; }
+        body.target_slave_id = parseInt(selectedSlave);
+      }
+      const r = await post('/api/shop/buy_rc', body);
+      showToast(`✅ Куплено за ${r.spent_rc} RC!`);
+      onRefresh(); load();
+    } catch(e) { showToast('❌ ' + e.message); }
+    setLoading(l => ({...l, [key]: false}));
+  }
+
   async function usePromo() {
     if (!promoCode.trim()) return;
     try {
@@ -1284,17 +1478,29 @@ function ShopScreen({ user, onRefresh }) {
                   <div className="f12" style={{fontSize:28}}>{item.name.split(' ')[0]}</div>
                 </div>
                 <div className="si-foot">
-                  <div className="si-price">{item.price_stars} ⭐</div>
-                  <button className="btn btn-primary btn-sm"
-                    disabled={loading[item.id]}
-                    onClick={() => buyItem(item.id)}>
-                    {loading[item.id] ? '...' : 'Купить'}
-                  </button>
+                  <div>
+                    <div className="si-price">{item.price_stars} ⭐</div>
+                    {item.price_rc > 0 && <div className="f11 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}
+                  </div>
+                  <div style={{display:'flex',gap:6}}>
+                    {item.price_rc > 0 && (
+                      <button className="btn btn-ghost btn-sm"
+                        disabled={loading['rc_'+item.id]}
+                        onClick={() => buyItemRC(item.id)}>
+                        {loading['rc_'+item.id] ? '...' : `RC`}
+                      </button>
+                    )}
+                    <button className="btn btn-primary btn-sm"
+                      disabled={loading[item.id]}
+                      onClick={() => buyItem(item.id)}>
+                      {loading[item.id] ? '...' : '⭐'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
 
-            {/* FIX #7: chains are separate for slaves */}
+            {/* chains are separate for slaves */}
             {user.slaves.length > 0 && (
               <>
                 <div className="section-title mt20">Для рабов</div>
@@ -1317,12 +1523,24 @@ function ShopScreen({ user, onRefresh }) {
                       <div style={{fontSize:28}}>{item.name.split(' ')[0]}</div>
                     </div>
                     <div className="si-foot">
-                      <div className="si-price">{item.price_stars} ⭐</div>
-                      <button className="btn btn-primary btn-sm"
-                        disabled={loading['chains']}
-                        onClick={() => buyItem('chains')}>
-                        {loading['chains'] ? '...' : 'Купить'}
-                      </button>
+                      <div>
+                        <div className="si-price">{item.price_stars} ⭐</div>
+                        {item.price_rc > 0 && <div className="f11 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}
+                      </div>
+                      <div style={{display:'flex',gap:6}}>
+                        {item.price_rc > 0 && (
+                          <button className="btn btn-ghost btn-sm"
+                            disabled={loading['rc_chains']}
+                            onClick={() => buyItemRC('chains')}>
+                            {loading['rc_chains'] ? '...' : 'RC'}
+                          </button>
+                        )}
+                        <button className="btn btn-primary btn-sm"
+                          disabled={loading['chains']}
+                          onClick={() => buyItem('chains')}>
+                          {loading['chains'] ? '...' : '⭐'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1339,20 +1557,22 @@ function ShopScreen({ user, onRefresh }) {
               🎨 Косметика сохраняется между сезонами и не теряется при сбросе.
             </div>
 
-            {/* FIX #8: fewer cosmetics, clearly labeled */}
+            {/* cosmetics with both ⭐ and RC options */}
             <div className="section-title">🎨 Цвет имени</div>
             <div className="f12 text-muted" style={{marginBottom:10}}>Меняет цвет вашего имени везде в игре</div>
             <div className="gap8" style={{marginBottom:20}}>
               {cosmByType.colors?.map(c => (
-                <div className="shop-item" key={c.id} style={{flexDirection:'row',alignItems:'center'}}>
-                  <div className={`si-name ${c.css_class}`} style={{flex:1}}>
-                    Aa — {c.name}
+                <div className="shop-item" key={c.id}>
+                  <div className="row-sb">
+                    <div className={`si-name ${c.css_class}`}>Aa — {c.name}</div>
+                    {c.owned && <span className="f12 text-green fw6">✓ Есть</span>}
                   </div>
-                  <div className="si-price">{c.price_stars}⭐</div>
-                  {c.owned
-                    ? <span className="f12 text-green fw6" style={{marginLeft:10}}>✓ Есть</span>
-                    : <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={() => buyItem('cosmetic',c.id)}>Купить</button>
-                  }
+                  {!c.owned && (
+                    <div className="row" style={{gap:8}}>
+                      {c.price_rc > 0 && <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => buyItemRC('cosmetic',c.id)}>{c.price_rc.toLocaleString()} RC</button>}
+                      <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={() => buyItem('cosmetic',c.id)}>{c.price_stars} ⭐</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1361,15 +1581,17 @@ function ShopScreen({ user, onRefresh }) {
             <div className="f12 text-muted" style={{marginBottom:10}}>Отображается вокруг вашего фото</div>
             <div className="gap8" style={{marginBottom:20}}>
               {cosmByType.frames?.map(c => (
-                <div className="shop-item" key={c.id} style={{flexDirection:'row',alignItems:'center'}}>
-                  <div style={{flex:1}}>
+                <div className="shop-item" key={c.id}>
+                  <div className="row-sb">
                     <div className="si-name">{c.name}</div>
+                    {c.owned && <span className="f12 text-green fw6">✓ Есть</span>}
                   </div>
-                  <div className="si-price">{c.price_stars}⭐</div>
-                  {c.owned
-                    ? <span className="f12 text-green fw6" style={{marginLeft:10}}>✓ Есть</span>
-                    : <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={() => buyItem('cosmetic',c.id)}>Купить</button>
-                  }
+                  {!c.owned && (
+                    <div className="row" style={{gap:8}}>
+                      {c.price_rc > 0 && <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => buyItemRC('cosmetic',c.id)}>{c.price_rc.toLocaleString()} RC</button>}
+                      <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={() => buyItem('cosmetic',c.id)}>{c.price_stars} ⭐</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1378,16 +1600,25 @@ function ShopScreen({ user, onRefresh }) {
             <div className="f12 text-muted" style={{marginBottom:10}}>Отображается рядом с именем везде в игре</div>
             <div className="gap8">
               {cosmByType.emojis?.map(c => (
-                <div className="shop-item" key={c.id} style={{flexDirection:'row',alignItems:'center'}}>
-                  <div style={{fontSize:24,marginRight:10}}>{c.value}</div>
-                  <div style={{flex:1}}><div className="si-name">{c.name}</div></div>
-                  <div className="si-price">{c.price_stars}⭐</div>
-                  {c.owned
-                    ? <span className="f12 text-green fw6" style={{marginLeft:10}}>✓ Есть</span>
-                    : <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={() => buyItem('cosmetic',c.id)}>Купить</button>
-                  }
+                <div className="shop-item" key={c.id}>
+                  <div className="row-sb">
+                    <div className="row" style={{gap:8}}>
+                      <span style={{fontSize:22}}>{c.value}</span>
+                      <div className="si-name">{c.name}</div>
+                    </div>
+                    {c.owned && <span className="f12 text-green fw6">✓ Есть</span>}
+                  </div>
+                  {!c.owned && (
+                    <div className="row" style={{gap:8}}>
+                      {c.price_rc > 0 && <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={() => buyItemRC('cosmetic',c.id)}>{c.price_rc.toLocaleString()} RC</button>}
+                      <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={() => buyItem('cosmetic',c.id)}>{c.price_stars} ⭐</button>
+                    </div>
+                  )}
                 </div>
               ))}
+            </div>
+            <div className="f12 text-muted mt16" style={{lineHeight:1.5,padding:'12px',background:'var(--bg3)',borderRadius:12}}>
+              💎 RC-цены высокие намеренно. Используйте ⭐ для мгновенной покупки.
             </div>
           </div>
         ) : (
@@ -1471,12 +1702,12 @@ function SupportScreen({ user }) {
 }
 
 // ── ADMIN SCREEN ─────────────────────────────────────────────────────────────
-function AdminScreen() {
+function AdminScreen({ user }) {
   const [tab, setTab]           = useState('dash');
   const [dash, setDash]         = useState(null);
   const [users, setUsers]       = useState([]);
   const [conversations, setConvs] = useState([]);
-  const [openConv, setOpenConv] = useState(null);     // FIX #10: chat view
+  const [openConv, setOpenConv] = useState(null);
   const [convMsgs, setConvMsgs] = useState([]);
   const [stories, setStories]   = useState([]);
   const [searchQ, setSearchQ]   = useState('');
@@ -1489,6 +1720,12 @@ function AdminScreen() {
   const [promoCode, setPromoCode] = useState('');
   const [promoRc, setPromoRc]   = useState('');
   const [promoMax, setPromoMax] = useState('1');
+  // #8: admin hidden toggle state
+  const [adminHidden, setAdminHidden] = useState(user?.admin_hidden || false);
+  // #7: cosmetic grant state
+  const [cosmeticIdent, setCosmeticIdent] = useState('');
+  const [cosmeticField, setCosmeticField] = useState('name_color');
+  const [cosmeticValue, setCosmeticValue] = useState('');
   const [toast, showToast]      = useToast();
   const convBottomRef            = useRef(null);
 
