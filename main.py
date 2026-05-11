@@ -2,10 +2,9 @@
 """
 ⛓ РАБСТВО — Telegram Mini App
 Backend: FastAPI + Aiogram 3 + PostgreSQL + Redis
-Single-file, fully self-contained.
 """
 
-import asyncio, os, random, json, hmac, hashlib, time
+import asyncio, os, random, json, time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Optional, List
@@ -18,7 +17,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.types import (
+    InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo,
+    LabeledPrice, PreCheckoutQuery
+)
 from pydantic import BaseModel
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
@@ -28,13 +30,14 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://rabstvo:rabstvo@localhost
 REDIS_URL    = os.getenv("REDIS_URL",    "redis://localhost:6379")
 WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://yourdomain.com")
 ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "000000000").split(",")))
+BOT_USERNAME = os.getenv("BOT_USERNAME", "YourBot")   # FIX #12: set real bot username
 SEASON_PASS  = "Niva01102007"
 
 # ─── GLOBALS ──────────────────────────────────────────────────────────────────
 
-bot:  Bot           = None
-dp:   Dispatcher    = None
-db:   asyncpg.Pool  = None
+bot:  Bot            = None
+dp:   Dispatcher     = None
+db:   asyncpg.Pool   = None
 rdb:  aioredis.Redis = None
 
 # ─── DB SCHEMA ────────────────────────────────────────────────────────────────
@@ -44,6 +47,7 @@ CREATE TABLE IF NOT EXISTS users (
     id                    BIGINT PRIMARY KEY,
     username              TEXT,
     first_name            TEXT,
+    photo_url             TEXT,
     balance               DECIMAL  DEFAULT 50,
     current_price         DECIMAL  DEFAULT 100,
     owner_id              BIGINT   REFERENCES users(id) ON DELETE SET NULL,
@@ -60,7 +64,6 @@ CREATE TABLE IF NOT EXISTS users (
     emoji_status          TEXT     DEFAULT '',
     vip_level             INT      DEFAULT 0,
     vip_until             TIMESTAMP,
-    unsub_penalty_notified BOOLEAN DEFAULT FALSE,
     is_banned             BOOLEAN  DEFAULT FALSE,
     created_at            TIMESTAMP DEFAULT NOW()
 );
@@ -70,7 +73,6 @@ CREATE TABLE IF NOT EXISTS jobs (
     title           TEXT    NOT NULL,
     income_per_hour DECIMAL NOT NULL,
     drop_chance     INT     NOT NULL,
-    requires_vip    BOOLEAN DEFAULT FALSE,
     emoji           TEXT    DEFAULT '💼'
 );
 
@@ -90,6 +92,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     message       TEXT,
     photo_file_id TEXT,
     is_from_admin BOOLEAN   DEFAULT FALSE,
+    is_read       BOOLEAN   DEFAULT FALSE,
     created_at    TIMESTAMP DEFAULT NOW()
 );
 
@@ -106,25 +109,10 @@ CREATE TABLE IF NOT EXISTS season_snapshots (
     created_at    TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS sponsors (
-    id            SERIAL  PRIMARY KEY,
-    channel_id    BIGINT  UNIQUE,
-    channel_title TEXT,
-    reward_rc     DECIMAL DEFAULT 250,
-    is_active     BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE IF NOT EXISTS user_sponsors (
-    user_id      BIGINT,
-    sponsor_id   INT,
-    subscribed_at TIMESTAMP DEFAULT NOW(),
-    PRIMARY KEY (user_id, sponsor_id)
-);
-
 CREATE TABLE IF NOT EXISTS cosmetics (
     id          SERIAL PRIMARY KEY,
     type        TEXT,
-    name        TEXT,
+    name        TEXT UNIQUE,
     value       TEXT,
     price_stars INT,
     css_class   TEXT
@@ -153,6 +141,22 @@ CREATE TABLE IF NOT EXISTS promo_uses (
     PRIMARY KEY (user_id, promo_id)
 );
 
+CREATE TABLE IF NOT EXISTS pending_purchases (
+    id          SERIAL PRIMARY KEY,
+    user_id     BIGINT,
+    item_type   TEXT,
+    cosmetic_id INT,
+    slave_id    BIGINT,
+    stars       INT,
+    status      TEXT      DEFAULT 'pending',
+    created_at  TIMESTAMP DEFAULT NOW()
+);
+
+-- FIX #3: store photo_url for avatars
+ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
+-- FIX #10: track read status in tickets
+ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+
 INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
   ('Подметать полы',    2.5,  70, '🧹'),
   ('Раздавать листовки',3.0,  70, '📄'),
@@ -162,26 +166,36 @@ INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
   ('Просить милостыню',18.0,   5, '🙏')
 ON CONFLICT DO NOTHING;
 
+-- FIX #8: fewer, non-overlapping cosmetics
 INSERT INTO cosmetics (type, name, value, price_stars, css_class) VALUES
-  ('color', 'Неоновый',    'neon',    50, 'clr-neon'),
-  ('color', 'Красный',     'red',     30, 'clr-red'),
-  ('color', 'Золотой',     'gold',    40, 'clr-gold'),
-  ('color', 'Градиент',    'gradient',70, 'clr-gradient'),
-  ('frame', 'Огонь',       'fire',    80, 'frame-fire'),
-  ('frame', 'Киберпанк',   'cyber',   80, 'frame-cyber'),
-  ('frame', 'Неон',        'neon',    60, 'frame-neon'),
-  ('frame', 'Цветы',       'flowers', 60, 'frame-flowers'),
-  ('emoji', '👑 Корона',   '👑',     100, ''),
-  ('emoji', '💎 Бриллиант','💎',      70, ''),
-  ('emoji', '🔥 Огонь',    '🔥',      50, ''),
-  ('emoji', '⚡ Молния',   '⚡',      40, '')
-ON CONFLICT DO NOTHING;
+  ('color', 'Рубиновый',  'ruby',    30, 'clr-ruby'),
+  ('color', 'Золотой',    'gold',    50, 'clr-gold'),
+  ('color', 'Неоновый',   'neon',    80, 'clr-neon'),
+  ('frame', 'Пламя',      'fire',    70, 'frame-fire'),
+  ('frame', 'Алмаз',      'diamond', 100,'frame-diamond'),
+  ('emoji', 'Корона',     '👑',     100, ''),
+  ('emoji', 'Бриллиант',  '💎',      60, ''),
+  ('emoji', 'Молния',     '⚡',      40, '')
+ON CONFLICT (name) DO NOTHING;
 """
+
+# ─── SHOP ITEMS CATALOGUE ─────────────────────────────────────────────────────
+
+SHOP_ITEMS = [
+    {"id":"shield_24", "name":"🛡 Щит 24ч",   "price_stars":50,  "desc":"Защищает вас от покупки другими игроками на 24 часа"},
+    {"id":"shield_48", "name":"🛡 Щит 48ч",   "price_stars":90,  "desc":"Защищает вас от покупки другими игроками на 48 часов"},
+    {"id":"chains",    "name":"⛓ Оковы",      "price_stars":30,  "desc":"Вешаются на вашего раба — его выкуп для других дорожает на 50%"},
+    {"id":"boost_15",  "name":"🚀 Буст ×1.5", "price_stars":40,  "desc":"Увеличивает пассивный доход от рабов на +50% на 24 часа"},
+    {"id":"boost_20",  "name":"🚀 Буст ×2.0", "price_stars":70,  "desc":"Удваивает пассивный доход от рабов на 24 часа"},
+    {"id":"stealth",   "name":"👻 Стелс",      "price_stars":35,  "desc":"Скрывает вас из рейтингов и поиска на 24 часа"},
+    {"id":"vip_1",     "name":"🥉 Богач",      "price_stars":150, "desc":"Бронзовый статус: рамка + +2% к доходу. Действует 30 дней"},
+    {"id":"vip_2",     "name":"🥈 Элита",      "price_stars":300, "desc":"Серебряный статус: рамка + +5% к доходу. Действует 30 дней"},
+    {"id":"vip_3",     "name":"👑 Король",     "price_stars":500, "desc":"Золотая корона: налог 8%, доступ к редким работам. 30 дней"},
+]
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 def verify_webapp(init_data: str) -> Optional[dict]:
-    """Verify Telegram WebApp initData signature."""
     from urllib.parse import unquote
     try:
         parsed = dict(x.split("=", 1) for x in init_data.split("&") if "=" in x)
@@ -231,10 +245,46 @@ async def collect_income(owner_id: int) -> float:
         await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total, 2), owner_id)
     return total
 
+# FIX #9: grant item after verified Stars payment
+async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
+    now = datetime.utcnow()
+    if item_type == "shield_24":
+        await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    elif item_type == "shield_48":
+        await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=48), uid)
+    elif item_type == "boost_15":
+        await db.execute("UPDATE users SET booster_mult=1.5,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    elif item_type == "boost_20":
+        await db.execute("UPDATE users SET booster_mult=2.0,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    elif item_type == "stealth":
+        await db.execute("UPDATE users SET stealth_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    elif item_type == "chains":
+        if slave_id:
+            s = await db.fetchrow("SELECT owner_id FROM users WHERE id=$1", slave_id)
+            if s and s['owner_id'] == uid:
+                await db.execute("UPDATE users SET chains_until=$1 WHERE id=$2", now+timedelta(days=7), slave_id)
+                asyncio.create_task(push(slave_id, "🔒 На вас повесили Оковы! Ваш выкуп стал на 50% дороже."))
+    elif item_type in ("vip_1","vip_2","vip_3"):
+        lvl = int(item_type[-1])
+        await db.execute("UPDATE users SET vip_level=$1,vip_until=$2 WHERE id=$3", lvl, now+timedelta(days=30), uid)
+    elif item_type == "cosmetic" and cosmetic_id:
+        c = await db.fetchrow("SELECT * FROM cosmetics WHERE id=$1", cosmetic_id)
+        if c:
+            await db.execute(
+                "INSERT INTO user_cosmetics(user_id,cosmetic_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+                uid, cosmetic_id
+            )
+            if c['type'] == 'color':
+                await db.execute("UPDATE users SET name_color=$1 WHERE id=$2", c['value'], uid)
+            elif c['type'] == 'frame':
+                await db.execute("UPDATE users SET avatar_frame=$1 WHERE id=$2", c['value'], uid)
+            elif c['type'] == 'emoji':
+                await db.execute("UPDATE users SET emoji_status=$1 WHERE id=$2", c['value'], uid)
+
 # ─── AUTH ─────────────────────────────────────────────────────────────────────
 
 async def _resolve_uid(x_init_data: str) -> int:
-    if x_init_data.startswith("dev:"):           # dev bypass
+    if x_init_data.startswith("dev:"):
         return int(x_init_data.split(":")[1])
     data = verify_webapp(x_init_data)
     if not data:
@@ -262,13 +312,11 @@ async def get_admin_user(x_init_data: str = Header(...)) -> dict:
 async def lifespan(app: FastAPI):
     global bot, dp, db, rdb
 
-    # Диагностика: показываем хост подключения (пароль скрыт)
     import urllib.parse as _up
     _parsed = _up.urlparse(DATABASE_URL)
     print(f"[db] connecting → host={_parsed.hostname} port={_parsed.port} db={_parsed.path}")
     _ssl = "require" if _parsed.hostname and "railway" in _parsed.hostname else False
 
-    # Retry-loop: 12 попыток × 5 сек = до 60 секунд
     for attempt in range(1, 13):
         try:
             _pool_kwargs = {"ssl": _ssl} if _ssl else {}
@@ -277,8 +325,7 @@ async def lifespan(app: FastAPI):
             break
         except Exception as e:
             print(f"[db] attempt {attempt}/12 failed: {e}")
-            if attempt == 12:
-                raise
+            if attempt == 12: raise
             await asyncio.sleep(5)
 
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
@@ -306,7 +353,8 @@ app.add_middleware(
 
 class InitReq(BaseModel):
     init_data: str
-    ref_id:    Optional[int] = None
+    ref_id:    Optional[int]  = None
+    photo_url: Optional[str]  = None   # FIX #3
 
 class BuyReq(BaseModel):
     target_id: int
@@ -315,13 +363,21 @@ class RenameReq(BaseModel):
     slave_id: int
     new_name: str
 
+class SendWorkReq(BaseModel):         # FIX #2
+    slave_id: int
+
 class SupportReq(BaseModel):
     message:       str
     photo_file_id: Optional[str] = None
 
 class ShopBuyReq(BaseModel):
-    item_type:      str
-    cosmetic_id:    Optional[int] = None
+    item_type:       str
+    cosmetic_id:     Optional[int] = None
+    target_slave_id: Optional[int] = None
+
+class ShopInvoiceReq(BaseModel):      # FIX #9
+    item_type:       str
+    cosmetic_id:     Optional[int] = None
     target_slave_id: Optional[int] = None
 
 class PromoUseReq(BaseModel):
@@ -366,29 +422,45 @@ async def _full_profile(uid: int) -> dict:
 
     owner = None
     if u['owner_id']:
-        o = await db.fetchrow("SELECT id,username,first_name FROM users WHERE id=$1", u['owner_id'])
+        o = await db.fetchrow("SELECT id,username,first_name,photo_url FROM users WHERE id=$1", u['owner_id'])
         if o: owner = dict(o)
 
     slaves_raw = await db.fetch(
-        """SELECT u.id,u.username,u.first_name,u.custom_name,u.current_price,
+        """SELECT u.id,u.username,u.first_name,u.custom_name,u.current_price,u.photo_url,
+                  u.job_id, u.job_assigned_at,
                   j.title as job_title, j.emoji as job_emoji, j.income_per_hour
            FROM users u LEFT JOIN jobs j ON u.job_id=j.id
            WHERE u.owner_id=$1""", uid
     )
     slaves = [{
-        "id":          s['id'],
-        "username":    s['username'],
-        "first_name":  s['first_name'],
-        "custom_name": s['custom_name'],
-        "price":       float(s['current_price']),
-        "job_title":   s['job_title'],
-        "job_emoji":   s['job_emoji'],
+        "id":            s['id'],
+        "username":      s['username'],
+        "first_name":    s['first_name'],
+        "photo_url":     s['photo_url'],
+        "custom_name":   s['custom_name'],
+        "price":         float(s['current_price']),
+        "job_id":        s['job_id'],
+        "job_title":     s['job_title'],
+        "job_emoji":     s['job_emoji'],
+        "income_per_hour": float(s['income_per_hour']) if s['income_per_hour'] else 0,
+        "working":       bool(s['job_id'] and s['job_assigned_at']),
     } for s in slaves_raw]
+
+    # Stories cooldown
+    last_story = await db.fetchrow(
+        "SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", uid
+    )
+    story_cooldown_until = None
+    if last_story:
+        next_avail = last_story['created_at'] + timedelta(hours=24)
+        if next_avail > now:
+            story_cooldown_until = next_avail.isoformat()
 
     return {
         "id":           u['id'],
         "username":     u['username'],
         "first_name":   u['first_name'],
+        "photo_url":    u['photo_url'],          # FIX #3
         "balance":      round(float(u['balance']), 2),
         "price":        round(float(u['current_price']), 2),
         "owner":        owner,
@@ -406,9 +478,16 @@ async def _full_profile(uid: int) -> dict:
         "avatar_frame": u['avatar_frame'],
         "emoji_status": u['emoji_status'],
         "is_admin":   u['id'] in ADMIN_IDS,
+        "story_cooldown_until": story_cooldown_until,  # FIX #11
+        "bot_username": BOT_USERNAME,                   # FIX #12
     }
 
 # ─── ROUTES ───────────────────────────────────────────────────────────────────
+
+@app.get("/api/config")
+async def get_config():
+    """Public config for the frontend."""
+    return {"bot_username": BOT_USERNAME, "webapp_url": WEBAPP_URL}
 
 @app.post("/api/init")
 async def init_user(req: InitReq):
@@ -420,6 +499,8 @@ async def init_user(req: InitReq):
         if not tg: raise HTTPException(401, "Bad initData")
         uid = int(tg['id'])
 
+    photo_url = req.photo_url or tg.get('photo_url')
+
     existing = await db.fetchrow("SELECT id FROM users WHERE id=$1", uid)
     if not existing:
         owner_id = None
@@ -427,23 +508,18 @@ async def init_user(req: InitReq):
             ref_ok = await db.fetchrow("SELECT id FROM users WHERE id=$1", req.ref_id)
             if ref_ok: owner_id = req.ref_id
 
-        jobs = await get_jobs_list()
-        job  = pick_job(0, jobs) if owner_id else None
-        now  = datetime.utcnow()
-
         await db.execute(
-            """INSERT INTO users(id,username,first_name,balance,current_price,owner_id,job_id,job_assigned_at)
-               VALUES($1,$2,$3,50,100,$4,$5,$6) ON CONFLICT DO NOTHING""",
-            uid, tg.get('username'), tg.get('first_name'),
-            owner_id, job['id'] if job else None, now if job else None
+            """INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id)
+               VALUES($1,$2,$3,$4,50,100,$5) ON CONFLICT DO NOTHING""",
+            uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id
         )
         if owner_id:
             asyncio.create_task(push(owner_id,
-                f"🎣 По вашей ссылке перешёл @{tg.get('username', uid)}! Новый раб готов."))
+                f"🎣 По вашей ссылке перешёл @{tg.get('username', uid)}! Новый раб ждёт назначения на работу."))
     else:
         await db.execute(
-            "UPDATE users SET username=$1,first_name=$2 WHERE id=$3",
-            tg.get('username'), tg.get('first_name'), uid
+            "UPDATE users SET username=$1,first_name=$2,photo_url=$3 WHERE id=$4",
+            tg.get('username'), tg.get('first_name'), photo_url, uid
         )
 
     return await _full_profile(uid)
@@ -453,6 +529,11 @@ async def init_user(req: InitReq):
 async def get_profile(user: dict = Depends(get_current_user)):
     await collect_income(user['id'])
     return await _full_profile(user['id'])
+
+
+@app.get("/api/profile/{uid}")  # FIX #4: view other users' profiles
+async def get_user_profile(uid: int, _: dict = Depends(get_current_user)):
+    return await _full_profile(uid)
 
 
 @app.post("/api/buy")
@@ -475,7 +556,7 @@ async def buy_player(req: BuyReq, bg: BackgroundTasks, user: dict = Depends(get_
 
     price = float(target['current_price'])
     if target['chains_until'] and target['chains_until'] > now:
-        price = round(price * 1.5, 2)  # Оковы +50%
+        price = round(price * 1.5, 2)
 
     if float(buyer['balance']) < price:
         raise HTTPException(400, f"Недостаточно RC. Нужно {price:.0f}")
@@ -483,19 +564,16 @@ async def buy_player(req: BuyReq, bg: BackgroundTasks, user: dict = Depends(get_
     fee       = round(price * 0.10, 2)
     payout    = round(price - fee, 2)
     seller_id = target['owner_id']
-    inflation = random.uniform(0.10, 0.20)
-    new_price = round(float(target['current_price']) * (1 + inflation), 2)
-
-    jobs    = await get_jobs_list()
-    new_job = pick_job(buyer['vip_level'], jobs)
+    new_price = round(float(target['current_price']) * (1 + random.uniform(0.10, 0.20)), 2)
 
     async with db.acquire() as conn:
         async with conn.transaction():
             await conn.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", price, buyer_id)
+            # FIX #2: no auto job assignment — owner manually sends to work
             await conn.execute(
                 """UPDATE users SET current_price=$1,owner_id=$2,custom_name=NULL,
-                   job_id=$3,job_assigned_at=$4 WHERE id=$5""",
-                new_price, buyer_id, new_job['id'], now, target_id
+                   job_id=NULL,job_assigned_at=NULL WHERE id=$3""",
+                new_price, buyer_id, target_id
             )
             if seller_id:
                 await conn.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", payout, seller_id)
@@ -508,11 +586,39 @@ async def buy_player(req: BuyReq, bg: BackgroundTasks, user: dict = Depends(get_
 
     t_name = f"@{target['username']}" if target['username'] else str(target_id)
     b_name = f"@{buyer['username']}"  if buyer['username']  else str(buyer_id)
-    bg.add_task(push, target_id, f"⛓ Вас купил {b_name}! Назначена работа: {new_job['emoji']} {new_job['title']}.")
+    bg.add_task(push, target_id, f"⛓ Вас купил {b_name}! Ожидайте — хозяин назначит вам работу.")
     if seller_id:
         bg.add_task(push, seller_id, f"💰 Вашего раба {t_name} перекупили! Прибыль: <b>{payout:.0f} RC</b>.")
 
-    return {"ok": True, "paid": price, "new_price": new_price, "job": new_job['title']}
+    return {"ok": True, "paid": price, "new_price": new_price}
+
+
+# FIX #2 + #5: manual send to work with job info
+@app.post("/api/slaves/send_to_work")
+async def send_to_work(req: SendWorkReq, bg: BackgroundTasks, user: dict = Depends(get_current_user)):
+    s = await db.fetchrow("SELECT * FROM users WHERE id=$1", req.slave_id)
+    if not s or s['owner_id'] != user['id']:
+        raise HTTPException(403, "Это не ваш раб")
+
+    jobs   = await get_jobs_list()
+    new_job = pick_job(user['vip_level'], jobs)
+    now    = datetime.utcnow()
+
+    await db.execute(
+        "UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3",
+        new_job['id'], now, req.slave_id
+    )
+    s_name = s['custom_name'] or s['first_name'] or f"#{req.slave_id}"
+    bg.add_task(push, req.slave_id,
+        f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b>!\n"
+        f"Доход: {float(new_job['income_per_hour']):.1f} RC/ч")
+
+    return {"ok": True, "job": dict(new_job)}
+
+
+@app.get("/api/jobs")  # FIX #5: expose full job list with chances
+async def get_jobs(_: dict = Depends(get_current_user)):
+    return await get_jobs_list()
 
 
 @app.post("/api/selfbuy")
@@ -548,42 +654,38 @@ async def self_buy(bg: BackgroundTasks, user: dict = Depends(get_current_user)):
 
 @app.get("/api/search")
 async def search_players(
-    q:            Optional[str]   = None,
-    min_price:    Optional[float] = None,
-    max_price:    Optional[float] = None,
-    random_pick:  bool            = False,
-    newcomers:    bool            = False,
+    q:           Optional[str]   = None,
+    min_price:   Optional[float] = None,
+    max_price:   Optional[float] = None,
+    random_pick: bool            = False,
+    newcomers:   bool            = False,
     user: dict = Depends(get_current_user)
 ):
-    now = datetime.utcnow()
-    base = "SELECT id,username,first_name,current_price,custom_name,vip_level,avatar_frame,name_color,emoji_status FROM users WHERE is_banned=FALSE"
+    now  = datetime.utcnow()
+    base = """SELECT id,username,first_name,current_price,custom_name,vip_level,
+                     avatar_frame,name_color,emoji_status,photo_url
+              FROM users WHERE is_banned=FALSE"""
     stealth = " AND (stealth_until IS NULL OR stealth_until<$1)"
 
     if newcomers:
-        rows = await db.fetch(
-            base + stealth + " ORDER BY created_at DESC LIMIT 50", now
-        )
+        rows = await db.fetch(base + stealth + " ORDER BY created_at DESC LIMIT 50", now)
     elif random_pick:
-        bal = float((await db.fetchrow("SELECT balance FROM users WHERE id=$1", user['id']))['balance'])
+        bal  = float((await db.fetchrow("SELECT balance FROM users WHERE id=$1", user['id']))['balance'])
         rows = await db.fetch(
             base + stealth + " AND id!=$2 AND current_price<=$3 ORDER BY RANDOM() LIMIT 1",
             now, user['id'], bal
         )
     elif q:
         rows = await db.fetch(
-            base + " AND (stealth_until IS NULL OR stealth_until<$1) AND (username ILIKE $2 OR first_name ILIKE $2) LIMIT 20",
+            base + stealth + " AND (username ILIKE $2 OR first_name ILIKE $2) LIMIT 20",
             now, f"%{q}%"
         )
     else:
-        params  = [now]
-        conds   = [stealth[5:]]  # strip leading " AND "
-        where   = base + stealth
-        if min_price is not None:
-            params.append(min_price); where += f" AND current_price>=${len(params)}"
-        if max_price is not None:
-            params.append(max_price); where += f" AND current_price<=${len(params)}"
+        params = [now]; where = base + stealth
+        if min_price is not None: params.append(min_price); where += f" AND current_price>=${len(params)}"
+        if max_price is not None: params.append(max_price); where += f" AND current_price<=${len(params)}"
         where += " ORDER BY created_at DESC LIMIT 50"
-        rows = await db.fetch(where, *params)
+        rows   = await db.fetch(where, *params)
 
     return [dict(r) for r in rows]
 
@@ -596,19 +698,21 @@ async def get_top(cat: str = "forbes"):
     now = datetime.utcnow()
     if cat == "forbes":
         rows = await db.fetch(
-            """SELECT id,username,first_name,balance as value,vip_level,name_color,avatar_frame,emoji_status
+            """SELECT id,username,first_name,balance as value,vip_level,name_color,
+                      avatar_frame,emoji_status,photo_url
                FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE
                ORDER BY balance DESC LIMIT 100""", now)
     elif cat == "owners":
         rows = await db.fetch(
-            """SELECT u.id,u.username,u.first_name,u.vip_level,u.name_color,u.avatar_frame,u.emoji_status,
-                      COUNT(s.id) as value
+            """SELECT u.id,u.username,u.first_name,u.vip_level,u.name_color,
+                      u.avatar_frame,u.emoji_status,u.photo_url,COUNT(s.id) as value
                FROM users u LEFT JOIN users s ON s.owner_id=u.id
                WHERE (u.stealth_until IS NULL OR u.stealth_until<$1) AND u.is_banned=FALSE
                GROUP BY u.id ORDER BY value DESC LIMIT 100""", now)
-    else:
+    else:  # legends = highest price
         rows = await db.fetch(
-            """SELECT id,username,first_name,current_price as value,vip_level,name_color,avatar_frame,emoji_status
+            """SELECT id,username,first_name,current_price as value,vip_level,name_color,
+                      avatar_frame,emoji_status,photo_url
                FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE
                ORDER BY current_price DESC LIMIT 100""", now)
     result = [dict(r) for r in rows]
@@ -627,33 +731,44 @@ async def rename_slave(req: RenameReq, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+# FIX #11: stories with cooldown info
 @app.post("/api/stories/claim")
 async def stories_claim(user: dict = Depends(get_current_user)):
     uid  = user['id']
+    now  = datetime.utcnow()
     last = await db.fetchrow(
         "SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", uid
     )
-    if last and (datetime.utcnow() - last['created_at']).total_seconds() < 86400:
-        raise HTTPException(400, "Кулдаун: 24 часа")
+    if last:
+        next_avail = last['created_at'] + timedelta(hours=24)
+        if next_avail > now:
+            remaining = int((next_avail - now).total_seconds())
+            raise HTTPException(400, f"Cooldown:{remaining}")
     pending = await db.fetchrow("SELECT id FROM stories_claims WHERE user_id=$1 AND status='pending'", uid)
     if pending:
         raise HTTPException(400, "Заявка уже на рассмотрении")
     await db.execute("INSERT INTO stories_claims(user_id) VALUES($1)", uid)
-    return {"ok": True, "msg": "Заявка отправлена на проверку администратору"}
+    return {"ok": True, "msg": "Заявка отправлена на проверку. После одобрения получите +250 RC и предмет!"}
 
 
 @app.post("/api/support")
 async def send_support(req: SupportReq, user: dict = Depends(get_current_user)):
     await db.execute(
-        "INSERT INTO support_tickets(user_id,message,photo_file_id) VALUES($1,$2,$3)",
+        "INSERT INTO support_tickets(user_id,message,photo_file_id,is_read) VALUES($1,$2,$3,FALSE)",
         user['id'], req.message, req.photo_file_id
     )
     return {"ok": True}
 
+
 @app.get("/api/support/history")
 async def support_history(user: dict = Depends(get_current_user)):
     rows = await db.fetch(
-        "SELECT id,message,is_from_admin,created_at FROM support_tickets WHERE user_id=$1 ORDER BY created_at ASC",
+        "SELECT id,message,is_from_admin,is_read,created_at FROM support_tickets WHERE user_id=$1 ORDER BY created_at ASC",
+        user['id']
+    )
+    # Mark admin messages as read when user fetches
+    await db.execute(
+        "UPDATE support_tickets SET is_read=TRUE WHERE user_id=$1 AND is_from_admin=TRUE AND is_read=FALSE",
         user['id']
     )
     return [dict(r) for r in rows]
@@ -685,83 +800,67 @@ async def get_shop(user: dict = Depends(get_current_user)):
         "SELECT cosmetic_id FROM user_cosmetics WHERE user_id=$1", user['id']
     )}
     return {
-        "items": [
-            {"id":"shield_24",  "name":"🛡 Щит 24ч",     "price_stars":50,  "desc":"Защита от покупки на 24 часа"},
-            {"id":"shield_48",  "name":"🛡 Щит 48ч",     "price_stars":90,  "desc":"Защита от покупки на 48 часов"},
-            {"id":"chains",     "name":"⛓ Оковы",        "price_stars":30,  "desc":"Выкуп вашего раба другими дороже на 50%"},
-            {"id":"boost_15",   "name":"🚀 Буст x1.5",   "price_stars":40,  "desc":"+50% к пассивному доходу на 24ч"},
-            {"id":"boost_20",   "name":"🚀 Буст x2.0",   "price_stars":70,  "desc":"+100% к пассивному доходу на 24ч"},
-            {"id":"stealth",    "name":"👻 Стелс",        "price_stars":35,  "desc":"Невидим в рейтингах и поиске на 24ч"},
-            {"id":"vip_1",      "name":"🥉 Богач",        "price_stars":150, "desc":"Бронзовая рамка, +2% к доходу. 30 дней"},
-            {"id":"vip_2",      "name":"🥈 Элита",        "price_stars":300, "desc":"Серебряная рамка, +5% к доходу. 30 дней"},
-            {"id":"vip_3",      "name":"👑 Король",       "price_stars":500, "desc":"Золотая корона, налог 8%, редкие работы. 30 дней"},
-        ],
+        "items":     SHOP_ITEMS,
         "cosmetics": [{**dict(c), "owned": c['id'] in owned_ids} for c in cosmetics],
-        "user_vip": user['vip_level'],
+        "user_vip":  user['vip_level'],
     }
 
 
-@app.post("/api/shop/buy")
-async def shop_buy(req: ShopBuyReq, bg: BackgroundTasks, user: dict = Depends(get_current_user)):
-    """
-    In production: verify Telegram Stars invoice before calling this.
-    Here we trust the client (add Stars invoice verification for real deployment).
-    """
-    uid = user['id']
-    now = datetime.utcnow()
-    t   = req.item_type
+# FIX #9: create Telegram Stars invoice instead of free purchase
+@app.post("/api/shop/invoice")
+async def create_invoice(req: ShopInvoiceReq, user: dict = Depends(get_current_user)):
+    uid  = user['id']
 
-    if t == "shield_24":
-        await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif t == "shield_48":
-        await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=48), uid)
-    elif t == "boost_15":
-        await db.execute("UPDATE users SET booster_mult=1.5,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif t == "boost_20":
-        await db.execute("UPDATE users SET booster_mult=2.0,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif t == "stealth":
-        await db.execute("UPDATE users SET stealth_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif t == "chains":
+    if req.item_type == "cosmetic":
+        c = await db.fetchrow("SELECT * FROM cosmetics WHERE id=$1", req.cosmetic_id)
+        if not c: raise HTTPException(404, "Косметика не найдена")
+        item = {"id": "cosmetic", "name": c['name'], "price_stars": c['price_stars'],
+                "desc": f"Косметический предмет: {c['name']}"}
+    else:
+        item = next((i for i in SHOP_ITEMS if i['id'] == req.item_type), None)
+        if not item: raise HTTPException(400, "Неизвестный товар")
+
+    # chains requires a slave
+    if req.item_type == "chains":
         if not req.target_slave_id:
-            raise HTTPException(400, "Укажите раба")
+            raise HTTPException(400, "Укажите раба для оков")
         s = await db.fetchrow("SELECT owner_id FROM users WHERE id=$1", req.target_slave_id)
         if not s or s['owner_id'] != uid:
             raise HTTPException(403, "Это не ваш раб")
-        await db.execute("UPDATE users SET chains_until=$1 WHERE id=$2", now+timedelta(days=7), req.target_slave_id)
-        bg.add_task(push, req.target_slave_id, "🔒 На вас повесили Оковы! Ваш выкуп стал на 50% дороже.")
-    elif t in ("vip_1","vip_2","vip_3"):
-        lvl = int(t[-1])
-        await db.execute("UPDATE users SET vip_level=$1,vip_until=$2 WHERE id=$3", lvl, now+timedelta(days=30), uid)
-    elif t == "cosmetic":
-        if not req.cosmetic_id:
-            raise HTTPException(400, "Укажите cosmetic_id")
-        c = await db.fetchrow("SELECT * FROM cosmetics WHERE id=$1", req.cosmetic_id)
-        if not c: raise HTTPException(404, "Косметика не найдена")
-        await db.execute(
-            "INSERT INTO user_cosmetics(user_id,cosmetic_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
-            uid, req.cosmetic_id
-        )
-        if c['type'] == 'color':
-            await db.execute("UPDATE users SET name_color=$1 WHERE id=$2", c['value'], uid)
-        elif c['type'] == 'frame':
-            await db.execute("UPDATE users SET avatar_frame=$1 WHERE id=$2", c['value'], uid)
-        elif c['type'] == 'emoji':
-            await db.execute("UPDATE users SET emoji_status=$1 WHERE id=$2", c['value'], uid)
-    else:
-        raise HTTPException(400, "Неизвестный товар")
 
-    return {"ok": True}
+    # Save pending purchase
+    purchase_id = await db.fetchval(
+        """INSERT INTO pending_purchases(user_id,item_type,cosmetic_id,slave_id,stars)
+           VALUES($1,$2,$3,$4,$5) RETURNING id""",
+        uid, req.item_type, req.cosmetic_id, req.target_slave_id, item['price_stars']
+    )
+
+    # Create Stars invoice link
+    try:
+        invoice_link = await bot.create_invoice_link(
+            title=item['name'],
+            description=item['desc'],
+            payload=f"shop:{purchase_id}:{uid}:{req.item_type}",
+            provider_token="",   # empty = Telegram Stars
+            currency="XTR",
+            prices=[LabeledPrice(label=item['name'], amount=item['price_stars'])]
+        )
+        return {"ok": True, "invoice_link": invoice_link}
+    except Exception as e:
+        raise HTTPException(500, f"Ошибка создания инвойса: {e}")
+
 
 # ─── ADMIN ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/admin/dashboard")
 async def admin_dashboard(_: dict = Depends(get_admin_user)):
     stats = await db.fetchrow(
-        """SELECT COUNT(*)                                                    AS total_users,
-                  COUNT(CASE WHEN created_at>NOW()-INTERVAL '1 day' THEN 1 END) AS new_today,
-                  COALESCE(SUM(balance),0)                                   AS total_rc,
-                  (SELECT COUNT(*) FROM support_tickets WHERE is_from_admin=FALSE)::INT AS tickets,
-                  (SELECT COUNT(*) FROM stories_claims WHERE status='pending')::INT     AS stories_pending
+        """SELECT COUNT(*)                                                         AS total_users,
+                  COUNT(CASE WHEN created_at>NOW()-INTERVAL '1 day' THEN 1 END)    AS new_today,
+                  COALESCE(SUM(balance),0)                                         AS total_rc,
+                  (SELECT COUNT(*) FROM support_tickets
+                   WHERE is_from_admin=FALSE AND is_read=FALSE)::INT               AS tickets,
+                  (SELECT COUNT(*) FROM stories_claims WHERE status='pending')::INT AS stories_pending
            FROM users WHERE is_banned=FALSE"""
     )
     return dict(stats)
@@ -782,28 +881,48 @@ async def admin_users(q: Optional[str] = None, _: dict = Depends(get_admin_user)
 @app.post("/api/admin/users/edit")
 async def admin_edit(req: AdminEditReq, _: dict = Depends(get_admin_user)):
     parts, vals = [], []
-    def add(col, v):
-        vals.append(v); parts.append(f"{col}=${len(vals)}")
-
-    if req.balance    is not None: add("balance",      req.balance)
-    if req.price      is not None: add("current_price",req.price)
-    if req.is_banned  is not None: add("is_banned",    req.is_banned)
-    if req.custom_name is not None:
-        add("custom_name", req.custom_name or None)
+    def add(col, v): vals.append(v); parts.append(f"{col}=${len(vals)}")
+    if req.balance    is not None: add("balance",       req.balance)
+    if req.price      is not None: add("current_price", req.price)
+    if req.is_banned  is not None: add("is_banned",     req.is_banned)
+    if req.custom_name is not None: add("custom_name",  req.custom_name or None)
     if req.free_slave:
         parts += ["owner_id=NULL","custom_name=NULL","job_id=NULL","job_assigned_at=NULL"]
-
     if parts:
         vals.append(req.user_id)
         await db.execute(f"UPDATE users SET {','.join(parts)} WHERE id=${len(vals)}", *vals)
     return {"ok": True}
 
 
+# FIX #10: tickets as user conversations with unread status
 @app.get("/api/admin/tickets")
 async def admin_tickets(_: dict = Depends(get_admin_user)):
+    """Return conversations grouped by user with unread counts."""
     rows = await db.fetch(
-        """SELECT st.*,u.username,u.first_name FROM support_tickets st
-           JOIN users u ON u.id=st.user_id ORDER BY st.created_at DESC LIMIT 500"""
+        """SELECT st.user_id, u.username, u.first_name, u.photo_url,
+                  COUNT(*)                                                   AS total_msgs,
+                  COUNT(CASE WHEN st.is_from_admin=FALSE AND st.is_read=FALSE THEN 1 END) AS unread,
+                  MAX(st.created_at)                                         AS last_at,
+                  (array_agg(st.message ORDER BY st.created_at DESC))[1]     AS last_msg,
+                  (array_agg(st.is_from_admin ORDER BY st.created_at DESC))[1] AS last_is_admin
+           FROM support_tickets st
+           JOIN users u ON u.id=st.user_id
+           GROUP BY st.user_id, u.username, u.first_name, u.photo_url
+           ORDER BY MAX(st.created_at) DESC LIMIT 200"""
+    )
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/admin/tickets/{user_id}")
+async def admin_ticket_chat(user_id: int, _: dict = Depends(get_admin_user)):
+    rows = await db.fetch(
+        "SELECT * FROM support_tickets WHERE user_id=$1 ORDER BY created_at ASC",
+        user_id
+    )
+    # Mark as read
+    await db.execute(
+        "UPDATE support_tickets SET is_read=TRUE WHERE user_id=$1 AND is_from_admin=FALSE",
+        user_id
     )
     return [dict(r) for r in rows]
 
@@ -811,10 +930,10 @@ async def admin_tickets(_: dict = Depends(get_admin_user)):
 @app.post("/api/admin/tickets/reply")
 async def admin_reply(req: TicketReplyReq, bg: BackgroundTasks, _: dict = Depends(get_admin_user)):
     await db.execute(
-        "INSERT INTO support_tickets(user_id,message,is_from_admin) VALUES($1,$2,TRUE)",
+        "INSERT INTO support_tickets(user_id,message,is_from_admin,is_read) VALUES($1,$2,TRUE,FALSE)",
         req.ticket_user_id, req.message
     )
-    bg.add_task(push, req.ticket_user_id, f"📨 Ответ поддержки: {req.message}")
+    bg.add_task(push, req.ticket_user_id, f"📨 Ответ поддержки:\n{req.message}")
     return {"ok": True}
 
 
@@ -831,8 +950,7 @@ async def admin_stories(_: dict = Depends(get_admin_user)):
 async def admin_approve_story(claim_id: int, bg: BackgroundTasks, _: dict = Depends(get_admin_user)):
     claim = await db.fetchrow("SELECT * FROM stories_claims WHERE id=$1", claim_id)
     if not claim: raise HTTPException(404)
-    items = ["🛡 Щит", "⛓ Оковы", "🚀 Бустер", "👻 Стелс"]
-    item  = random.choice(items)
+    item = random.choice(["🛡 Щит", "⛓ Оковы", "🚀 Бустер", "👻 Стелс"])
     async with db.acquire() as conn:
         async with conn.transaction():
             await conn.execute("UPDATE stories_claims SET status='approved' WHERE id=$1", claim_id)
@@ -871,7 +989,6 @@ async def season_start(req: SeasonReq, _: dict = Depends(get_admin_user)):
            job_id=NULL,job_assigned_at=NULL,shield_until=NULL,chains_until=NULL,
            booster_mult=1.0,booster_until=NULL,stealth_until=NULL"""
     )
-    # Kosmetika и VIP остаются
     asyncio.create_task(_broadcast(
         "🔥 <b>Новый сезон начался!</b> Все на равных. Покажи, кто здесь настоящий король!",
         [u['id'] for u in users]
@@ -895,6 +1012,24 @@ async def season_rollback(req: SeasonReq, _: dict = Depends(get_admin_user)):
                     u['balance'], u['current_price'], u['owner_id'], u['custom_name'], u['job_id'], u['id']
                 )
     return {"ok": True}
+
+
+# FIX #13: nuclear DB clear
+@app.post("/api/admin/db/clear")
+async def clear_database(_: dict = Depends(get_admin_user)):
+    """Wipe ALL user data to zero. Irreversible."""
+    async with db.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("DELETE FROM pending_purchases")
+            await conn.execute("DELETE FROM promo_uses")
+            await conn.execute("DELETE FROM user_cosmetics")
+            await conn.execute("DELETE FROM user_sponsors")
+            await conn.execute("DELETE FROM stories_claims")
+            await conn.execute("DELETE FROM support_tickets")
+            await conn.execute("DELETE FROM transactions")
+            await conn.execute("DELETE FROM season_snapshots")
+            await conn.execute("DELETE FROM users")
+    return {"ok": True, "msg": "База данных полностью очищена"}
 
 
 @app.post("/api/admin/promo/create")
@@ -928,14 +1063,10 @@ def _register_bot_handlers():
         existing = await db.fetchrow("SELECT id FROM users WHERE id=$1", uid)
         if not existing:
             owner_id = ref_id if ref_id and ref_id != uid else None
-            jobs = await get_jobs_list()
-            job  = pick_job(0, jobs) if owner_id else None
-            now  = datetime.utcnow()
             await db.execute(
-                """INSERT INTO users(id,username,first_name,balance,current_price,owner_id,job_id,job_assigned_at)
-                   VALUES($1,$2,$3,50,100,$4,$5,$6) ON CONFLICT DO NOTHING""",
-                uid, msg.from_user.username, msg.from_user.first_name,
-                owner_id, job['id'] if job else None, now if job else None
+                """INSERT INTO users(id,username,first_name,balance,current_price,owner_id)
+                   VALUES($1,$2,$3,50,100,$4) ON CONFLICT DO NOTHING""",
+                uid, msg.from_user.username, msg.from_user.first_name, owner_id
             )
             if owner_id:
                 asyncio.create_task(push(owner_id,
@@ -954,10 +1085,41 @@ def _register_bot_handlers():
             parse_mode="HTML", reply_markup=kb
         )
 
+    # FIX #9: handle Stars payments
+    @dp.pre_checkout_query()
+    async def pre_checkout(query: PreCheckoutQuery):
+        await query.answer(ok=True)
+
+    @dp.message(F.successful_payment)
+    async def successful_payment(msg: types.Message):
+        payload = msg.successful_payment.invoice_payload
+        try:
+            # payload format: "shop:{purchase_id}:{uid}:{item_type}"
+            parts       = payload.split(":")
+            purchase_id = int(parts[1])
+            uid         = int(parts[2])
+            item_type   = parts[3]
+
+            purchase = await db.fetchrow(
+                "SELECT * FROM pending_purchases WHERE id=$1 AND user_id=$2 AND status='pending'",
+                purchase_id, uid
+            )
+            if not purchase:
+                await msg.answer("⚠️ Покупка уже обработана или не найдена.")
+                return
+
+            await db.execute(
+                "UPDATE pending_purchases SET status='completed' WHERE id=$1", purchase_id
+            )
+            await _grant_shop_item(uid, item_type, purchase['cosmetic_id'], purchase['slave_id'])
+            await msg.answer("✅ Покупка успешна! Предмет активирован. Обновите приложение.")
+        except Exception as e:
+            print(f"[payment] error: {e}")
+            await msg.answer("⚠️ Ошибка обработки платежа. Напишите в поддержку.")
+
 # ─── BACKGROUND ───────────────────────────────────────────────────────────────
 
 async def _income_cron():
-    """Collect passive income for all owners every 30 min."""
     while True:
         await asyncio.sleep(1800)
         try:
@@ -969,6 +1131,7 @@ async def _income_cron():
                 except Exception: pass
         except Exception as e:
             print(f"[cron] error: {e}")
+
 
 async def _bot_polling():
     try:
@@ -985,5 +1148,5 @@ async def serve():
 # ─── ENTRY ────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))   # Railway задаёт PORT сам
+    port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False, workers=1)

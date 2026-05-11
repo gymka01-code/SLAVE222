@@ -9,364 +9,452 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-  :root {
-    --bg:      #0a0a0f;
-    --bg2:     #111118;
-    --bg3:     #1a1a24;
-    --border:  #2a2a3a;
-    --acc:     #e8c84a;
-    --acc2:    #ff4d6d;
-    --acc3:    #4dffb0;
-    --text:    #f0f0f8;
-    --muted:   #666688;
-    --card:    #14141e;
-    --r:       14px;
-    --font:    'Inter', sans-serif;
-    --display: 'Unbounded', sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body, #root { height: 100%; width: 100%; overflow: hidden; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 14px;
-    line-height: 1.5;
-    overscroll-behavior: none;
-  }
+:root {
+  /* Apple-style dark palette */
+  --bg:        #000000;
+  --bg2:       #0f0f0f;
+  --bg3:       #1c1c1e;
+  --bg4:       #2c2c2e;
+  --border:    rgba(255,255,255,0.08);
+  --border2:   rgba(255,255,255,0.14);
+  --gold:      #FFD60A;
+  --gold2:     #F0C000;
+  --red:       #FF453A;
+  --green:     #30D158;
+  --blue:      #0A84FF;
+  --purple:    #BF5AF2;
+  --text:      #FFFFFF;
+  --text2:     rgba(255,255,255,0.72);
+  --text3:     rgba(255,255,255,0.40);
+  --card:      rgba(28,28,30,0.9);
+  --r:         16px;
+  --r2:        12px;
+  --font:      'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+}
 
-  /* SCROLLABLE */
-  .scroll { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
-  .scroll::-webkit-scrollbar { width: 0; }
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html, body, #root { height:100%; width:100%; overflow:hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
 
-  /* LAYOUT */
-  .app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
-  .screen { flex:1; overflow:hidden; display:flex; flex-direction:column; }
-  .content { flex:1; overflow-y:auto; padding:0 0 12px; }
-  .content::-webkit-scrollbar { width:0; }
+/* ── SCROLLABLE ── */
+.scroll, .content {
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll::-webkit-scrollbar,
+.content::-webkit-scrollbar { width: 0; }
 
-  /* NAV */
-  .nav {
-    display:flex; align-items:center; justify-content:space-around;
-    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-    background: var(--bg2);
-    border-top: 1px solid var(--border);
-    flex-shrink:0;
-  }
-  .nav-btn {
-    display:flex; flex-direction:column; align-items:center; gap:3px;
-    background:none; border:none; color:var(--muted); cursor:pointer;
-    padding:6px 16px; border-radius:10px; transition:.15s;
-    font-family:var(--font); font-size:10px; font-weight:500;
-  }
-  .nav-btn .ico { font-size:20px; line-height:1; }
-  .nav-btn.active { color:var(--acc); }
-  .nav-btn:active { transform:scale(.92); }
+/* ── LAYOUT ── */
+.app    { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+.screen { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.content { flex:1; overflow-y:auto; padding:0 0 16px; }
 
-  /* HEADER */
-  .hdr {
-    padding:16px 16px 8px;
-    background: linear-gradient(180deg,var(--bg2) 0%,transparent 100%);
-    flex-shrink:0;
-  }
-  .hdr-title {
-    font-family:var(--display); font-size:18px; font-weight:700;
-    letter-spacing:-.5px; color:var(--acc);
-  }
-  .hdr-sub { font-size:11px; color:var(--muted); margin-top:1px; }
+/* ── NAV ── */
+.nav {
+  display: flex; align-items: flex-start; justify-content: space-around;
+  padding: 10px 4px max(12px, env(safe-area-inset-bottom));
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 0.5px solid var(--border2);
+  flex-shrink: 0;
+}
+.nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  padding: 4px 12px; border-radius: 10px; transition: color .15s;
+  font-family: var(--font); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.nav-btn .ico { font-size: 22px; line-height: 1; }
+.nav-btn.active { color: var(--gold); }
+.nav-btn:active { opacity: 0.6; }
 
-  /* CARDS */
-  .card {
-    background:var(--card); border:1px solid var(--border);
-    border-radius:var(--r); padding:14px;
-    transition:.15s;
-  }
-  .card:active { transform:scale(.98); }
+/* ── HEADER ── */
+.hdr {
+  padding: 20px 20px 12px;
+  flex-shrink: 0;
+}
+.hdr-title {
+  font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+  color: var(--text);
+}
+.hdr-sub { font-size: 13px; color: var(--text3); margin-top: 2px; font-weight: 400; }
 
-  /* PROFILE HERO */
-  .hero {
-    margin:12px 16px;
-    background: linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
-    border:1px solid #2244aa44;
-    border-radius:18px; padding:20px;
-    position:relative; overflow:hidden;
-  }
-  .hero::before {
-    content:''; position:absolute; top:-40px; right:-40px;
-    width:120px; height:120px;
-    background: radial-gradient(circle,#e8c84a22 0%,transparent 70%);
-    border-radius:50%;
-  }
-  .hero-row { display:flex; align-items:center; gap:14px; }
-  .avatar-wrap { position:relative; flex-shrink:0; }
-  .avatar {
-    width:64px; height:64px; border-radius:50%;
-    background: linear-gradient(135deg,var(--bg3),var(--border));
-    display:flex; align-items:center; justify-content:center;
-    font-size:28px; font-weight:700; color:var(--acc);
-    font-family:var(--display);
-    border:2px solid var(--border);
-    position:relative; overflow:hidden;
-  }
-  .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-  .vip-badge {
-    position:absolute; bottom:-2px; right:-2px;
-    background:var(--bg); border-radius:50%; width:22px; height:22px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:13px; border:1px solid var(--border);
-  }
-  .hero-name {
-    font-family:var(--display); font-size:16px; font-weight:700;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .hero-status { font-size:11px; color:var(--muted); margin-top:2px; }
-  .hero-stats {
-    display:grid; grid-template-columns:1fr 1fr 1fr;
-    gap:8px; margin-top:16px;
-  }
-  .stat {
-    background:#ffffff08; border-radius:10px; padding:10px 8px;
-    text-align:center;
-  }
-  .stat-val { font-family:var(--display); font-size:14px; font-weight:700; color:var(--acc); }
-  .stat-lbl { font-size:10px; color:var(--muted); margin-top:2px; }
-  .active-effects { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
-  .effect-tag {
-    font-size:11px; padding:3px 10px; border-radius:20px;
-    background:#ffffff0f; border:1px solid var(--border);
-    display:flex; align-items:center; gap:4px;
-  }
+/* ── CARDS ── */
+.card {
+  background: var(--bg3);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.card-press { transition: opacity .12s; cursor: pointer; }
+.card-press:active { opacity: 0.7; }
 
-  /* BTN */
-  .btn {
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    border:none; border-radius:12px; cursor:pointer;
-    font-family:var(--font); font-weight:600; letter-spacing:.2px;
-    transition:.15s; padding:12px 20px; width:100%; font-size:14px;
-  }
-  .btn:active { transform:scale(.96); opacity:.9; }
-  .btn-primary { background:var(--acc); color:#000; }
-  .btn-danger  { background:var(--acc2); color:#fff; }
-  .btn-ghost   {
-    background:transparent; color:var(--text);
-    border:1px solid var(--border);
-  }
-  .btn-success { background:var(--acc3); color:#000; }
-  .btn-sm { padding:8px 14px; font-size:12px; border-radius:9px; width:auto; }
+/* ── HERO PROFILE ── */
+.hero {
+  margin: 8px 16px 0;
+  background: linear-gradient(145deg, #1c1c1e 0%, #2c2c2e 100%);
+  border: 0.5px solid var(--border2);
+  border-radius: 20px;
+  padding: 20px;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; top: -60px; right: -40px;
+  width: 160px; height: 160px;
+  background: radial-gradient(circle, rgba(255,214,10,0.08) 0%, transparent 70%);
+  border-radius: 50%; pointer-events: none;
+}
+.hero-row { display: flex; align-items: center; gap: 16px; }
+.avatar-wrap { position: relative; flex-shrink: 0; }
+.avatar {
+  width: 68px; height: 68px; border-radius: 50%;
+  background: linear-gradient(135deg, #3a3a3c, #2c2c2e);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 700; color: var(--gold);
+  font-family: var(--font); overflow: hidden;
+  border: 2px solid rgba(255,214,10,0.3);
+}
+.avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.avatar-sm {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--bg4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: var(--text3);
+  overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--border);
+}
+.avatar-sm img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.vip-badge {
+  position: absolute; bottom: -2px; right: -2px;
+  background: var(--bg); border-radius: 50%;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; border: 1px solid var(--border2);
+}
+.hero-name {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hero-handle { font-size: 13px; color: var(--text3); margin-top: 1px; }
+.hero-status { font-size: 13px; margin-top: 4px; }
+.hero-stats {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; margin-top: 16px;
+}
+.stat {
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r2); padding: 12px 8px; text-align: center;
+}
+.stat-val {
+  font-size: 18px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.5px;
+}
+.stat-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; font-weight: 500; }
 
-  /* SLAVES LIST */
-  .slave-item {
-    display:flex; align-items:center; gap:12px;
-    padding:12px 0; border-bottom:1px solid var(--border);
-  }
-  .slave-item:last-child { border-bottom:none; }
-  .slave-ava {
-    width:42px; height:42px; border-radius:50%;
-    background:var(--bg3); display:flex; align-items:center;
-    justify-content:center; font-size:18px; flex-shrink:0;
-    font-family:var(--display); color:var(--muted);
-    font-weight:700;
-  }
-  .slave-info { flex:1; min-width:0; }
-  .slave-name { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .slave-job  { font-size:11px; color:var(--muted); margin-top:1px; }
-  .slave-price { font-family:var(--display); font-size:13px; font-weight:700; color:var(--acc); white-space:nowrap; }
+/* ── EFFECTS ── */
+.effects-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.effect-chip {
+  font-size: 12px; padding: 4px 10px; border-radius: 20px;
+  background: rgba(255,255,255,0.06);
+  border: 0.5px solid var(--border2);
+  color: var(--text2);
+  display: flex; align-items: center; gap: 4px; font-weight: 500;
+}
+.effect-chip.gold { background: rgba(255,214,10,0.1); border-color: rgba(255,214,10,0.3); color: var(--gold); }
+.effect-chip.green { background: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.3); color: var(--green); }
+.effect-chip.red { background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.3); color: var(--red); }
 
-  /* SEARCH */
-  .search-input {
-    width:100%; background:var(--bg3); border:1px solid var(--border);
-    border-radius:12px; color:var(--text); font-family:var(--font);
-    font-size:14px; padding:12px 16px; outline:none;
-    transition:.15s;
-  }
-  .search-input:focus { border-color:var(--acc); }
-  .search-input::placeholder { color:var(--muted); }
-  .filter-row { display:flex; gap:8px; }
-  .filter-row .search-input { flex:1; }
+/* ── BUTTONS ── */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: var(--r2); cursor: pointer;
+  font-family: var(--font); font-weight: 600; letter-spacing: -0.1px;
+  transition: opacity .12s; padding: 14px 20px; width: 100%;
+  font-size: 15px;
+}
+.btn:active { opacity: 0.7; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-primary { background: var(--gold); color: #000; }
+.btn-danger   { background: var(--red); color: #fff; }
+.btn-ghost    { background: rgba(255,255,255,0.08); color: var(--text); border: 0.5px solid var(--border2); }
+.btn-green    { background: var(--green); color: #000; }
+.btn-blue     { background: var(--blue); color: #fff; }
+.btn-sm { padding: 9px 14px; font-size: 13px; border-radius: 10px; width: auto; }
 
-  /* PLAYER CARD */
-  .player-card {
-    display:flex; align-items:center; gap:12px;
-    background:var(--card); border:1px solid var(--border);
-    border-radius:var(--r); padding:12px 14px;
-    cursor:pointer; transition:.15s;
-  }
-  .player-card:active { transform:scale(.97); border-color:var(--acc); }
-  .player-meta { flex:1; min-width:0; }
-  .player-name { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .player-sub  { font-size:11px; color:var(--muted); margin-top:1px; }
-  .player-price { font-family:var(--display); font-size:14px; font-weight:700; color:var(--acc); white-space:nowrap; }
+/* ── SECTIONS ── */
+.section { padding: 0 16px; margin-top: 16px; }
+.section-title {
+  font-size: 12px; font-weight: 600; color: var(--text3);
+  letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px;
+}
 
-  /* TOP LIST */
-  .rank-item {
-    display:flex; align-items:center; gap:12px;
-    padding:11px 16px;
-    border-bottom:1px solid var(--border);
-  }
-  .rank-num {
-    font-family:var(--display); font-size:13px; font-weight:700;
-    width:28px; text-align:center; flex-shrink:0;
-    color:var(--muted);
-  }
-  .rank-num.gold   { color:#ffd700; }
-  .rank-num.silver { color:#c0c0c0; }
-  .rank-num.bronze { color:#cd7f32; }
-  .rank-meta { flex:1; min-width:0; }
-  .rank-name { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .rank-sub  { font-size:11px; color:var(--muted); }
-  .rank-val  { font-family:var(--display); font-size:14px; font-weight:700; color:var(--acc); }
+/* ── LIST ITEMS ── */
+.list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 0.5px solid var(--border);
+}
+.list-item:last-child { border-bottom: none; }
+.li-info { flex: 1; min-width: 0; }
+.li-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.li-sub  { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.li-right { text-align: right; flex-shrink: 0; }
+.li-price { font-size: 14px; font-weight: 700; color: var(--gold); }
 
-  /* TABS */
-  .tabs {
-    display:flex; background:var(--bg2);
-    border-bottom:1px solid var(--border);
-    flex-shrink:0;
-  }
-  .tab {
-    flex:1; padding:12px 8px; text-align:center; cursor:pointer;
-    font-family:var(--display); font-size:10px; font-weight:600;
-    color:var(--muted); border-bottom:2px solid transparent;
-    transition:.15s; letter-spacing:.5px;
-    background:none; border-top:none; border-left:none; border-right:none;
-  }
-  .tab.active { color:var(--acc); border-bottom-color:var(--acc); }
+/* ── SEARCH ── */
+.input {
+  width: 100%; background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: var(--r2); color: var(--text); font-family: var(--font);
+  font-size: 15px; padding: 13px 16px; outline: none; transition: border-color .15s;
+}
+.input:focus { border-color: var(--gold); }
+.input::placeholder { color: var(--text3); }
 
-  /* SHOP */
-  .shop-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .shop-item {
-    background:var(--card); border:1px solid var(--border);
-    border-radius:var(--r); padding:14px; display:flex;
-    flex-direction:column; gap:8px; transition:.15s;
-  }
-  .shop-item:active { border-color:var(--acc); }
-  .shop-ico { font-size:28px; }
-  .shop-name { font-weight:600; font-size:12px; }
-  .shop-desc { font-size:11px; color:var(--muted); flex:1; }
-  .shop-price { font-family:var(--display); font-size:12px; font-weight:700; color:var(--acc); }
+/* ── PLAYER CARD ── */
+.player-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: var(--r); padding: 14px;
+  cursor: pointer; transition: all .12s;
+}
+.player-card:active { opacity: 0.7; transform: scale(0.98); }
+.pc-meta { flex: 1; min-width: 0; }
+.pc-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-sub  { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.pc-price { font-size: 15px; font-weight: 700; color: var(--gold); }
 
-  /* SUPPORT */
-  .msg-bubble {
-    max-width:78%; padding:10px 14px; border-radius:14px;
-    font-size:13px; line-height:1.5; margin-bottom:8px;
-  }
-  .msg-user  { background:var(--acc); color:#000; align-self:flex-end; border-bottom-right-radius:4px; }
-  .msg-admin { background:var(--bg3); color:var(--text); align-self:flex-start; border-bottom-left-radius:4px; }
-  .msg-time  { font-size:10px; opacity:.6; margin-top:4px; }
-  .chat-area { display:flex; flex-direction:column; padding:12px 16px; }
-  .chat-input-wrap {
-    padding:10px 16px max(10px, env(safe-area-inset-bottom));
-    background:var(--bg2); border-top:1px solid var(--border);
-    display:flex; gap:8px; align-items:center;
-  }
-  .chat-input {
-    flex:1; background:var(--bg3); border:1px solid var(--border);
-    border-radius:20px; color:var(--text); font-family:var(--font);
-    font-size:13px; padding:10px 16px; outline:none; resize:none;
-    max-height:80px; transition:.15s;
-  }
-  .chat-input:focus { border-color:var(--acc); }
+/* ── TOP / RANK ── */
+.rank-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; border-bottom: 0.5px solid var(--border);
+}
+.rank-num {
+  font-size: 13px; font-weight: 700; width: 28px;
+  text-align: center; flex-shrink: 0; color: var(--text3);
+}
+.rank-meta { flex: 1; min-width: 0; }
+.rank-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-sub  { font-size: 12px; color: var(--text3); }
+.rank-val  { font-size: 15px; font-weight: 700; color: var(--gold); }
 
-  /* MODAL */
-  .overlay {
-    position:fixed; inset:0; background:#000a; z-index:100;
-    display:flex; align-items:flex-end; padding:0;
-  }
-  .modal {
-    background:var(--bg2); border-top-left-radius:24px; border-top-right-radius:24px;
-    padding:20px 20px max(20px, env(safe-area-inset-bottom));
-    width:100%; max-height:85vh; overflow-y:auto;
-    animation: slideUp .25s ease;
-  }
-  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-  .modal-handle {
-    width:40px; height:4px; border-radius:2px;
-    background:var(--border); margin:0 auto 16px;
-  }
-  .modal-title { font-family:var(--display); font-size:16px; font-weight:700; margin-bottom:16px; }
+/* ── TABS ── */
+.tabs {
+  display: flex; background: var(--bg);
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0; padding: 0 4px;
+}
+.tab {
+  flex: 1; padding: 12px 6px; text-align: center; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text3);
+  border-bottom: 2px solid transparent; border-top: none;
+  border-left: none; border-right: none;
+  background: none; transition: all .15s; letter-spacing: 0.3px;
+}
+.tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 
-  /* ADMIN */
-  .admin-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .admin-stat {
-    background:var(--card); border:1px solid var(--border);
-    border-radius:var(--r); padding:14px;
-  }
-  .admin-stat-val { font-family:var(--display); font-size:20px; font-weight:700; color:var(--acc); }
-  .admin-stat-lbl { font-size:11px; color:var(--muted); margin-top:2px; }
+/* ── SHOP ── */
+.shop-item {
+  background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: var(--r); padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.si-ico  { font-size: 30px; line-height: 1; }
+.si-name { font-weight: 600; font-size: 14px; }
+.si-desc { font-size: 12px; color: var(--text3); flex: 1; line-height: 1.4; }
+.si-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.si-price { font-size: 13px; font-weight: 700; color: var(--gold); }
 
-  /* UTILS */
-  .section { padding:0 16px; margin-top:16px; }
-  .section-title {
-    font-family:var(--display); font-size:11px; font-weight:700;
-    color:var(--muted); letter-spacing:1.5px; text-transform:uppercase;
-    margin-bottom:10px;
-  }
-  .gap { gap:8px; display:flex; flex-direction:column; }
-  .row { display:flex; align-items:center; gap:8px; }
-  .badge {
-    padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600;
-    display:inline-flex; align-items:center; gap:4px;
-  }
-  .badge-gold   { background:#e8c84a22; color:var(--acc); border:1px solid #e8c84a44; }
-  .badge-green  { background:#4dffb022; color:var(--acc3); border:1px solid #4dffb044; }
-  .badge-red    { background:#ff4d6d22; color:var(--acc2); border:1px solid #ff4d6d44; }
-  .toast {
-    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
-    background:var(--bg3); border:1px solid var(--border); border-radius:12px;
-    padding:10px 20px; font-size:13px; font-weight:600;
-    z-index:200; white-space:nowrap; max-width:90vw;
-    animation:fadeIn .2s ease;
-  }
-  @keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
-  .divider { height:1px; background:var(--border); margin:12px 0; }
-  .text-acc  { color:var(--acc); }
-  .text-red  { color:var(--acc2); }
-  .text-green{ color:var(--acc3); }
-  .text-muted{ color:var(--muted); }
-  .fw7  { font-weight:700; }
-  .f12  { font-size:12px; }
-  .f11  { font-size:11px; }
-  .mt8  { margin-top:8px; }
-  .mt12 { margin-top:12px; }
-  .mt16 { margin-top:16px; }
+/* ── CHAT ── */
+.msg-wrap { display: flex; flex-direction: column; margin-bottom: 6px; }
+.msg-wrap.me  { align-items: flex-end; }
+.msg-wrap.them { align-items: flex-start; }
+.msg-bubble {
+  max-width: 76%; padding: 10px 14px; border-radius: 18px;
+  font-size: 14px; line-height: 1.5;
+}
+.msg-bubble.me   { background: var(--gold); color: #000; border-bottom-right-radius: 4px; }
+.msg-bubble.them { background: var(--bg3); color: var(--text); border-bottom-left-radius: 4px; }
+.msg-time { font-size: 10px; opacity: 0.5; margin-top: 3px; padding: 0 2px; }
+.msg-sender { font-size: 11px; font-weight: 600; margin-bottom: 3px; color: var(--gold); }
+.chat-area { display: flex; flex-direction: column; padding: 12px 16px; min-height: 100%; }
+.chat-input-wrap {
+  padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--border);
+  display: flex; gap: 8px; align-items: flex-end;
+}
+.chat-input {
+  flex: 1; background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: 20px; color: var(--text); font-family: var(--font);
+  font-size: 15px; padding: 10px 16px; outline: none; resize: none;
+  max-height: 80px; transition: border-color .15s;
+}
+.chat-input:focus { border-color: var(--gold); }
 
-  /* VIP colors */
-  .clr-neon     { color:#39ff14; }
-  .clr-red      { color:#ff4d6d; }
-  .clr-gold     { color:#e8c84a; }
-  .clr-gradient { background:linear-gradient(90deg,#e8c84a,#ff4d6d,#4dffb0); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+/* Ticket conversation list item */
+.conv-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px; border-bottom: 0.5px solid var(--border);
+  cursor: pointer; transition: background .1s;
+}
+.conv-item:active { background: rgba(255,255,255,0.04); }
+.conv-meta { flex: 1; min-width: 0; }
+.conv-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-last { font-size: 13px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.conv-right { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.conv-time  { font-size: 11px; color: var(--text3); }
+.unread-dot {
+  background: var(--gold); color: #000; border-radius: 10px;
+  font-size: 11px; font-weight: 700; padding: 1px 6px; min-width: 18px;
+  text-align: center;
+}
 
-  /* LOADING */
-  .spinner {
-    width:36px; height:36px; border:3px solid var(--border);
-    border-top-color:var(--acc); border-radius:50%;
-    animation:spin 1s linear infinite;
-  }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .loading-screen {
-    height:100vh; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:16px;
-  }
-  .loading-logo { font-family:var(--display); font-size:32px; font-weight:900; color:var(--acc); }
+/* ── MODAL ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+  z-index: 100; display: flex; align-items: flex-end;
+  backdrop-filter: blur(4px);
+}
+.modal {
+  background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px;
+  border-top: 0.5px solid var(--border2);
+  padding: 20px 20px max(24px, env(safe-area-inset-bottom));
+  width: 100%; max-height: 88vh; overflow-y: auto;
+  animation: slideUp .28s cubic-bezier(.32,0,.67,0);
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.modal-handle { width:36px; height:4px; border-radius:2px; background:var(--bg4); margin:0 auto 20px; }
+.modal-title  { font-size:18px; font-weight:700; letter-spacing:-0.3px; margin-bottom:16px; }
+
+/* ── ADMIN ── */
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.admin-stat {
+  background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: var(--r); padding: 16px;
+}
+.as-val { font-size:22px; font-weight:700; color:var(--text); letter-spacing:-0.5px; }
+.as-ico { font-size:20px; margin-bottom:6px; }
+.as-lbl { font-size:12px; color:var(--text3); margin-top:2px; }
+
+/* ── UTILS ── */
+.gap6  { display:flex; flex-direction:column; gap:6px; }
+.gap8  { display:flex; flex-direction:column; gap:8px; }
+.gap12 { display:flex; flex-direction:column; gap:12px; }
+.row   { display:flex; align-items:center; gap:8px; }
+.row-sb { display:flex; align-items:center; justify-content:space-between; }
+.mt4  { margin-top:4px; }
+.mt8  { margin-top:8px; }
+.mt12 { margin-top:12px; }
+.mt16 { margin-top:16px; }
+.mt20 { margin-top:20px; }
+.f11  { font-size:11px; }
+.f12  { font-size:12px; }
+.f13  { font-size:13px; }
+.fw6  { font-weight:600; }
+.fw7  { font-weight:700; }
+.text-gold   { color:var(--gold); }
+.text-red    { color:var(--red); }
+.text-green  { color:var(--green); }
+.text-muted  { color:var(--text3); }
+.text-2      { color:var(--text2); }
+.text-center { text-align:center; }
+.divider     { height:0.5px; background:var(--border); margin:14px 0; }
+
+/* ── NAME COLORS ── */
+.clr-ruby { color:#FF453A; }
+.clr-gold { color:#FFD60A; }
+.clr-neon { color:#30D158; }
+
+/* ── LOADING ── */
+.spinner {
+  width:32px; height:32px; border:2.5px solid var(--bg4);
+  border-top-color:var(--gold); border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-screen {
+  height:100vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  background:var(--bg);
+}
+.loading-logo { font-size:48px; }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+  background:rgba(28,28,30,0.96); border:0.5px solid var(--border2);
+  backdrop-filter:blur(20px); border-radius:14px;
+  padding:12px 22px; font-size:14px; font-weight:600;
+  z-index:200; white-space:nowrap; max-width:88vw;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  animation:fadeUp .2s ease;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateX(-50%) translateY(8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+/* ── JOB TABLE ── */
+.job-tier {
+  background:var(--bg4); border-radius:12px; padding:12px 14px; margin-bottom:8px;
+}
+.job-tier-head { font-weight:700; font-size:13px; margin-bottom:8px; }
+.job-tier-item { display:flex; align-items:center; gap:8px; padding:4px 0; }
+.job-tier-emo  { font-size:18px; width:24px; text-align:center; }
+.job-tier-info { flex:1; }
+.job-tier-name { font-size:13px; font-weight:500; }
+.job-tier-rc   { font-size:11px; color:var(--text3); }
+
+/* ── STORIES ── */
+.stories-card {
+  margin: 12px 16px;
+  background: linear-gradient(135deg, #1c1c1e, #2c2c2e);
+  border: 0.5px solid rgba(255,214,10,0.25);
+  border-radius: 20px; padding: 20px;
+  position: relative; overflow: hidden;
+}
+.stories-card::before {
+  content:''; position:absolute; bottom:-30px; right:-30px;
+  width:120px; height:120px;
+  background: radial-gradient(circle, rgba(255,214,10,0.1) 0%, transparent 70%);
+  border-radius:50%;
+}
+.stories-ico { font-size:32px; margin-bottom:8px; }
+.stories-title { font-size:16px; font-weight:700; }
+.stories-sub { font-size:13px; color:var(--text3); margin-top:4px; }
+.stories-timer { font-size:22px; font-weight:700; color:var(--gold); margin-top:8px; }
+
+/* ── PROFILE VIEW (other user) ── */
+.back-btn {
+  display:flex; align-items:center; gap:6px;
+  background:none; border:none; color:var(--gold);
+  font-size:15px; font-weight:600; cursor:pointer;
+  padding:0;
+}
+.back-btn:active { opacity:0.6; }
 </style>
 </head>
 <body>
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
-
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-const BASE = '';  // Same origin
-
-// ─── API ──────────────────────────────────────────────────────────────────────
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
+const BASE = '';
 let _initData = '';
+let _botUsername = 'YourBot';
 
 function getHeaders() {
-  return { 'Content-Type': 'application/json', 'x-init-data': _initData };
+  return { 'Content-Type':'application/json', 'x-init-data': _initData };
 }
-
 async function api(method, path, body) {
   const opts = { method, headers: getHeaders() };
   if (body) opts.body = JSON.stringify(body);
@@ -375,50 +463,159 @@ async function api(method, path, body) {
   if (!r.ok) throw new Error(data.detail || `Error ${r.status}`);
   return data;
 }
+const get  = (path)       => api('GET',  path);
+const post = (path, body) => api('POST', path, body);
 
-const get  = (path)        => api('GET',  path);
-const post = (path, body)  => api('POST', path, body);
-
-// ─── TOAST ────────────────────────────────────────────────────────────────────
+// ── TOAST ──
 function useToast() {
   const [toast, setToast] = useState(null);
-  const show = useCallback((msg, ms=2500) => {
+  const show = useCallback((msg, ms=2800) => {
     setToast(msg);
     setTimeout(() => setToast(null), ms);
   }, []);
   return [toast, show];
 }
 
-// ─── NAME RENDER ──────────────────────────────────────────────────────────────
+// ── AVATAR ──
+function Avatar({ user, size=44 }) {
+  const [err, setErr] = useState(false);
+  const name = user?.first_name || user?.username || '?';
+  const initial = name[0]?.toUpperCase() || '?';
+  const cls = size >= 60 ? 'avatar' : 'avatar-sm';
+  const style = size !== 44 && size !== 68
+    ? { width: size, height: size, fontSize: size * 0.38 } : {};
+  if (user?.photo_url && !err) {
+    return (
+      <div className={cls} style={style}>
+        <img src={user.photo_url} alt="" onError={() => setErr(true)} />
+      </div>
+    );
+  }
+  return <div className={cls} style={style}>{initial}</div>;
+}
+
+// ── PLAYER NAME ──
 function PlayerName({ user, style }) {
-  const clr = user.name_color && user.name_color !== 'default' ? `clr-${user.name_color}` : '';
+  const clr   = user.name_color && user.name_color !== 'default' ? `clr-${user.name_color}` : '';
   const emoji = user.emoji_status ? user.emoji_status + ' ' : '';
-  const name = user.first_name || user.username || `#${user.id}`;
+  const name  = user.custom_name
+    ? `${user.custom_name} (${user.first_name || user.username || `#${user.id}`})`
+    : (user.first_name || user.username || `#${user.id}`);
   return (
     <span className={clr} style={style}>
-      {emoji}{user.custom_name ? `${user.custom_name} (${name})` : name}
-      {user.vip_level === 3 && <span> 👑</span>}
-      {user.vip_level === 2 && <span> 🥈</span>}
-      {user.vip_level === 1 && <span> 🥉</span>}
+      {emoji}{name}
+      {user.vip_level >= 3 && ' 👑'}
+      {user.vip_level === 2 && ' 🥈'}
+      {user.vip_level === 1 && ' 🥉'}
     </span>
   );
 }
 
-function initials(u) {
-  const n = u.first_name || u.username || '?';
-  return n[0].toUpperCase();
+// ── STORIES TIMER ──
+function useCountdown(targetIso) {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    if (!targetIso) { setSecs(0); return; }
+    function tick() {
+      const diff = Math.max(0, Math.round((new Date(targetIso) - Date.now()) / 1000));
+      setSecs(diff);
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [targetIso]);
+  return secs;
+}
+function fmtCountdown(s) {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
-// ─── SCREENS ──────────────────────────────────────────────────────────────────
+// ── JOB PROBABILITIES MODAL ──
+function JobProbsModal({ jobs, vipLevel, onClose, onSend, slaveName }) {
+  const common   = jobs.filter(j => j.drop_chance === 70);
+  const rare     = jobs.filter(j => j.drop_chance === 25);
+  const legendary = jobs.filter(j => j.drop_chance === 5);
 
-/* ── PROFILE ── */
-function ProfileScreen({ user, onBuy, onRefresh }) {
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle"/>
+        <div className="modal-title">💼 Отправить на работу</div>
+        <div className="f13 text-muted" style={{marginBottom:16}}>
+          Раб: <span className="fw6 text-2">{slaveName}</span>
+        </div>
+
+        <div className="job-tier">
+          <div className="job-tier-head text-2">🟢 Обычные — 70% шанс</div>
+          {common.map(j => (
+            <div className="job-tier-item" key={j.id}>
+              <div className="job-tier-emo">{j.emoji}</div>
+              <div className="job-tier-info">
+                <div className="job-tier-name">{j.title}</div>
+                <div className="job-tier-rc">{j.income_per_hour} RC/ч</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="job-tier">
+          <div className="job-tier-head" style={{color:'var(--blue)'}}>🔵 Редкие — 25% шанс</div>
+          {rare.map(j => (
+            <div className="job-tier-item" key={j.id}>
+              <div className="job-tier-emo">{j.emoji}</div>
+              <div className="job-tier-info">
+                <div className="job-tier-name">{j.title}</div>
+                <div className="job-tier-rc">{j.income_per_hour} RC/ч</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="job-tier">
+          <div className="job-tier-head" style={{color:'var(--gold)'}}>
+            🟡 Легендарные — 5% шанс {vipLevel < 3 && <span className="text-muted">(нужен 👑 VIP)</span>}
+          </div>
+          {legendary.map(j => (
+            <div className="job-tier-item" key={j.id}>
+              <div className="job-tier-emo">{j.emoji}</div>
+              <div className="job-tier-info">
+                <div className="job-tier-name">{j.title}</div>
+                <div className="job-tier-rc">{j.income_per_hour} RC/ч — только для VIP 👑</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="f12 text-muted" style={{marginBottom:16,lineHeight:1.5}}>
+          ℹ️ Работа выбирается случайно по шансам. Без VIP 👑 легендарные заменяются редкими.
+        </div>
+
+        <button className="btn btn-primary" onClick={onSend}>
+          🎲 Отправить на работу
+        </button>
+        <button className="btn btn-ghost mt8" onClick={onClose}>Отмена</button>
+      </div>
+    </div>
+  );
+}
+
+// ── PROFILE SCREEN ──────────────────────────────────────────────────────────
+function ProfileScreen({ user, onRefresh, onViewProfile }) {
   const [toast, showToast] = useToast();
   const [renaming, setRenaming] = useState(null);
   const [newName, setNewName] = useState('');
-  const [selfbuying, setSelfbuying] = useState(false);
   const [loading, setLoading] = useState(false);
-  const refLink = `https://t.me/${window._botUsername || 'YourBot'}?start=ref_${user.id}`;
+  const [jobs, setJobs] = useState([]);
+  const [sendWorkSlave, setSendWorkSlave] = useState(null);
+  const storiesCountdown = useCountdown(user.story_cooldown_until);
+
+  // FIX #12: use actual bot username
+  const refLink = `https://t.me/${user.bot_username || _botUsername}?start=ref_${user.id}`;
+
+  useEffect(() => {
+    get('/api/jobs').then(j => setJobs(j)).catch(() => {});
+  }, []);
 
   async function doSelfbuy() {
     if (!confirm(`Выкупить себя за ${user.price.toFixed(0)} RC?`)) return;
@@ -441,26 +638,50 @@ function ProfileScreen({ user, onBuy, onRefresh }) {
     } catch(e) { showToast('❌ ' + e.message); }
   }
 
+  async function doSendWork(slaveId) {
+    try {
+      const r = await post('/api/slaves/send_to_work', { slave_id: slaveId });
+      showToast(`✅ ${r.job.emoji} ${r.job.title}`);
+      setSendWorkSlave(null);
+      onRefresh();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
   async function claimStories() {
+    if (user.story_cooldown_until && new Date(user.story_cooldown_until) > new Date()) return;
     try {
       const r = await post('/api/stories/claim');
       showToast('📸 ' + r.msg);
-    } catch(e) { showToast('❌ ' + e.message); }
+      onRefresh();
+    } catch(e) {
+      const msg = e.message;
+      if (msg.startsWith('Cooldown:')) {
+        showToast('⏱ Ещё не доступно!');
+      } else {
+        showToast('❌ ' + msg);
+      }
+    }
   }
+
+  const workingSlave = sendWorkSlave
+    ? user.slaves.find(s => s.id === sendWorkSlave)
+    : null;
 
   return (
     <div className="screen">
       {toast && <div className="toast">{toast}</div>}
+
       <div className="hdr">
-        <div className="hdr-title">⛓ РАБСТВО</div>
+        <div className="hdr-title">⛓ Рабство</div>
         <div className="hdr-sub">Сезон · Социальная стратегия</div>
       </div>
       <div className="content">
+
         {/* Hero */}
         <div className="hero">
           <div className="hero-row">
             <div className="avatar-wrap">
-              <div className="avatar">{initials(user)}</div>
+              <Avatar user={user} size={68}/>
               {user.vip_level > 0 && (
                 <div className="vip-badge">
                   {user.vip_level===3?'👑':user.vip_level===2?'🥈':'🥉'}
@@ -469,40 +690,34 @@ function ProfileScreen({ user, onBuy, onRefresh }) {
             </div>
             <div style={{flex:1,minWidth:0}}>
               <div className="hero-name"><PlayerName user={user}/></div>
+              <div className="hero-handle">{user.username ? `@${user.username}` : `#${user.id}`}</div>
               <div className="hero-status">
                 {user.owner
-                  ? <span className="text-red">⛓ Раб @{user.owner.username || user.owner.id}</span>
-                  : <span className="text-green">✅ Свободен</span>
-                }
-              </div>
-              <div style={{marginTop:4}}>
-                <button className="btn btn-ghost btn-sm"
-                  onClick={() => { navigator.clipboard?.writeText(refLink); showToast('🔗 Ссылка скопирована!'); }}>
-                  🔗 Реф.ссылка
-                </button>
+                  ? <span className="text-red">⛓ Раб — {user.owner.first_name || '@'+user.owner.username}</span>
+                  : <span className="text-green">✅ Свободен</span>}
               </div>
             </div>
           </div>
           <div className="hero-stats">
             <div className="stat">
               <div className="stat-val">{user.balance.toFixed(0)}</div>
-              <div className="stat-lbl">RC Баланс</div>
+              <div className="stat-lbl">💰 Баланс RC</div>
             </div>
             <div className="stat">
               <div className="stat-val">{user.price.toFixed(0)}</div>
-              <div className="stat-lbl">Моя цена</div>
+              <div className="stat-lbl">🏷 Моя цена</div>
             </div>
             <div className="stat">
               <div className="stat-val">{user.slaves_count}</div>
-              <div className="stat-lbl">Рабов</div>
+              <div className="stat-lbl">⛓ Рабов</div>
             </div>
           </div>
           {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (
-            <div className="active-effects">
-              {user.shield_active  && <div className="effect-tag">🛡 Щит</div>}
-              {user.stealth_active && <div className="effect-tag">👻 Стелс</div>}
-              {user.booster_active && <div className="effect-tag">🚀 Буст x{user.booster_mult}</div>}
-              {user.chains_active  && <div className="effect-tag">⛓ Оковы</div>}
+            <div className="effects-row">
+              {user.shield_active  && <div className="effect-chip gold">🛡 Щит</div>}
+              {user.stealth_active && <div className="effect-chip">👻 Стелс</div>}
+              {user.booster_active && <div className="effect-chip green">🚀 Буст ×{user.booster_mult}</div>}
+              {user.chains_active  && <div className="effect-chip red">⛓ Оковы</div>}
             </div>
           )}
         </div>
@@ -516,29 +731,58 @@ function ProfileScreen({ user, onBuy, onRefresh }) {
           </div>
         )}
 
-        {/* Stories */}
+        {/* Ref link */}
         <div className="section">
-          <button className="btn btn-ghost" onClick={claimStories}>
-            📸 Stories бонус (+250 RC + предмет)
+          <button className="btn btn-ghost"
+            onClick={() => { navigator.clipboard?.writeText(refLink); showToast('🔗 Ссылка скопирована!'); }}>
+            🔗 Пригласить друга (реферальная ссылка)
           </button>
         </div>
 
-        {/* Slaves */}
+        {/* FIX #11: Stories with timer */}
+        <div className="stories-card">
+          <div className="stories-ico">📸</div>
+          <div className="stories-title">Stories Бонус</div>
+          <div className="stories-sub">Опубликуйте Story о нас — получите +250 RC и случайный предмет</div>
+          {user.story_cooldown_until && storiesCountdown > 0 ? (
+            <>
+              <div className="stories-timer">{fmtCountdown(storiesCountdown)}</div>
+              <div className="f12 text-muted mt4">до следующей возможности</div>
+            </>
+          ) : (
+            <button className="btn btn-primary mt12" style={{borderRadius:12}} onClick={claimStories}>
+              Получить бонус ✨
+            </button>
+          )}
+        </div>
+
+        {/* FIX #4: Slaves list with profile click + send to work button */}
         {user.slaves.length > 0 && (
           <div className="section">
             <div className="section-title">Мои рабы ({user.slaves_count})</div>
             <div className="card">
               {user.slaves.map(s => (
-                <div className="slave-item" key={s.id}>
-                  <div className="slave-ava">{initials(s)}</div>
-                  <div className="slave-info">
-                    <div className="slave-name">
-                      {s.custom_name ? <><span className="text-acc">{s.custom_name}</span> <span className="text-muted f11">({s.first_name||s.username})</span></> : (s.first_name || s.username || `#${s.id}`)}
-                    </div>
-                    <div className="slave-job">{s.job_emoji} {s.job_title || 'Нет работы'}</div>
+                <div className="list-item" key={s.id}>
+                  <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
+                    <Avatar user={s} size={44}/>
                   </div>
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
-                    <div className="slave-price">{s.price.toFixed(0)} RC</div>
+                  <div className="li-info" style={{cursor:'pointer'}} onClick={() => onViewProfile(s.id)}>
+                    <div className="li-name">
+                      {s.custom_name
+                        ? <><span className="text-gold">{s.custom_name}</span> <span className="text-muted f12">({s.first_name||s.username})</span></>
+                        : (s.first_name || s.username || `#${s.id}`)}
+                    </div>
+                    <div className="li-sub">
+                      {s.working ? `${s.job_emoji} ${s.job_title}` : '😴 Не работает'}
+                      {' · '}{s.price.toFixed(0)} RC
+                    </div>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:5,alignItems:'flex-end'}}>
+                    {/* FIX #2: manual send to work */}
+                    <button className="btn btn-primary btn-sm"
+                      onClick={() => setSendWorkSlave(s.id)}>
+                      💼
+                    </button>
                     <button className="btn btn-ghost btn-sm"
                       onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>
                       ✏️
@@ -547,24 +791,38 @@ function ProfileScreen({ user, onBuy, onRefresh }) {
                 </div>
               ))}
             </div>
+            <div className="f12 text-muted mt8">
+              💡 Нажмите 💼 чтобы отправить раба на работу. Нажмите на имя чтобы открыть профиль.
+            </div>
           </div>
         )}
       </div>
 
+      {/* FIX #2 + #5: send to work modal with probabilities */}
+      {sendWorkSlave && workingSlave && jobs.length > 0 && (
+        <JobProbsModal
+          jobs={jobs}
+          vipLevel={user.vip_level}
+          slaveName={workingSlave.custom_name || workingSlave.first_name || workingSlave.username || `#${workingSlave.id}`}
+          onClose={() => setSendWorkSlave(null)}
+          onSend={() => doSendWork(sendWorkSlave)}
+        />
+      )}
+
       {/* Rename modal */}
       {renaming && (
-        <div className="overlay" onClick={()=>setRenaming(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="overlay" onClick={() => setRenaming(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">✏️ Дать кличку</div>
-            <input className="search-input" placeholder="Кличка (до 32 символов)"
+            <input className="input" placeholder="Кличка (до 32 символов)"
               value={newName} maxLength={32}
-              onChange={e=>setNewName(e.target.value)}
-              onKeyDown={e=>e.key==='Enter'&&doRename()}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && doRename()}
               autoFocus/>
-            <div style={{marginTop:12,display:'flex',gap:8}}>
+            <div className="row mt12">
               <button className="btn btn-primary" onClick={doRename}>Сохранить</button>
-              <button className="btn btn-ghost" onClick={()=>setRenaming(null)}>Отмена</button>
+              <button className="btn btn-ghost" onClick={() => setRenaming(null)}>Отмена</button>
             </div>
           </div>
         </div>
@@ -573,21 +831,155 @@ function ProfileScreen({ user, onBuy, onRefresh }) {
   );
 }
 
-/* ── SEARCH ── */
-function SearchScreen({ user, onBuy }) {
-  const [q, setQ] = useState('');
-  const [minP, setMinP] = useState('');
-  const [maxP, setMaxP] = useState('');
+// ── USER PROFILE VIEW (FIX #4) ──────────────────────────────────────────────
+function UserProfileScreen({ uid, currentUserId, onBack, onBuy }) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [buying, setBuying] = useState(false);
+  const [toast, showToast] = useToast();
+  const [viewingSlaveId, setViewingSlaveId] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    get(`/api/profile/${uid}`)
+      .then(p => { setProfile(p); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [uid]);
+
+  async function doBuy() {
+    setBuying(true);
+    try {
+      await post('/api/buy', { target_id: uid });
+      showToast('✅ Куплен!');
+      onBuy();
+      setTimeout(onBack, 1500);
+    } catch(e) { showToast('❌ ' + e.message); }
+    setBuying(false);
+  }
+
+  if (loading) return (
+    <div className="screen">
+      <div style={{display:'flex',justifyContent:'center',padding:60}}>
+        <div className="spinner"/>
+      </div>
+    </div>
+  );
+
+  if (!profile) return (
+    <div className="screen">
+      <div className="section mt20 text-center text-muted">Профиль не найден</div>
+    </div>
+  );
+
+  if (viewingSlaveId) {
+    return (
+      <UserProfileScreen
+        uid={viewingSlaveId}
+        currentUserId={currentUserId}
+        onBack={() => setViewingSlaveId(null)}
+        onBuy={onBuy}
+      />
+    );
+  }
+
+  return (
+    <div className="screen">
+      {toast && <div className="toast">{toast}</div>}
+      <div className="hdr">
+        <button className="back-btn" onClick={onBack}>
+          ‹ Назад
+        </button>
+        <div className="hdr-title mt8">
+          <PlayerName user={profile}/>
+        </div>
+        <div className="hdr-sub">{profile.username ? `@${profile.username}` : `ID: ${profile.id}`}</div>
+      </div>
+      <div className="content">
+        <div className="hero">
+          <div className="hero-row">
+            <div className="avatar-wrap">
+              <Avatar user={profile} size={68}/>
+              {profile.vip_level > 0 && (
+                <div className="vip-badge">
+                  {profile.vip_level===3?'👑':profile.vip_level===2?'🥈':'🥉'}
+                </div>
+              )}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="hero-name"><PlayerName user={profile}/></div>
+              <div className="hero-handle">{profile.username ? `@${profile.username}` : `#${profile.id}`}</div>
+              <div className="hero-status">
+                {profile.owner
+                  ? <span className="text-red">⛓ Раб</span>
+                  : <span className="text-green">✅ Свободен</span>}
+              </div>
+            </div>
+          </div>
+          <div className="hero-stats">
+            <div className="stat">
+              <div className="stat-val">{profile.price.toFixed(0)}</div>
+              <div className="stat-lbl">🏷 Цена</div>
+            </div>
+            <div className="stat">
+              <div className="stat-val">{profile.slaves_count}</div>
+              <div className="stat-lbl">⛓ Рабов</div>
+            </div>
+            <div className="stat">
+              <div className="stat-val">{profile.vip_level || '—'}</div>
+              <div className="stat-lbl">⭐ VIP</div>
+            </div>
+          </div>
+        </div>
+
+        {uid !== currentUserId && (
+          <div className="section">
+            {profile.shield_active
+              ? <button className="btn btn-ghost" disabled>🛡 Защищён щитом</button>
+              : <button className="btn btn-primary" onClick={doBuy} disabled={buying}>
+                  {buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}
+                </button>
+            }
+          </div>
+        )}
+
+        {profile.slaves.length > 0 && (
+          <div className="section">
+            <div className="section-title">Рабы ({profile.slaves_count})</div>
+            <div className="card">
+              {profile.slaves.map(s => (
+                <div className="list-item" key={s.id}
+                  style={{cursor:'pointer'}} onClick={() => setViewingSlaveId(s.id)}>
+                  <Avatar user={s} size={44}/>
+                  <div className="li-info">
+                    <div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.id}`}</div>
+                    <div className="li-sub">{s.job_emoji} {s.job_title || 'Нет работы'}</div>
+                  </div>
+                  <div className="li-price">{s.price.toFixed(0)} RC</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── SEARCH SCREEN ────────────────────────────────────────────────────────────
+function SearchScreen({ user, onBuy, onViewProfile }) {
+  const [q, setQ]             = useState('');
+  const [minP, setMinP]       = useState('');
+  const [maxP, setMaxP]       = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [toast, showToast] = useToast();
+  const [toast, showToast]    = useToast();
 
   async function doSearch(random=false, newcomers=false) {
     setLoading(true);
     try {
       let url = '/api/search?';
-      if (random)    url += 'random_pick=true';
+      if (random)         url += 'random_pick=true';
       else if (newcomers) url += 'newcomers=true';
       else {
         if (q)    url += `q=${encodeURIComponent(q)}&`;
@@ -595,7 +987,7 @@ function SearchScreen({ user, onBuy }) {
         if (maxP) url += `max_price=${maxP}&`;
       }
       const data = await get(url);
-      setResults(Array.isArray(data) ? data : [data]);
+      setResults(Array.isArray(data) ? data : [data].filter(Boolean));
     } catch(e) { showToast('❌ ' + e.message); }
     setLoading(false);
   }
@@ -603,8 +995,8 @@ function SearchScreen({ user, onBuy }) {
   async function doBuy() {
     if (!selected) return;
     try {
-      const r = await post('/api/buy', { target_id: selected.id });
-      showToast(`✅ Куплен! Работа: ${r.job}`);
+      await post('/api/buy', { target_id: selected.id });
+      showToast('✅ Куплен!');
       setSelected(null);
       doSearch();
       onBuy();
@@ -618,52 +1010,57 @@ function SearchScreen({ user, onBuy }) {
       {toast && <div className="toast">{toast}</div>}
       <div className="hdr">
         <div className="hdr-title">🔍 Поиск</div>
+        <div className="hdr-sub">Найди следующего раба</div>
       </div>
       <div className="content">
         <div className="section">
-          <input className="search-input" placeholder="Поиск по имени или @username"
-            value={q} onChange={e=>setQ(e.target.value)}
-            onKeyDown={e=>e.key==='Enter'&&doSearch()}/>
-          <div className="filter-row mt8">
-            <input className="search-input" placeholder="Мин. RC" type="number"
-              value={minP} onChange={e=>setMinP(e.target.value)}/>
-            <input className="search-input" placeholder="Макс. RC" type="number"
-              value={maxP} onChange={e=>setMaxP(e.target.value)}/>
+          <input className="input" placeholder="Поиск по имени или @username"
+            value={q} onChange={e => setQ(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && doSearch()}/>
+          <div className="row mt8">
+            <input className="input" placeholder="Мин RC" type="number" style={{flex:1}}
+              value={minP} onChange={e => setMinP(e.target.value)}/>
+            <input className="input" placeholder="Макс RC" type="number" style={{flex:1}}
+              value={maxP} onChange={e => setMaxP(e.target.value)}/>
           </div>
           <div className="row mt8">
-            <button className="btn btn-primary" style={{flex:1}} onClick={()=>doSearch()}>
-              {loading ? '...' : '🔍 Найти'}
+            <button className="btn btn-primary" style={{flex:1}} onClick={() => doSearch()}>
+              {loading ? <div className="spinner" style={{width:18,height:18,borderWidth:2}}/> : '🔍 Найти'}
             </button>
-            <button className="btn btn-ghost" style={{flex:1}} onClick={()=>doSearch(true)}>
-              🎲 Случайная жертва
+            <button className="btn btn-ghost" style={{flex:1}} onClick={() => doSearch(true)}>
+              🎲 Случайная
             </button>
           </div>
-          <button className="btn btn-ghost mt8" onClick={()=>doSearch(false,true)}>
-            🆕 Новички (последние 50)
+          <button className="btn btn-ghost mt8" onClick={() => doSearch(false,true)}>
+            🆕 Новые игроки
           </button>
         </div>
 
         <div className="section mt12">
           <div className="section-title">Результаты ({results.length})</div>
-          <div className="gap">
+          <div className="gap8">
             {results.map(p => (
-              <div className="player-card" key={p.id} onClick={()=>setSelected(p)}>
-                <div className="slave-ava">{initials(p)}</div>
-                <div className="player-meta">
-                  <div className="player-name">
+              <div className="player-card" key={p.id}>
+                <div onClick={() => onViewProfile(p.id)} style={{cursor:'pointer'}}>
+                  <Avatar user={p} size={44}/>
+                </div>
+                <div className="pc-meta" onClick={() => setSelected(p)} style={{cursor:'pointer'}}>
+                  <div className="pc-name">
                     {p.custom_name
-                      ? <><span className="text-acc">{p.custom_name}</span> <span className="text-muted f11">({p.first_name||p.username})</span></>
-                      : (p.first_name || p.username || `#${p.id}`)
-                    }
+                      ? <><span className="text-gold">{p.custom_name}</span> <span className="text-muted f12">({p.first_name||p.username})</span></>
+                      : (p.first_name || p.username || `#${p.id}`)}
                     {p.vip_level>=3&&' 👑'}{p.vip_level===2&&' 🥈'}{p.vip_level===1&&' 🥉'}
                   </div>
-                  <div className="player-sub">@{p.username||p.id}</div>
+                  <div className="pc-sub">@{p.username||p.id}</div>
                 </div>
-                <div className="player-price">{parseFloat(p.current_price).toFixed(0)} RC</div>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+                  <div className="pc-price">{parseFloat(p.current_price).toFixed(0)} RC</div>
+                  <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>
+                </div>
               </div>
             ))}
             {results.length===0 && !loading && (
-              <div style={{textAlign:'center',color:'var(--muted)',padding:'32px 0'}}>
+              <div className="text-center text-muted" style={{padding:'32px 0'}}>
                 Никого нет. Попробуй другой запрос.
               </div>
             )}
@@ -671,38 +1068,37 @@ function SearchScreen({ user, onBuy }) {
         </div>
       </div>
 
-      {/* Buy modal */}
       {selected && (
-        <div className="overlay" onClick={()=>setSelected(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="overlay" onClick={() => setSelected(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">⛓ Купить игрока</div>
+            <div className="row" style={{marginBottom:16}}>
+              <Avatar user={selected} size={52}/>
+              <div>
+                <div className="fw7 f13">{selected.first_name || selected.username || `#${selected.id}`}</div>
+                <div className="text-muted f12">@{selected.username || selected.id}</div>
+              </div>
+            </div>
             <div className="card" style={{marginBottom:16}}>
-              <div className="row">
-                <div className="slave-ava" style={{width:52,height:52,fontSize:22}}>{initials(selected)}</div>
-                <div>
-                  <div style={{fontWeight:700}}>{selected.first_name || selected.username || `#${selected.id}`}</div>
-                  <div className="text-muted f11">@{selected.username || selected.id}</div>
-                </div>
+              <div className="row-sb">
+                <span className="text-muted f13">Стоимость</span>
+                <span className="fw7 text-gold">{parseFloat(selected.current_price).toFixed(0)} RC</span>
               </div>
-              <div className="divider"/>
-              <div className="row" style={{justifyContent:'space-between'}}>
-                <span className="text-muted">Стоимость</span>
-                <span className="fw7 text-acc">{parseFloat(selected.current_price).toFixed(0)} RC</span>
-              </div>
-              <div className="row mt8" style={{justifyContent:'space-between'}}>
-                <span className="text-muted">Ваш баланс</span>
-                <span className={user.balance >= parseFloat(selected.current_price) ? 'text-green fw7' : 'text-red fw7'}>
+              <div className="row-sb mt8">
+                <span className="text-muted f13">Ваш баланс</span>
+                <span className={`fw7 f13 ${user.balance >= parseFloat(selected.current_price) ? 'text-green' : 'text-red'}`}>
                   {user.balance.toFixed(0)} RC
                 </span>
               </div>
-              <div className="row mt8" style={{justifyContent:'space-between'}}>
-                <span className="text-muted">Комиссия системы</span>
-                <span className="text-muted">10%</span>
+              <div className="row-sb mt8">
+                <span className="text-muted f13">Комиссия системы</span>
+                <span className="text-muted f13">10%</span>
               </div>
-            </div>
-            <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
-              ℹ️ После покупки стоимость раба вырастет на 10–20%. Ему будет назначена случайная работа.
+              <div className="divider"/>
+              <div className="f12 text-muted" style={{lineHeight:1.5}}>
+                После покупки цена раба вырастет на 10–20%. Назначьте ему работу вручную кнопкой 💼.
+              </div>
             </div>
             {user.balance < parseFloat(selected.current_price)
               ? <button className="btn btn-ghost" disabled>❌ Недостаточно RC</button>
@@ -715,10 +1111,10 @@ function SearchScreen({ user, onBuy }) {
   );
 }
 
-/* ── TOP ── */
-function TopScreen() {
-  const [tab, setTab] = useState('forbes');
-  const [rows, setRows] = useState([]);
+// ── TOP SCREEN ───────────────────────────────────────────────────────────────
+function TopScreen({ onViewProfile }) {
+  const [tab, setTab]     = useState('forbes');
+  const [rows, setRows]   = useState([]);
   const [loading, setLoading] = useState(false);
 
   async function load(cat) {
@@ -730,45 +1126,61 @@ function TopScreen() {
 
   useEffect(() => { load('forbes'); }, []);
 
-  const labels = { forbes:'💰 FORBES', owners:'👑 ВЛАДЕЛЬЦЫ', legends:'⚡ ЛЕГЕНДЫ' };
-  const valLabel = { forbes:'RC', owners:'рабов', legends:'RC' };
+  // FIX #6: descriptions for each rating
+  const tabInfo = {
+    forbes:  { label:'💰 ФОРБС',     desc:'Рейтинг по балансу RC — кто богаче всех прямо сейчас', valSuffix:' RC' },
+    owners:  { label:'👑 ХОЗЯЕВА',   desc:'Рейтинг по количеству рабов — у кого самая большая армия', valSuffix:' раб.' },
+    legends: { label:'⚡ ЛЕГЕНДЫ',   desc:'Рейтинг по стоимости игрока — самые дорогие персонажи на рынке', valSuffix:' RC' },
+  };
 
   return (
     <div className="screen">
-      <div className="hdr"><div className="hdr-title">🏆 Рейтинги</div><div className="hdr-sub">Обновляется каждые 15 минут</div></div>
+      <div className="hdr">
+        <div className="hdr-title">🏆 Рейтинги</div>
+        <div className="hdr-sub">Обновляется каждые 15 минут</div>
+      </div>
       <div className="tabs">
-        {['forbes','owners','legends'].map(t => (
-          <button key={t} className={`tab${tab===t?' active':''}`} onClick={()=>load(t)}>
-            {t==='forbes'?'FORBES':t==='owners'?'ВЛАДЕЛЬЦЫ':'ЛЕГЕНДЫ'}
+        {Object.entries(tabInfo).map(([key, info]) => (
+          <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>
+            {info.label}
           </button>
         ))}
       </div>
+      {/* FIX #6: explain current rating */}
+      <div style={{padding:'10px 20px 2px', fontSize:12, color:'var(--text3)', background:'var(--bg)'}}>
+        {tabInfo[tab].desc}
+      </div>
       <div className="content">
         {loading ? (
-          <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div>
+          <div style={{display:'flex',justifyContent:'center',padding:40}}>
+            <div className="spinner"/>
+          </div>
         ) : (
           <div style={{paddingBottom:16}}>
-            {rows.map((r,i) => {
-              const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+            {rows.map((r, i) => {
+              const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null;
               return (
-                <div className="rank-item" key={r.id}>
-                  <div className={`rank-num ${rankClass}`}>
-                    {i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}
+                <div className="rank-item" key={r.id}
+                  style={{cursor:'pointer'}} onClick={() => onViewProfile(r.id)}>
+                  <div className="rank-num" style={{color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>
+                    {medal || i+1}
                   </div>
-                  <div className="slave-ava">{initials(r)}</div>
+                  <Avatar user={r} size={40}/>
                   <div className="rank-meta">
                     <div className="rank-name">
-                      {r.emoji_status&&<span>{r.emoji_status} </span>}
+                      {r.emoji_status && <span>{r.emoji_status} </span>}
                       <span className={r.name_color&&r.name_color!=='default'?`clr-${r.name_color}`:''}>{r.first_name||r.username||`#${r.id}`}</span>
                       {r.vip_level>=3&&' 👑'}{r.vip_level===2&&' 🥈'}{r.vip_level===1&&' 🥉'}
                     </div>
                     <div className="rank-sub">@{r.username||r.id}</div>
                   </div>
-                  <div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f11"> {valLabel[tab]}</span></div>
+                  <div className="rank-val">
+                    {parseFloat(r.value||0).toFixed(0)}<span className="text-muted f12">{tabInfo[tab].valSuffix}</span>
+                  </div>
                 </div>
               );
             })}
-            {rows.length===0&&<div style={{textAlign:'center',color:'var(--muted)',padding:40}}>Рейтинг пуст</div>}
+            {rows.length===0 && <div className="text-center text-muted" style={{padding:40}}>Рейтинг пуст</div>}
           </div>
         )}
       </div>
@@ -776,31 +1188,49 @@ function TopScreen() {
   );
 }
 
-/* ── SHOP ── */
+// ── SHOP SCREEN ──────────────────────────────────────────────────────────────
 function ShopScreen({ user, onRefresh }) {
-  const [shop, setShop] = useState(null);
-  const [tab, setTab] = useState('items');
+  const [shop, setShop]             = useState(null);
+  const [tab, setTab]               = useState('items');
   const [selectedSlave, setSelectedSlave] = useState('');
-  const [toast, showToast] = useToast();
-  const [promoCode, setPromoCode] = useState('');
+  const [toast, showToast]          = useToast();
+  const [promoCode, setPromoCode]   = useState('');
+  const [loading, setLoading]       = useState({});
+  const tg = window.Telegram?.WebApp;
 
   async function load() {
     try { setShop(await get('/api/shop')); } catch {}
   }
   useEffect(() => { load(); }, []);
 
-  async function buyItem(item_type, cosmetic_id=null) {
+  // FIX #9: proper Stars payment via invoice
+  async function buyItem(itemType, cosmeticId=null) {
+    const key = itemType + (cosmeticId||'');
+    setLoading(l => ({...l, [key]: true}));
     try {
-      const body = { item_type };
-      if (cosmetic_id) body.cosmetic_id = cosmetic_id;
-      if (item_type==='chains') {
-        if (!selectedSlave) { showToast('Выберите раба для оков'); return; }
+      const body = { item_type: itemType };
+      if (cosmeticId)   body.cosmetic_id = cosmeticId;
+      if (itemType === 'chains') {
+        if (!selectedSlave) { showToast('Выберите раба для оков'); setLoading(l => ({...l, [key]: false})); return; }
         body.target_slave_id = parseInt(selectedSlave);
       }
-      await post('/api/shop/buy', body);
-      showToast('✅ Активировано!');
-      onRefresh(); load();
+      const r = await post('/api/shop/invoice', body);
+      if (r.invoice_link && tg?.openInvoice) {
+        tg.openInvoice(r.invoice_link, (status) => {
+          if (status === 'paid') {
+            showToast('✅ Оплачено! Предмет активируется.');
+            onRefresh();
+          } else if (status === 'cancelled') {
+            showToast('Платёж отменён');
+          } else {
+            showToast('⚠️ Статус: ' + status);
+          }
+        });
+      } else {
+        showToast('⚠️ Не удалось открыть оплату');
+      }
     } catch(e) { showToast('❌ ' + e.message); }
+    setLoading(l => ({...l, [key]: false}));
   }
 
   async function usePromo() {
@@ -808,97 +1238,167 @@ function ShopScreen({ user, onRefresh }) {
     try {
       const r = await post('/api/promo', { code: promoCode.trim() });
       showToast(`🎁 +${r.reward} RC!`);
-      setPromoCode('');
-      onRefresh();
+      setPromoCode(''); onRefresh();
     } catch(e) { showToast('❌ ' + e.message); }
   }
 
-  const groups = shop ? {
-    colors:  shop.cosmetics.filter(c=>c.type==='color'),
-    frames:  shop.cosmetics.filter(c=>c.type==='frame'),
-    emojis:  shop.cosmetics.filter(c=>c.type==='emoji'),
-  } : {};
+  const cosmByType = useMemo(() => shop ? {
+    colors: shop.cosmetics.filter(c => c.type==='color'),
+    frames: shop.cosmetics.filter(c => c.type==='frame'),
+    emojis: shop.cosmetics.filter(c => c.type==='emoji'),
+  } : {}, [shop]);
+
+  // FIX #7: shop items that are "for self" vs "for slave"
+  const selfItems  = shop?.items.filter(i => i.id !== 'chains') || [];
+  const slaveItems = shop?.items.filter(i => i.id === 'chains') || [];
 
   return (
     <div className="screen">
       {toast && <div className="toast">{toast}</div>}
-      <div className="hdr"><div className="hdr-title">🛒 Магазин</div><div className="hdr-sub">Покупка за Telegram Stars ⭐</div></div>
+      <div className="hdr">
+        <div className="hdr-title">🛒 Магазин</div>
+        <div className="hdr-sub">Покупки за Telegram Stars ⭐</div>
+      </div>
       <div className="tabs">
-        {['items','cosmetics','promo'].map(t=>(
-          <button key={t} className={`tab${tab===t?' active':''}`} onClick={()=>setTab(t)}>
-            {t==='items'?'ПРЕДМЕТЫ':t==='cosmetics'?'КОСМЕТИКА':'ПРОМО'}
+        {['items','cosmetics','promo'].map(t => (
+          <button key={t} className={`tab${tab===t?' active':''}`} onClick={() => setTab(t)}>
+            {t==='items'?'ДЛЯ СЕБЯ':t==='cosmetics'?'КОСМЕТИКА':'ПРОМОКОД'}
           </button>
         ))}
       </div>
       <div className="content">
         {!shop ? (
-          <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div>
+          <div style={{display:'flex',justifyContent:'center',padding:40}}>
+            <div className="spinner"/>
+          </div>
         ) : tab==='items' ? (
           <div className="section">
-            <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
-              ℹ️ В тестовом режиме предметы активируются бесплатно. В продакшне добавьте верификацию Telegram Stars.
-            </div>
+            <div className="section-title">Для вас</div>
+            {selfItems.map(item => (
+              <div className="shop-item mt8" key={item.id}>
+                <div className="row-sb">
+                  <div>
+                    <div className="si-name">{item.name}</div>
+                    <div className="si-desc mt4">{item.desc}</div>
+                  </div>
+                  <div className="f12" style={{fontSize:28}}>{item.name.split(' ')[0]}</div>
+                </div>
+                <div className="si-foot">
+                  <div className="si-price">{item.price_stars} ⭐</div>
+                  <button className="btn btn-primary btn-sm"
+                    disabled={loading[item.id]}
+                    onClick={() => buyItem(item.id)}>
+                    {loading[item.id] ? '...' : 'Купить'}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* FIX #7: chains are separate for slaves */}
             {user.slaves.length > 0 && (
-              <div style={{marginBottom:12}}>
-                <div className="section-title">Оковы — выберите раба</div>
-                <select className="search-input" value={selectedSlave} onChange={e=>setSelectedSlave(e.target.value)}>
+              <>
+                <div className="section-title mt20">Для рабов</div>
+                <div className="f12 text-muted" style={{marginBottom:10}}>
+                  Выберите раба, на которого надеть оковы:
+                </div>
+                <select className="input" value={selectedSlave} onChange={e => setSelectedSlave(e.target.value)} style={{marginBottom:10}}>
                   <option value="">— Выберите раба —</option>
-                  {user.slaves.map(s=>(
+                  {user.slaves.map(s => (
                     <option key={s.id} value={s.id}>{s.custom_name||s.first_name||s.username||s.id} ({s.price.toFixed(0)} RC)</option>
                   ))}
                 </select>
-              </div>
-            )}
-            <div className="shop-grid">
-              {shop.items.map(item => (
-                <div className="shop-item" key={item.id}>
-                  <div className="shop-ico">{item.name.split(' ')[0]}</div>
-                  <div className="shop-name">{item.name}</div>
-                  <div className="shop-desc">{item.desc}</div>
-                  <div className="row" style={{justifyContent:'space-between',alignItems:'center'}}>
-                    <div className="shop-price">{item.price_stars}⭐</div>
-                    <button className="btn btn-primary btn-sm" onClick={()=>buyItem(item.id)}>
-                      Купить
-                    </button>
+                {slaveItems.map(item => (
+                  <div className="shop-item" key={item.id}>
+                    <div className="row-sb">
+                      <div>
+                        <div className="si-name">{item.name}</div>
+                        <div className="si-desc mt4">{item.desc}</div>
+                      </div>
+                      <div style={{fontSize:28}}>{item.name.split(' ')[0]}</div>
+                    </div>
+                    <div className="si-foot">
+                      <div className="si-price">{item.price_stars} ⭐</div>
+                      <button className="btn btn-primary btn-sm"
+                        disabled={loading['chains']}
+                        onClick={() => buyItem('chains')}>
+                        {loading['chains'] ? '...' : 'Купить'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </>
+            )}
+
+            <div className="f12 text-muted mt16" style={{lineHeight:1.5,padding:'12px',background:'var(--bg3)',borderRadius:12}}>
+              ⭐ Оплата через Telegram Stars. Звёзды можно купить прямо в Telegram. Предметы активируются мгновенно после оплаты.
             </div>
           </div>
         ) : tab==='cosmetics' ? (
           <div className="section">
-            <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
-              🎨 Косметика сохраняется между сезонами!
+            <div className="f12 text-muted" style={{marginBottom:14,lineHeight:1.5}}>
+              🎨 Косметика сохраняется между сезонами и не теряется при сбросе.
             </div>
-            {['colors','frames','emojis'].map(type=>(
-              <div key={type}>
-                <div className="section-title">
-                  {type==='colors'?'🎨 Цвет имени':type==='frames'?'🖼 Рамки аватара':'😀 Эмодзи-статус'}
+
+            {/* FIX #8: fewer cosmetics, clearly labeled */}
+            <div className="section-title">🎨 Цвет имени</div>
+            <div className="f12 text-muted" style={{marginBottom:10}}>Меняет цвет вашего имени везде в игре</div>
+            <div className="gap8" style={{marginBottom:20}}>
+              {cosmByType.colors?.map(c => (
+                <div className="shop-item" key={c.id} style={{flexDirection:'row',alignItems:'center'}}>
+                  <div className={`si-name ${c.css_class}`} style={{flex:1}}>
+                    Aa — {c.name}
+                  </div>
+                  <div className="si-price">{c.price_stars}⭐</div>
+                  {c.owned
+                    ? <span className="f12 text-green fw6" style={{marginLeft:10}}>✓ Есть</span>
+                    : <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={() => buyItem('cosmetic',c.id)}>Купить</button>
+                  }
                 </div>
-                <div className="shop-grid" style={{marginBottom:16}}>
-                  {groups[type]?.map(c=>(
-                    <div className="shop-item" key={c.id} style={{opacity:c.owned?.1:1}}>
-                      <div className={`shop-ico ${c.css_class}`}>{c.type==='color'?'A':c.type==='frame'?'🖼':c.value}</div>
-                      <div className="shop-name">{c.name}</div>
-                      <div className="row" style={{justifyContent:'space-between'}}>
-                        <div className="shop-price">{c.price_stars}⭐</div>
-                        {c.owned
-                          ? <span className="badge badge-green">✓ Есть</span>
-                          : <button className="btn btn-primary btn-sm" onClick={()=>buyItem('cosmetic',c.id)}>Купить</button>
-                        }
-                      </div>
-                    </div>
-                  ))}
+              ))}
+            </div>
+
+            <div className="section-title">🖼 Рамка аватара</div>
+            <div className="f12 text-muted" style={{marginBottom:10}}>Отображается вокруг вашего фото</div>
+            <div className="gap8" style={{marginBottom:20}}>
+              {cosmByType.frames?.map(c => (
+                <div className="shop-item" key={c.id} style={{flexDirection:'row',alignItems:'center'}}>
+                  <div style={{flex:1}}>
+                    <div className="si-name">{c.name}</div>
+                  </div>
+                  <div className="si-price">{c.price_stars}⭐</div>
+                  {c.owned
+                    ? <span className="f12 text-green fw6" style={{marginLeft:10}}>✓ Есть</span>
+                    : <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={() => buyItem('cosmetic',c.id)}>Купить</button>
+                  }
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            <div className="section-title">😀 Эмодзи-статус</div>
+            <div className="f12 text-muted" style={{marginBottom:10}}>Отображается рядом с именем везде в игре</div>
+            <div className="gap8">
+              {cosmByType.emojis?.map(c => (
+                <div className="shop-item" key={c.id} style={{flexDirection:'row',alignItems:'center'}}>
+                  <div style={{fontSize:24,marginRight:10}}>{c.value}</div>
+                  <div style={{flex:1}}><div className="si-name">{c.name}</div></div>
+                  <div className="si-price">{c.price_stars}⭐</div>
+                  {c.owned
+                    ? <span className="f12 text-green fw6" style={{marginLeft:10}}>✓ Есть</span>
+                    : <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={() => buyItem('cosmetic',c.id)}>Купить</button>
+                  }
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="section">
-            <div className="section-title">Введи промокод</div>
-            <input className="search-input" placeholder="ПРОМОКОД" value={promoCode}
-              onChange={e=>setPromoCode(e.target.value.toUpperCase())}
-              onKeyDown={e=>e.key==='Enter'&&usePromo()}/>
+            <div className="section-title">Промокод</div>
+            <div className="f12 text-muted" style={{marginBottom:12}}>
+              Введи промокод для получения бесплатных RC
+            </div>
+            <input className="input" placeholder="ПРОМОКОД" value={promoCode}
+              onChange={e => setPromoCode(e.target.value.toUpperCase())}
+              onKeyDown={e => e.key==='Enter' && usePromo()}/>
             <button className="btn btn-primary mt8" onClick={usePromo}>
               🎁 Применить
             </button>
@@ -909,7 +1409,7 @@ function ShopScreen({ user, onRefresh }) {
   );
 }
 
-/* ── SUPPORT ── */
+// ── SUPPORT SCREEN ───────────────────────────────────────────────────────────
 function SupportScreen({ user }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState('');
@@ -919,7 +1419,6 @@ function SupportScreen({ user }) {
   async function load() {
     try { setMsgs(await get('/api/support/history')); } catch {}
   }
-
   useEffect(() => { load(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [msgs]);
 
@@ -936,24 +1435,23 @@ function SupportScreen({ user }) {
       {toast && <div className="toast">{toast}</div>}
       <div className="hdr">
         <div className="hdr-title">💬 Поддержка</div>
-        <div className="hdr-sub">Ответим в ближайшее время</div>
+        <div className="hdr-sub">Отвечаем в течение 24 часов</div>
       </div>
       <div className="content" style={{padding:0}}>
         <div className="chat-area">
           {msgs.length===0 && (
-            <div style={{textAlign:'center',color:'var(--muted)',padding:'32px 0'}}>
+            <div className="text-center text-muted" style={{padding:'40px 0'}}>
               Напишите нам — мы поможем!
             </div>
           )}
-          {msgs.map(m=>(
-            <div key={m.id} style={{display:'flex',flexDirection:'column',
-              alignItems:m.is_from_admin?'flex-start':'flex-end'}}>
-              <div className={`msg-bubble ${m.is_from_admin?'msg-admin':'msg-user'}`}>
-                {m.is_from_admin&&<div style={{fontSize:11,fontWeight:600,marginBottom:4,color:'var(--acc)'}}>Поддержка</div>}
+          {msgs.map(m => (
+            <div key={m.id} className={`msg-wrap ${m.is_from_admin ? 'them' : 'me'}`}>
+              {m.is_from_admin && <div className="msg-sender">Поддержка</div>}
+              <div className={`msg-bubble ${m.is_from_admin ? 'them' : 'me'}`}>
                 {m.message}
-                <div className="msg-time">
-                  {new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}
-                </div>
+              </div>
+              <div className="msg-time">
+                {new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}
               </div>
             </div>
           ))}
@@ -962,8 +1460,8 @@ function SupportScreen({ user }) {
       </div>
       <div className="chat-input-wrap">
         <textarea className="chat-input" placeholder="Сообщение..."
-          value={text} onChange={e=>setText(e.target.value)} rows={1}
-          onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}}/>
+          value={text} onChange={e => setText(e.target.value)} rows={1}
+          onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}/>
         <button className="btn btn-primary btn-sm" onClick={send} disabled={!text.trim()}>
           ➤
         </button>
@@ -972,52 +1470,69 @@ function SupportScreen({ user }) {
   );
 }
 
-/* ── ADMIN ── */
+// ── ADMIN SCREEN ─────────────────────────────────────────────────────────────
 function AdminScreen() {
-  const [tab, setTab] = useState('dash');
-  const [dash, setDash] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [tickets, setTickets] = useState([]);
-  const [stories, setStories] = useState([]);
-  const [searchQ, setSearchQ] = useState('');
+  const [tab, setTab]           = useState('dash');
+  const [dash, setDash]         = useState(null);
+  const [users, setUsers]       = useState([]);
+  const [conversations, setConvs] = useState([]);
+  const [openConv, setOpenConv] = useState(null);     // FIX #10: chat view
+  const [convMsgs, setConvMsgs] = useState([]);
+  const [stories, setStories]   = useState([]);
+  const [searchQ, setSearchQ]   = useState('');
   const [editUser, setEditUser] = useState(null);
-  const [editBal, setEditBal] = useState('');
+  const [editBal, setEditBal]   = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [broadcast, setBroadcast] = useState('');
   const [seasonPass, setSeasonPass] = useState('');
   const [replyText, setReplyText] = useState('');
   const [promoCode, setPromoCode] = useState('');
-  const [promoRc, setPromoRc] = useState('');
+  const [promoRc, setPromoRc]   = useState('');
   const [promoMax, setPromoMax] = useState('1');
-  const [toast, showToast] = useToast();
+  const [toast, showToast]      = useToast();
+  const convBottomRef            = useRef(null);
 
-  async function loadDash() {
-    try { setDash(await get('/api/admin/dashboard')); } catch {}
-  }
-  async function loadUsers(q='') {
-    try { setUsers(await get(`/api/admin/users${q?`?q=${q}`:''}`)); } catch {}
-  }
-  async function loadTickets() {
-    try { setTickets(await get('/api/admin/tickets')); } catch {}
-  }
-  async function loadStories() {
-    try { setStories(await get('/api/admin/stories')); } catch {}
-  }
+  async function loadDash()    { try { setDash(await get('/api/admin/dashboard')); } catch {} }
+  async function loadUsers(q='') { try { setUsers(await get(`/api/admin/users${q?`?q=${q}`:''}`)); } catch {} }
+  async function loadConvs()   { try { setConvs(await get('/api/admin/tickets')); } catch {} }
+  async function loadStories() { try { setStories(await get('/api/admin/stories')); } catch {} }
 
-  useEffect(()=>{loadDash();},[]);
+  useEffect(() => { loadDash(); }, []);
 
   function switchTab(t) {
-    setTab(t);
-    if(t==='users') loadUsers();
-    if(t==='tickets') loadTickets();
+    setTab(t); setOpenConv(null);
+    if(t==='users')   loadUsers();
+    if(t==='tickets') loadConvs();
     if(t==='stories') loadStories();
+  }
+
+  async function openChat(conv) {
+    setOpenConv(conv);
+    try {
+      const msgs = await get(`/api/admin/tickets/${conv.user_id}`);
+      setConvMsgs(msgs);
+      // Refresh to update unread counts
+      loadConvs();
+    } catch {}
+  }
+
+  useEffect(() => { convBottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [convMsgs]);
+
+  async function doReply() {
+    if(!replyText.trim()||!openConv) return;
+    try {
+      await post('/api/admin/tickets/reply', { ticket_user_id: openConv.user_id, message: replyText });
+      setReplyText('');
+      const msgs = await get(`/api/admin/tickets/${openConv.user_id}`);
+      setConvMsgs(msgs);
+    } catch(e) { showToast('❌ '+e.message); }
   }
 
   async function saveUser() {
     try {
       await post('/api/admin/users/edit', {
         user_id: editUser.id,
-        balance: editBal ? parseFloat(editBal) : undefined,
+        balance: editBal   ? parseFloat(editBal)   : undefined,
         price:   editPrice ? parseFloat(editPrice) : undefined,
       });
       showToast('✅ Сохранено'); setEditUser(null); loadUsers();
@@ -1025,93 +1540,84 @@ function AdminScreen() {
   }
   async function banUser(uid, banned) {
     try { await post('/api/admin/users/edit',{user_id:uid,is_banned:banned}); showToast('✅'); loadUsers(); }
-    catch(e){ showToast('❌ '+e.message); }
+    catch(e) { showToast('❌ '+e.message); }
   }
   async function freeUser(uid) {
     try { await post('/api/admin/users/edit',{user_id:uid,free_slave:true}); showToast('✅ Освобождён'); loadUsers(); }
-    catch(e){ showToast('❌ '+e.message); }
-  }
-  async function doReply(uid) {
-    if(!replyText.trim()) return;
-    try {
-      await post('/api/admin/tickets/reply',{ticket_user_id:uid,message:replyText});
-      showToast('✅ Отправлено'); setReplyText('');
-    } catch(e){ showToast('❌ '+e.message); }
+    catch(e) { showToast('❌ '+e.message); }
   }
   async function approveStory(id) {
     try {
-      const r = await post(`/api/admin/stories/approve?claim_id=${id}`,'');
+      const r = await post(`/api/admin/stories/approve?claim_id=${id}`, '');
       showToast(`✅ Одобрено! Предмет: ${r.item}`); loadStories();
-    } catch(e){ showToast('❌ '+e.message); }
+    } catch(e) { showToast('❌ '+e.message); }
   }
   async function doBroadcast() {
     if(!broadcast.trim()) return;
     try {
       const r = await post('/api/admin/broadcast',{text:broadcast});
-      showToast(`📤 Отправлено ${r.count} пользователям`); setBroadcast('');
-    } catch(e){ showToast('❌ '+e.message); }
+      showToast(`📤 Разослано ${r.count} игрокам`); setBroadcast('');
+    } catch(e) { showToast('❌ '+e.message); }
   }
   async function doSeasonStart() {
     if(!seasonPass) return;
-    if(!confirm('Начать новый сезон? Весь прогресс будет сброшен!')) return;
+    if(!confirm('⚠️ Начать новый сезон? Весь прогресс будет сброшен!')) return;
     try { await post('/api/admin/season/start',{password:seasonPass}); showToast('🔥 Сезон начат!'); }
-    catch(e){ showToast('❌ '+e.message); }
+    catch(e) { showToast('❌ '+e.message); }
   }
-  async function doSeasonRollback() {
-    if(!seasonPass) return;
-    if(!confirm('Откатить сезон к последнему снапшоту?')) return;
-    try { await post('/api/admin/season/rollback',{password:seasonPass}); showToast('↩️ Откат выполнен'); }
-    catch(e){ showToast('❌ '+e.message); }
+  // FIX #13: clear database
+  async function doClearDb() {
+    if(!confirm('💀 ПОЛНОЕ УНИЧТОЖЕНИЕ БАЗЫ ДАННЫХ! Удалятся ВСЕ игроки, рабы, транзакции, тикеты и история. Это необратимо. Продолжить?')) return;
+    if(!confirm('Последнее предупреждение! Нажмите ОК для уничтожения.')) return;
+    try { await post('/api/admin/db/clear'); showToast('💀 База уничтожена'); loadDash(); }
+    catch(e) { showToast('❌ '+e.message); }
   }
   async function createPromo() {
     if(!promoCode||!promoRc) return;
     try {
       await post('/api/admin/promo/create',{code:promoCode.toUpperCase(),reward_rc:parseFloat(promoRc),max_uses:parseInt(promoMax)});
       showToast('✅ Промокод создан'); setPromoCode(''); setPromoRc(''); setPromoMax('1');
-    } catch(e){ showToast('❌ '+e.message); }
+    } catch(e) { showToast('❌ '+e.message); }
   }
-
-  // Group tickets by user
-  const ticketsByUser = tickets.reduce((acc,t)=>{
-    if(!acc[t.user_id]) acc[t.user_id]={user_id:t.user_id,username:t.username,first_name:t.first_name,msgs:[]};
-    acc[t.user_id].msgs.push(t);
-    return acc;
-  },{});
 
   return (
     <div className="screen">
       {toast && <div className="toast">{toast}</div>}
       <div className="hdr">
-        <div className="hdr-title">⚙️ Админ-панель</div>
+        <div className="hdr-title">⚙️ Панель</div>
+        <div className="hdr-sub">Только для администраторов</div>
       </div>
       <div className="tabs" style={{overflowX:'auto'}}>
-        {['dash','users','tickets','stories','system'].map(t=>(
-          <button key={t} className={`tab${tab===t?' active':''}`} onClick={()=>switchTab(t)} style={{whiteSpace:'nowrap',minWidth:70}}>
-            {t==='dash'?'📊 ДАШ':t==='users'?'👥 ЮЗЕРЫ':t==='tickets'?'💬 ТИКЕТЫ':t==='stories'?'📸 СТОРИС':'⚙️ СИСТЕМА'}
+        {['dash','users','tickets','stories','system'].map(t => (
+          <button key={t} className={`tab${tab===t?' active':''}`}
+            onClick={() => switchTab(t)}
+            style={{whiteSpace:'nowrap',minWidth:70}}>
+            {t==='dash'?'📊':t==='users'?'👥':t==='tickets'?'💬':t==='stories'?'📸':'⚙️'}
+            {' '}{t==='dash'?'ДАШ':t==='users'?'ЮЗЕРЫ':t==='tickets'?'ТИКЕТЫ':t==='stories'?'СТОРИС':'СИСТЕМА'}
           </button>
         ))}
       </div>
-
       <div className="content">
+
         {/* DASHBOARD */}
         {tab==='dash' && dash && (
           <div className="section">
-            <div className="admin-stat-grid">
+            <div className="stat-grid">
               {[
-                ['Всего игроков', dash.total_users, '👥'],
-                ['Сегодня новых', dash.new_today, '🆕'],
-                ['RC в экономике', parseFloat(dash.total_rc||0).toFixed(0), '💰'],
-                ['Тикетов', dash.tickets, '💬'],
-                ['Сторис на одобрение', dash.stories_pending, '📸'],
-              ].map(([lbl,val,ico])=>(
+                ['👥','Всего игроков', dash.total_users],
+                ['🆕','Новых сегодня', dash.new_today],
+                ['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],
+                ['💬','Новых тикетов', dash.tickets],
+                ['📸','Сторис ждут', dash.stories_pending],
+              ].map(([ico,lbl,val]) => (
                 <div className="admin-stat" key={lbl}>
-                  <div style={{fontSize:20}}>{ico}</div>
-                  <div className="admin-stat-val">{val}</div>
-                  <div className="admin-stat-lbl">{lbl}</div>
+                  <div className="as-ico">{ico}</div>
+                  <div className="as-val">{val}</div>
+                  <div className="as-lbl">{lbl}</div>
                 </div>
               ))}
             </div>
-            <button className="btn btn-ghost mt16" onClick={loadDash}>🔄 Обновить</button>
+            <button className="btn btn-ghost mt12" onClick={loadDash}>🔄 Обновить</button>
           </div>
         )}
 
@@ -1119,30 +1625,33 @@ function AdminScreen() {
         {tab==='users' && (
           <div className="section">
             <div className="row" style={{marginBottom:12}}>
-              <input className="search-input" placeholder="Поиск по нику/ID" value={searchQ}
-                onChange={e=>setSearchQ(e.target.value)}
-                onKeyDown={e=>e.key==='Enter'&&loadUsers(searchQ)}
-                style={{flex:1}}/>
-              <button className="btn btn-primary btn-sm" onClick={()=>loadUsers(searchQ)}>🔍</button>
+              <input className="input" placeholder="Поиск по нику/ID" value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                onKeyDown={e => e.key==='Enter' && loadUsers(searchQ)} style={{flex:1}}/>
+              <button className="btn btn-primary btn-sm" onClick={() => loadUsers(searchQ)}>🔍</button>
             </div>
-            <div className="gap">
-              {users.map(u=>(
+            <div className="gap8">
+              {users.map(u => (
                 <div className="card" key={u.id}>
-                  <div className="row" style={{justifyContent:'space-between'}}>
+                  <div className="row-sb">
                     <div>
                       <div className="fw7">{u.first_name||u.username||u.id}</div>
-                      <div className="text-muted f11">@{u.username||'—'} · #{u.id}</div>
+                      <div className="text-muted f12">@{u.username||'—'} · #{u.id}</div>
                     </div>
                     <div style={{textAlign:'right'}}>
-                      <div className="text-acc fw7">{parseFloat(u.balance).toFixed(0)} RC</div>
-                      <div className="text-muted f11">Цена: {parseFloat(u.current_price).toFixed(0)}</div>
+                      <div className="text-gold fw7">{parseFloat(u.balance).toFixed(0)} RC</div>
+                      <div className="text-muted f12">Цена: {parseFloat(u.current_price).toFixed(0)}</div>
                     </div>
                   </div>
-                  {u.owner_id && <div className="text-muted f11 mt8">Владелец: #{u.owner_id}</div>}
+                  {u.owner_id && <div className="text-muted f12 mt8">Владелец: #{u.owner_id}</div>}
                   <div className="row mt8" style={{flexWrap:'wrap',gap:6}}>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>{setEditUser(u);setEditBal(u.balance);setEditPrice(u.current_price);}}>✏️ Ред.</button>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>freeUser(u.id)}>🔓 Освободить</button>
-                    <button className={`btn btn-sm ${u.is_banned?'btn-success':'btn-danger'}`} onClick={()=>banUser(u.id,!u.is_banned)}>
+                    <button className="btn btn-ghost btn-sm"
+                      onClick={() => {setEditUser(u);setEditBal(u.balance);setEditPrice(u.current_price);}}>
+                      ✏️ Ред.
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => freeUser(u.id)}>🔓 Освобод.</button>
+                    <button className={`btn btn-sm ${u.is_banned?'btn-green':'btn-danger'}`}
+                      onClick={() => banUser(u.id, !u.is_banned)}>
                       {u.is_banned?'✅ Разбан':'🚫 Бан'}
                     </button>
                   </div>
@@ -1152,102 +1661,150 @@ function AdminScreen() {
           </div>
         )}
 
-        {/* TICKETS */}
-        {tab==='tickets' && (
-          <div className="section">
-            {Object.values(ticketsByUser).map(conv=>(
-              <div className="card" key={conv.user_id} style={{marginBottom:10}}>
-                <div className="fw7 mb8">@{conv.username||conv.first_name||conv.user_id}</div>
-                {conv.msgs.slice(-3).map(m=>(
-                  <div key={m.id} style={{
-                    padding:'8px 10px', borderRadius:8, marginBottom:6,
-                    background:m.is_from_admin?'var(--bg3)':'#e8c84a22',
-                    fontSize:12
-                  }}>
-                    {m.is_from_admin&&<span className="text-acc fw7">Поддержка: </span>}
-                    {m.message}
+        {/* FIX #10: TICKETS as Telegram-style chat list */}
+        {tab==='tickets' && !openConv && (
+          <div>
+            {conversations.length === 0 && (
+              <div className="text-center text-muted" style={{padding:40}}>Тикетов нет</div>
+            )}
+            {conversations.map(conv => (
+              <div className="conv-item" key={conv.user_id} onClick={() => openChat(conv)}>
+                <Avatar user={{first_name: conv.first_name, username: conv.username, photo_url: conv.photo_url}} size={44}/>
+                <div className="conv-meta">
+                  <div className="conv-name">{conv.first_name || conv.username || `#${conv.user_id}`}</div>
+                  <div className="conv-last">
+                    {conv.last_is_admin && <span style={{color:'var(--gold)'}}>Вы: </span>}
+                    {conv.last_msg || '...'}
                   </div>
-                ))}
-                <div className="row mt8">
-                  <input className="search-input" placeholder="Ответ..." value={replyText}
-                    onChange={e=>setReplyText(e.target.value)} style={{flex:1}}/>
-                  <button className="btn btn-primary btn-sm" onClick={()=>doReply(conv.user_id)}>➤</button>
+                </div>
+                <div className="conv-right">
+                  <div className="conv-time">
+                    {new Date(conv.last_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}
+                  </div>
+                  {parseInt(conv.unread) > 0 && (
+                    <div className="unread-dot">{conv.unread}</div>
+                  )}
                 </div>
               </div>
             ))}
-            {Object.keys(ticketsByUser).length===0 && (
-              <div className="text-muted" style={{textAlign:'center',padding:32}}>Тикетов нет</div>
-            )}
+          </div>
+        )}
+
+        {/* FIX #10: Open conversation */}
+        {tab==='tickets' && openConv && (
+          <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+            <div style={{padding:'12px 16px',borderBottom:'0.5px solid var(--border)',flexShrink:0}}>
+              <button className="back-btn" onClick={() => { setOpenConv(null); loadConvs(); }}>
+                ‹ Назад
+              </button>
+              <div className="fw7 f13 mt4">{openConv.first_name || openConv.username || `#${openConv.user_id}`}</div>
+              <div className="text-muted f12">@{openConv.username || openConv.user_id}</div>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'12px 16px'}}>
+              {convMsgs.map(m => (
+                <div key={m.id} className={`msg-wrap ${m.is_from_admin ? 'me' : 'them'}`}>
+                  {!m.is_from_admin && <div className="msg-sender">{openConv.first_name||openConv.username}</div>}
+                  <div className={`msg-bubble ${m.is_from_admin ? 'me' : 'them'}`}>
+                    {m.message}
+                  </div>
+                  <div className="msg-time">
+                    {new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}
+                  </div>
+                </div>
+              ))}
+              <div ref={convBottomRef}/>
+            </div>
           </div>
         )}
 
         {/* STORIES */}
         {tab==='stories' && (
           <div className="section">
-            {stories.map(s=>(
-              <div className="card" key={s.id} style={{marginBottom:10}}>
+            {stories.map(s => (
+              <div className="card gap8" key={s.id} style={{marginBottom:10}}>
                 <div className="fw7">@{s.username||s.first_name||s.user_id}</div>
-                <div className="text-muted f11 mt8">{new Date(s.created_at).toLocaleString('ru')}</div>
-                <button className="btn btn-success mt8" onClick={()=>approveStory(s.id)}>
+                <div className="text-muted f12">{new Date(s.created_at).toLocaleString('ru')}</div>
+                <button className="btn btn-green" onClick={() => approveStory(s.id)}>
                   ✅ Одобрить (+250 RC + предмет)
                 </button>
               </div>
             ))}
-            {stories.length===0&&<div className="text-muted" style={{textAlign:'center',padding:32}}>Нет заявок</div>}
+            {stories.length===0 && <div className="text-center text-muted" style={{padding:40}}>Нет заявок</div>}
           </div>
         )}
 
         {/* SYSTEM */}
         {tab==='system' && (
-          <div className="section">
-            <div className="section-title">📢 Рассылка</div>
-            <textarea className="search-input" rows={3} placeholder="Текст рассылки..."
-              value={broadcast} onChange={e=>setBroadcast(e.target.value)}
-              style={{resize:'none',marginBottom:8}}/>
-            <button className="btn btn-primary" onClick={doBroadcast}>📤 Разослать всем</button>
-
-            <div className="divider"/>
-            <div className="section-title">🎫 Промокод</div>
-            <div className="gap">
-              <input className="search-input" placeholder="КОД" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/>
-              <input className="search-input" placeholder="Награда RC" type="number" value={promoRc} onChange={e=>setPromoRc(e.target.value)}/>
-              <input className="search-input" placeholder="Кол-во использований" type="number" value={promoMax} onChange={e=>setPromoMax(e.target.value)}/>
-              <button className="btn btn-primary" onClick={createPromo}>✅ Создать промокод</button>
+          <div className="section gap12">
+            <div>
+              <div className="section-title">📢 Рассылка</div>
+              <textarea className="input" rows={3} placeholder="Текст рассылки (поддерживает HTML)..."
+                value={broadcast} onChange={e => setBroadcast(e.target.value)}
+                style={{resize:'none',marginBottom:8}}/>
+              <button className="btn btn-primary" onClick={doBroadcast}>📤 Разослать всем</button>
             </div>
 
             <div className="divider"/>
-            <div className="section-title">🌟 Управление сезоном</div>
-            <input className="search-input" type="password" placeholder="Пароль сезона"
-              value={seasonPass} onChange={e=>setSeasonPass(e.target.value)}
-              style={{marginBottom:8}}/>
-            <div style={{display:'flex',gap:8}}>
-              <button className="btn btn-danger" style={{flex:1}} onClick={doSeasonStart}>
-                🔥 Новый сезон
-              </button>
-              <button className="btn btn-ghost" style={{flex:1}} onClick={doSeasonRollback}>
-                ↩️ Откат
-              </button>
+            <div>
+              <div className="section-title">🎫 Создать промокод</div>
+              <div className="gap8">
+                <input className="input" placeholder="КОД" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())}/>
+                <input className="input" placeholder="Награда RC" type="number" value={promoRc} onChange={e => setPromoRc(e.target.value)}/>
+                <input className="input" placeholder="Кол-во использований" type="number" value={promoMax} onChange={e => setPromoMax(e.target.value)}/>
+                <button className="btn btn-primary" onClick={createPromo}>✅ Создать</button>
+              </div>
             </div>
-            <div className="text-muted f11 mt8">
-              Новый сезон сбросит все балансы, рабов и работы. Косметика и VIP сохранятся. Перед запуском будет создан снапшот.
+
+            <div className="divider"/>
+            <div>
+              <div className="section-title">🌟 Новый сезон</div>
+              <div className="f12 text-muted" style={{marginBottom:10,lineHeight:1.5}}>
+                Сбросит все балансы, рабов и работы. Косметика и VIP сохранятся. Создаст снапшот перед сбросом.
+              </div>
+              <input className="input" type="password" placeholder="Пароль сезона"
+                value={seasonPass} onChange={e => setSeasonPass(e.target.value)} style={{marginBottom:8}}/>
+              <button className="btn btn-danger" onClick={doSeasonStart}>🔥 Начать новый сезон</button>
+            </div>
+
+            {/* FIX #13: Nuclear DB clear */}
+            <div className="divider"/>
+            <div>
+              <div className="section-title" style={{color:'var(--red)'}}>💀 Опасная зона</div>
+              <div className="f12 text-muted" style={{marginBottom:10,lineHeight:1.5,padding:12,background:'rgba(255,69,58,0.08)',borderRadius:12,border:'0.5px solid rgba(255,69,58,0.3)'}}>
+                ⚠️ <strong>Полная очистка базы данных</strong> — удаляет ВСЕХ пользователей, транзакции, тикеты и историю. Безвозвратно. Используйте только для полного перезапуска.
+              </div>
+              <button className="btn btn-danger" onClick={doClearDb}>
+                💀 Полностью очистить базу данных
+              </button>
             </div>
           </div>
         )}
       </div>
 
+      {/* Chat input for open conversation */}
+      {tab==='tickets' && openConv && (
+        <div className="chat-input-wrap">
+          <textarea className="chat-input" placeholder="Ответ пользователю..."
+            value={replyText} onChange={e => setReplyText(e.target.value)} rows={1}
+            onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doReply();} }}/>
+          <button className="btn btn-primary btn-sm" onClick={doReply} disabled={!replyText.trim()}>➤</button>
+        </div>
+      )}
+
+      {/* Edit user modal */}
       {editUser && (
-        <div className="overlay" onClick={()=>setEditUser(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="overlay" onClick={() => setEditUser(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-handle"/>
-            <div className="modal-title">✏️ Редактировать: @{editUser.username||editUser.id}</div>
-            <div className="gap">
+            <div className="modal-title">✏️ @{editUser.username||editUser.id}</div>
+            <div className="gap8">
               <div>
-                <div className="text-muted f11" style={{marginBottom:4}}>Баланс RC</div>
-                <input className="search-input" type="number" value={editBal} onChange={e=>setEditBal(e.target.value)}/>
+                <div className="text-muted f12" style={{marginBottom:4}}>Баланс RC</div>
+                <input className="input" type="number" value={editBal} onChange={e => setEditBal(e.target.value)}/>
               </div>
               <div>
-                <div className="text-muted f11" style={{marginBottom:4}}>Цена</div>
-                <input className="search-input" type="number" value={editPrice} onChange={e=>setEditPrice(e.target.value)}/>
+                <div className="text-muted f12" style={{marginBottom:4}}>Цена</div>
+                <input className="input" type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)}/>
               </div>
               <button className="btn btn-primary" onClick={saveUser}>💾 Сохранить</button>
             </div>
@@ -1258,40 +1815,43 @@ function AdminScreen() {
   );
 }
 
-/* ── APP ROOT ── */
+// ── APP ROOT ─────────────────────────────────────────────────────────────────
 function App() {
-  const [user, setUser] = useState(null);
-  const [tab, setTab] = useState('profile');
+  const [user, setUser]   = useState(null);
+  const [tab, setTab]     = useState('profile');
   const [error, setError] = useState(null);
+  const [viewingUid, setViewingUid] = useState(null);  // FIX #4
   const [toast, showToast] = useToast();
 
   async function init() {
     const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-    }
+    if (tg) { tg.ready(); tg.expand(); }
 
     let initData = tg?.initData || '';
     let refId    = null;
+    let photoUrl = tg?.initDataUnsafe?.user?.photo_url || null;
 
-    // Parse start_param for referral
     const sp = tg?.initDataUnsafe?.start_param;
     if (sp && sp.startsWith('ref_')) {
       try { refId = parseInt(sp.split('_')[1]); } catch {}
     }
 
-    // DEV MODE: use dev:USERID if no Telegram context
     if (!initData) {
       initData = 'dev:' + (Math.floor(Math.random()*100000) + 100000);
-      console.warn('[DEV] Using fake initData:', initData);
+      console.warn('[DEV] fake initData:', initData);
     }
-
     _initData = initData;
 
+    // Get bot username from config
     try {
-      const data = await post('/api/init', { init_data: initData, ref_id: refId });
+      const cfg = await get('/api/config');
+      _botUsername = cfg.bot_username || _botUsername;
+    } catch {}
+
+    try {
+      const data = await post('/api/init', { init_data: initData, ref_id: refId, photo_url: photoUrl });
       setUser(data);
+      if (data.bot_username) _botUsername = data.bot_username;
     } catch(e) {
       setError(e.message);
     }
@@ -1306,8 +1866,8 @@ function App() {
   if (error) return (
     <div className="loading-screen">
       <div style={{fontSize:40}}>❌</div>
-      <div className="text-red fw7">{error}</div>
-      <button className="btn btn-ghost" style={{width:140}} onClick={()=>{setError(null);init();}}>Повтор</button>
+      <div style={{color:'var(--red)',fontWeight:700}}>{error}</div>
+      <button className="btn btn-ghost" style={{width:140}} onClick={() => {setError(null);init();}}>Повтор</button>
     </div>
   );
 
@@ -1315,33 +1875,59 @@ function App() {
     <div className="loading-screen">
       <div className="loading-logo">⛓</div>
       <div className="spinner"/>
-      <div className="text-muted f12">Загружаем...</div>
+      <div className="text-muted f13">Загружаем...</div>
     </div>
   );
 
+  // FIX #4: viewing another user's profile
+  if (viewingUid && viewingUid !== user.id) {
+    return (
+      <div className="app">
+        <UserProfileScreen
+          uid={viewingUid}
+          currentUserId={user.id}
+          onBack={() => setViewingUid(null)}
+          onBuy={refreshUser}
+        />
+        <nav className="nav">
+          <button className="nav-btn" onClick={() => setViewingUid(null)}>
+            <span className="ico">‹</span>
+            Назад
+          </button>
+        </nav>
+      </div>
+    );
+  }
+
   const tabs = [
-    { id:'profile',  ico:'👤', label:'Профиль' },
-    { id:'search',   ico:'🔍', label:'Поиск'   },
-    { id:'top',      ico:'🏆', label:'Топ'     },
-    { id:'shop',     ico:'🛒', label:'Магазин' },
-    { id:'support',  ico:'💬', label:'Помощь'  },
+    { id:'profile', ico:'👤', label:'Профиль' },
+    { id:'search',  ico:'🔍', label:'Поиск'   },
+    { id:'top',     ico:'🏆', label:'Топ'     },
+    { id:'shop',    ico:'🛒', label:'Магазин' },
+    { id:'support', ico:'💬', label:'Помощь'  },
     ...(user.is_admin ? [{ id:'admin', ico:'⚙️', label:'Админ' }] : []),
   ];
+
+  function handleViewProfile(uid) {
+    if (uid === user.id) { setTab('profile'); return; }
+    setViewingUid(uid);
+  }
 
   return (
     <div className="app">
       {toast && <div className="toast">{toast}</div>}
 
-      {tab==='profile' && <ProfileScreen user={user} onBuy={refreshUser} onRefresh={refreshUser}/>}
-      {tab==='search'  && <SearchScreen  user={user} onBuy={refreshUser}/>}
-      {tab==='top'     && <TopScreen/>}
-      {tab==='shop'    && <ShopScreen    user={user} onRefresh={refreshUser}/>}
+      {tab==='profile' && <ProfileScreen user={user} onRefresh={refreshUser} onViewProfile={handleViewProfile}/>}
+      {tab==='search'  && <SearchScreen  user={user} onBuy={refreshUser} onViewProfile={handleViewProfile}/>}
+      {tab==='top'     && <TopScreen onViewProfile={handleViewProfile}/>}
+      {tab==='shop'    && <ShopScreen user={user} onRefresh={refreshUser}/>}
       {tab==='support' && <SupportScreen user={user}/>}
       {tab==='admin'   && user.is_admin && <AdminScreen/>}
 
       <nav className="nav">
         {tabs.map(t => (
-          <button key={t.id} className={`nav-btn${tab===t.id?' active':''}`} onClick={()=>setTab(t.id)}>
+          <button key={t.id} className={`nav-btn${tab===t.id?' active':''}`}
+            onClick={() => { setViewingUid(null); setTab(t.id); }}>
             <span className="ico">{t.ico}</span>
             {t.label}
           </button>
