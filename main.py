@@ -14,7 +14,7 @@ from sqlalchemy import select, update, Integer, String, Float, Boolean, ForeignK
 
 # ================= КОНФИГ ИЗ RAILWAY =================
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8606742629:AAE0l0AylYWg7Rjgk167GBkchFjBEtf2JFw")
-WEBAPP_URL = os.getenv("WEBAPP_URL", "https://твой-домен.railway.app")
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://slave222-production.up.railway.app")
 # Берем ID админа из переменных, если нет - ставим дефолт
 ADMIN_IDS = [int(id_str) for id_str in os.getenv("ADMIN_IDS", "7502434760").split(",") if id_str]
 
