@@ -478,7 +478,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
                 const interval = setInterval(() => {
                   const t = Math.max(0, Math.floor((new Date(s.job_finishes_at) - Date.now()) / 1000));
                   setTimeLeft(t);
-                  if (t === 0) { clearInterval(interval); onRefresh(); } // Авто-обновление когда работа закончилась
+                  if (t === 0) { clearInterval(interval); onRefresh(); }
                 }, 1000);
                 return () => clearInterval(interval);
               }, [s.job_finishes_at]);
@@ -488,6 +488,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
                   <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div>
                   <div className="li-info" onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
                     <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f11">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.id}`)}</div>
+                    
                     <div className="li-sub mt4">
                       {s.job_finishes_at && timeLeft > 0 ? (
                         <>
@@ -498,6 +499,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
                         <span>😴 Отдыхает</span>
                       )}
                     </div>
+                    
                     <div className="row mt4" style={{gap:6}}>
                       <span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>
                       {isProtected && (
@@ -507,19 +509,18 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             const d = new Date(s.purchase_protection_until);
-                            showToast(`🔒 Защита до ${d.toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'})}. Причина: Недавно куплен`);
+                            showToast(`🔒 Защита от перекупки действует до ${d.toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'})}. Это дает вам время отправить нового раба на работу.`);
                           }}
                         >
                           🔒 защита
                         </span>
                       )}
                     </div>
-                    <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
-                    <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
+
                   </div>
                   <div className="gap6">
-                    <button className="btn btn-primary btn-sm" style={{padding:'8px 12px', opacity: s.job_finishes_at && timeLeft > 0 ? 0.5 : 1}} onClick={() => { if(!s.job_finishes_at || timeLeft === 0) setSendWorkSlave(s.id) }}>💼</button>
-                    <button className="btn btn-ghost btn-sm" style={{padding:'8px 12px'}} onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button>
+                    <button className="btn btn-primary btn-sm" style={{padding:'8px 12px', opacity: s.job_finishes_at && timeLeft > 0 ? 0.5 : 1}} onClick={(e) => { e.stopPropagation(); if(!s.job_finishes_at || timeLeft === 0) setSendWorkSlave(s.id); }}>💼</button>
+                    <button className="btn btn-ghost btn-sm" style={{padding:'8px 12px'}} onClick={(e) => { e.stopPropagation(); setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button>
                   </div>
                 </div>
               );
