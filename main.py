@@ -12,8 +12,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import select, update, Integer, String, Float, Boolean, ForeignKey
 
 # ================= КОНФИГ =================
-BOT_TOKEN = "ТВОЙ_ТОКЕН_БОТА"
-WEBAPP_URL = "https://твой-домен.ngrok-free.app" # Замени на свой URL
+BOT_TOKEN = "8606742629:AAE0l0AylYWg7Rjgk167GBkchFjBEtf2JFw"
+WEBAPP_URL = "https://slave222-production.up.railway.app" # Замени на свой URL
 ADMIN_IDS = [123456789] # Замени на свой Telegram ID
 
 bot = Bot(token=BOT_TOKEN)
