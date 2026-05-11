@@ -182,6 +182,7 @@ ON CONFLICT DO NOTHING;
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 def verify_webapp(init_data: str) -> Optional[dict]:
+    print(f"[auth] raw initData: {init_data[:120]}")
     try:
         from urllib.parse import unquote
         parsed = dict(x.split("=", 1) for x in init_data.split("&") if "=" in x)
