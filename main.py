@@ -7,7 +7,7 @@ import uuid
 import hmac as _hmac
 import hashlib
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import asyncpg
@@ -36,7 +36,6 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 _VOLUME     = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", ".")
 SUPPORT_DIR = Path(_VOLUME) / "support"
 SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 
 bot: Bot = None
 dp: Dispatcher = None
@@ -72,6 +71,12 @@ CREATE TABLE IF NOT EXISTS user_sponsors (user_id BIGINT, sponsor_id INT, claime
 CREATE TABLE IF NOT EXISTS season_snapshots (id SERIAL PRIMARY KEY, snapshot_data JSONB, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT);
 
+-- ТАБЛИЦА ДЛЯ ЕЖЕДНЕВНЫХ ЗАДАНИЙ
+CREATE TABLE IF NOT EXISTS daily_progress (
+    user_id BIGINT, task_id TEXT, date_str TEXT, progress INT DEFAULT 0, claimed BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (user_id, task_id, date_str)
+);
+
 ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS photo_b64 TEXT;
 ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS reply_to_id INT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS slaves_count INT DEFAULT 0;
@@ -80,8 +85,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS purchase_protection_until TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT;
-
--- ✅ ЖЕСТКАЯ КОНВЕРТАЦИЯ КОЛОНОК СПОНСОРОВ ДЛЯ ИЗБЕЖАНИЯ ОШИБОК БАЗЫ ДАННЫХ
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_main BOOLEAN DEFAULT FALSE;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS channel_url TEXT;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
@@ -110,17 +113,48 @@ INSERT INTO cosmetics (type, name, value, price_stars, css_class, price_rc) VALU
 ON CONFLICT (name) DO UPDATE SET price_stars=EXCLUDED.price_stars, price_rc=0;
 """
 
+# ✅ ПОВЫШЕННЫЕ ЦЕНЫ ДЛЯ МАГАЗИНА (RC)
 SHOP_ITEMS = [
-    {"id":"shield_24", "name":"🛡 Щит 24ч", "price_stars":25, "price_rc":1200, "desc":"Защита от покупки на 24 часа"},
-    {"id":"shield_48", "name":"🛡 Щит 48ч", "price_stars":45, "price_rc":2200, "desc":"Защита от покупки на 48 часов"},
-    {"id":"chains", "name":"⛓ Оковы", "price_stars":20, "price_rc":800, "desc":"Выкуп раба дорожает на 50%"},
-    {"id":"boost_15", "name":"🚀 Буст ×1.5", "price_stars":20, "price_rc":1000, "desc":"Доход +50% на 24 часа"},
-    {"id":"boost_20", "name":"🚀 Буст ×2.0", "price_stars":35, "price_rc":1800, "desc":"Двойной доход на 24 часа"},
-    {"id":"stealth", "name":"👻 Стелс", "price_stars":20, "price_rc":900, "desc":"Скрывает вас из рейтингов"},
-    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":4000, "desc":"+2% к доходу, на 30 дней"},
-    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":8000, "desc":"+5% к доходу, на 30 дней"},
-    {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":14000, "desc":"Налог 8%, редкие работы, на 30 дней"},
+    {"id":"shield_24", "name":"🛡 Щит 24ч", "price_stars":25, "price_rc":5000, "desc":"Защита от покупки на 24 часа"},
+    {"id":"shield_48", "name":"🛡 Щит 48ч", "price_stars":45, "price_rc":9000, "desc":"Защита от покупки на 48 часов"},
+    {"id":"chains", "name":"⛓ Оковы", "price_stars":20, "price_rc":3500, "desc":"Выкуп раба дорожает на 50%"},
+    {"id":"boost_15", "name":"🚀 Буст ×1.5", "price_stars":20, "price_rc":4500, "desc":"Доход +50% на 24 часа"},
+    {"id":"boost_20", "name":"🚀 Буст ×2.0", "price_stars":35, "price_rc":8000, "desc":"Двойной доход на 24 часа"},
+    {"id":"stealth", "name":"👻 Стелс", "price_stars":20, "price_rc":3000, "desc":"Скрывает вас из рейтингов"},
+    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":15000, "desc":"+2% к доходу, на 30 дней"},
+    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":30000, "desc":"+5% к доходу, на 30 дней"},
+    {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":50000, "desc":"Налог 8%, редкие работы, на 30 дней"},
 ]
+
+# ✅ ПУЛ ИЗ 50 ЕЖЕДНЕВНЫХ ЗАДАНИЙ
+DAILY_TASKS_POOL = [
+    *[{"id": f"buy_{i}", "title": f"Купить {i} рабов", "action": "buy_slave", "target": i, "reward": i * 300} for i in [1, 2, 3, 5, 8, 10, 15, 20, 25, 30]],
+    *[{"id": f"work_{i}", "title": f"Отправить на работу {i} раз", "action": "send_work", "target": i, "reward": i * 150} for i in [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50]],
+    *[{"id": f"collect_{i}", "title": f"Собрать налог {i} раз", "action": "collect", "target": i, "reward": i * 200} for i in [1, 2, 3, 4, 5, 8, 10, 15, 20, 30]],
+    *[{"id": f"checkin_{i}", "title": f"Ежедневная отметка (День {i})", "action": "checkin", "target": 1, "reward": 500} for i in range(1, 19)]
+]
+
+def get_daily_tasks():
+    # По МСК времени
+    msk_time = datetime.utcnow() + timedelta(hours=3)
+    date_str = msk_time.strftime("%Y-%m-%d")
+    
+    # Сид генератора = текущая дата, чтобы у всех 5 заданий на сегодня были одинаковыми
+    random.seed(date_str)
+    selected = random.sample(DAILY_TASKS_POOL, 5)
+    random.seed() # Сбрасываем сид, чтобы не сломать рандом в игре
+    return date_str, selected
+
+async def add_task_progress(user_id: int, action: str, amount: int = 1):
+    date_str, daily_tasks = get_daily_tasks()
+    for t in daily_tasks:
+        if t['action'] == action:
+            await db.execute("""
+                INSERT INTO daily_progress (user_id, task_id, date_str, progress)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (user_id, task_id, date_str) 
+                DO UPDATE SET progress = daily_progress.progress + $4
+            """, user_id, t['id'], date_str, amount)
 
 def verify_webapp(init_data: str) -> Optional[dict]:
     from urllib.parse import unquote
@@ -194,7 +228,9 @@ async def collect_income(owner_id: int) -> float:
         mult = float(s['booster_mult']) if s['booster_until'] and s['booster_until'] > now else 1.0
         total += hrs * float(s['income_per_hour']) * mult
         await db.execute("UPDATE users SET job_assigned_at=$1 WHERE id=$2", now, s['id'])
-    if total > 0: await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total, 2), owner_id)
+    if total > 0: 
+        await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total, 2), owner_id)
+        await add_task_progress(owner_id, 'collect') # Прогресс задания
     return total
 
 async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
@@ -266,6 +302,23 @@ async def lifespan(app: FastAPI):
     @dp.message(CommandStart())
     async def cmd_start(msg: types.Message):
         uid = msg.from_user.id
+        
+        # ✅ ЖЕСТКАЯ БЛОКИРОВКА БОТА: ПРОВЕРКА ГЕНЕРАЛЬНЫХ СПОНСОРОВ
+        main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
+        missing_subs = []
+        for s in main_sponsors:
+            try:
+                member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
+                if member.status not in ['member', 'administrator', 'creator']:
+                    missing_subs.append(s)
+            except: missing_subs.append(s) # Если бот не в админке или юзер не подписан
+            
+        if missing_subs:
+            buttons = [[InlineKeyboardButton(text=s['channel_title'], url=s['channel_url'])] for s in missing_subs]
+            buttons.append([InlineKeyboardButton(text="🔄 Проверить подписку", callback_data="check_main_subs")])
+            await msg.answer("⛔️ <b>Для использования игры необходимо подписаться на наши генеральные каналы:</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+            return
+
         ref_id = None
         if msg.text and "ref_" in msg.text:
             try: ref_id = int(msg.text.split("ref_")[1])
@@ -274,6 +327,24 @@ async def lifespan(app: FastAPI):
             owner_id = ref_id if ref_id and ref_id != uid else None
             await db.execute("INSERT INTO users(id,username,first_name,balance,current_price,owner_id) VALUES($1,$2,$3,50,100,$4) ON CONFLICT DO NOTHING", uid, msg.from_user.username, msg.from_user.first_name, owner_id)
         await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]]))
+
+    @dp.callback_query(F.data == "check_main_subs")
+    async def cb_check_subs(cq: types.CallbackQuery):
+        uid = cq.from_user.id
+        main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
+        missing_subs = []
+        for s in main_sponsors:
+            try:
+                member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
+                if member.status not in ['member', 'administrator', 'creator']: missing_subs.append(s)
+            except: missing_subs.append(s)
+            
+        if missing_subs:
+            await cq.answer("❌ Вы не подписаны на все каналы!", show_alert=True)
+        else:
+            await cq.answer("✅ Доступ разрешен!", show_alert=True)
+            await cq.message.delete()
+            await cmd_start(cq.message)
 
     @dp.pre_checkout_query()
     async def pre_checkout(query: PreCheckoutQuery): await query.answer(ok=True)
@@ -345,7 +416,9 @@ class StoryUploadReq(BaseModel): b64_data: str
 class AdminGrantCosmeticReq(BaseModel): identifier: str; field: str; value: str
 class SponsorAddReq(BaseModel): channel_id: str; channel_title: str; channel_url: str; reward_rc: float; is_main: bool = False
 class SponsorDelReq(BaseModel): sponsor_id: int
+class SponsorToggleReq(BaseModel): sponsor_id: int
 class CheckSponsorReq(BaseModel): sponsor_id: int
+class ClaimTaskReq(BaseModel): task_id: str
 class AdminHiddenReq(BaseModel): hidden: bool
 class MaintToggleReq(BaseModel): state: bool
 class SupportMessageReq(BaseModel):
@@ -440,6 +513,8 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
             
     asyncio.create_task(push(target_id, f"⛓ Вас купил @{buyer['username'] or buyer_id}! Ожидайте работу."))
     if target['owner_id']: asyncio.create_task(push(target['owner_id'], f"💰 Вашего раба @{target['username'] or target_id} перекупили! Прибыль: <b>{payout:.0f} RC</b>."))
+    
+    await add_task_progress(buyer_id, 'buy_slave') # Прогресс задания
     return {"ok": True, "paid": price, "new_price": new_price}
 
 @app.post("/api/slaves/send_to_work")
@@ -448,8 +523,10 @@ async def send_to_work(req: SendWorkReq, user: dict = Depends(get_current_user))
     if not s or s['owner_id'] != user['id']: raise HTTPException(403, "Это не ваш раб")
     if s['job_assigned_at'] and (datetime.utcnow() - s['job_assigned_at']).total_seconds() < 7200: raise HTTPException(400, f"Раб занят еще {int((7200 - (datetime.utcnow() - s['job_assigned_at']).total_seconds()) / 60)} мин.")
     new_job = pick_job(user['vip_level'], await get_jobs_list())
-    await db.execute("UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3", datetime.utcnow(), req.slave_id)
+    await db.execute("UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3", new_job['id'], datetime.utcnow(), req.slave_id)
     asyncio.create_task(push(req.slave_id, f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b>!"))
+    
+    await add_task_progress(user['id'], 'send_work') # Прогресс задания
     return {"ok": True, "job": dict(new_job)}
 
 @app.get("/api/jobs")
@@ -531,31 +608,76 @@ async def stories_claim(u: dict = Depends(get_current_user)):
     asyncio.create_task(notify_admins(f"📸 <b>Новая заявка на Story!</b>\nОт пользователя @{u['username'] or u['id']}\nЖдет проверки в админ-панели."))
     return {"ok": True, "msg": "Заявка отправлена модераторам!"}
 
-@app.get("/api/sponsors/status")
-async def get_sponsors_status(x_init_data: str = Header(...)):
+# ── ЕЖЕДНЕВНЫЕ ЗАДАНИЯ И СПОНСОРЫ ──
+
+@app.get("/api/tasks/status")
+async def get_tasks_status(x_init_data: str = Header(...)):
     uid = await _resolve_uid(x_init_data)
+    
+    # 1. Получаем спонсоров
     sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_active=TRUE ORDER BY is_main DESC, id ASC")
-    main_subbed, main_sponsor, tasks = True, None, []
+    missing_main_sponsors = []
+    tasks_sponsors = []
 
     for s in sponsors:
         is_subbed = False
-        check_failed = False
         try:
             member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
             is_subbed = member.status in ['member', 'administrator', 'creator']
         except Exception:
-            check_failed = True
+            pass # Бот не в канале или юзер не подписан
 
-        if s['is_main']:
-            main_sponsor = dict(s)
-            main_subbed = True if check_failed else is_subbed
+        if s['is_main'] and not is_subbed:
+            missing_main_sponsors.append(dict(s))
+            
+        if not s['is_main']:
+            claimed = bool(await db.fetchrow("SELECT 1 FROM user_sponsors WHERE user_id=$1 AND sponsor_id=$2", uid, s['id']))
+            tasks_sponsors.append({**dict(s), 'claimed': claimed, 'is_subbed': is_subbed})
+
+    # 2. Получаем ежедневные задания
+    date_str, daily_tasks_data = get_daily_tasks()
+    user_progress = await db.fetch("SELECT task_id, progress, claimed FROM daily_progress WHERE user_id=$1 AND date_str=$2", uid, date_str)
+    prog_map = {r['task_id']: dict(r) for r in user_progress}
+
+    daily_tasks = []
+    for t in daily_tasks_data:
+        p = prog_map.get(t['id'], {'progress': 0, 'claimed': False})
+        daily_tasks.append({
+            **t,
+            "current_progress": min(p['progress'], t['target']),
+            "is_completed": p['progress'] >= t['target'],
+            "is_claimed": p['claimed']
+        })
+
+    return {
+        "missing_main_sponsors": missing_main_sponsors,
+        "sponsors": tasks_sponsors,
+        "daily": daily_tasks
+    }
+
+@app.post("/api/tasks/claim_daily")
+async def claim_daily_task(req: ClaimTaskReq, u: dict = Depends(get_current_user)):
+    date_str, daily_tasks_data = get_daily_tasks()
+    task = next((t for t in daily_tasks_data if t['id'] == req.task_id), None)
+    if not task: raise HTTPException(404, "Задание не найдено или истекло")
+
+    if task['action'] == 'checkin':
+        await add_task_progress(u['id'], 'checkin')
+
+    prog = await db.fetchrow("SELECT progress, claimed FROM daily_progress WHERE user_id=$1 AND task_id=$2 AND date_str=$3", u['id'], req.task_id, date_str)
+    
+    if not prog or prog['progress'] < task['target']:
+        if task['action'] == 'checkin':
+            prog = {'progress': 1, 'claimed': False} # Только что добавили
         else:
-            claimed = bool(await db.fetchrow(
-                "SELECT 1 FROM user_sponsors WHERE user_id=$1 AND sponsor_id=$2", uid, s['id']
-            ))
-            tasks.append({**dict(s), 'claimed': claimed, 'is_subbed': is_subbed})
+            raise HTTPException(400, "Задание еще не выполнено")
+            
+    if prog.get('claimed'): raise HTTPException(400, "Награда уже получена")
 
-    return {"main_subscribed": main_subbed, "main_sponsor": main_sponsor, "tasks": tasks}
+    await db.execute("UPDATE daily_progress SET claimed=TRUE WHERE user_id=$1 AND task_id=$2 AND date_str=$3", u['id'], req.task_id, date_str)
+    await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", task['reward'], u['id'])
+    
+    return {"ok": True, "reward": task['reward']}
 
 @app.post("/api/sponsors/check")
 async def check_sponsor(req: CheckSponsorReq, u: dict = Depends(get_current_user)):
@@ -828,6 +950,11 @@ async def admin_add_sponsor(req: SponsorAddReq, _: dict = Depends(get_admin_user
         "reward_rc=EXCLUDED.reward_rc, is_main=EXCLUDED.is_main",
         channel_id_str, req.channel_title, req.channel_url, req.reward_rc, req.is_main
     )
+    return {"ok": True}
+
+@app.post("/api/admin/sponsors/toggle_main")
+async def admin_toggle_sponsor(req: SponsorToggleReq, _: dict = Depends(get_admin_user)):
+    await db.execute("UPDATE sponsors SET is_main = NOT is_main WHERE id=$1", req.sponsor_id)
     return {"ok": True}
 
 @app.post("/api/admin/sponsors/delete")
