@@ -166,6 +166,18 @@ input, textarea, select { font-size: 16px !important; }
 .task-progress-wrap { background: var(--bg2); height: 8px; border-radius: 4px; overflow: hidden; position: relative; border: 1px solid var(--border2); }
 .task-progress-bar { background: var(--gold); height: 100%; border-radius: 4px; transition: width 0.3s ease; box-shadow: 0 0 10px rgba(232,197,71,0.5); }
 .task-progress-text { font-size: 11px; font-weight: 600; color: var(--text-3); text-align: right; margin-top: 4px; }
+
+/* 7 Day Login Tracker */
+.login-track { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; scrollbar-width: none; margin-top: 16px; }
+.login-track::-webkit-scrollbar { display: none; }
+.login-day { flex: 1; min-width: 50px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 12px; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: 0.2s; }
+.login-day.active { background: var(--gold-dim); border-color: rgba(232,197,71,0.4); transform: translateY(-2px); }
+.login-day.past { opacity: 0.6; }
+.login-day.past::after { content: '✓'; position: absolute; font-size: 16px; font-weight: 800; color: var(--green); }
+.ld-day { font-size: 10px; font-weight: 700; color: var(--text-3); margin-bottom: 4px; text-transform: uppercase; }
+.login-day.active .ld-day { color: var(--gold); }
+.ld-val { font-size: 12px; font-weight: 800; color: var(--text); }
+.login-day.active .ld-val { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -262,7 +274,7 @@ function AdminGhostToggle({ userId, initialHidden, onToast }) {
   return <button onClick={toggle} disabled={loading} className="btn btn-ghost btn-sm" style={{borderColor: hidden ? 'var(--gold)' : 'var(--border2)', color: hidden ? 'var(--gold)' : 'var(--text-2)'}}>{loading ? '...' : hidden ? '🟡 Скрыт' : '⚫ Виден'}</button>;
 }
 
-function JobProbsModal({ jobs, vipLevel, onClose, onSend, slaveName }) {
+function JobProbsModal({ jobs, vipLevel, slaveName, onClose, onSend }) {
   const common = jobs.filter(j => j.drop_chance === 70); const rare = jobs.filter(j => j.drop_chance === 25); const legendary = jobs.filter(j => j.drop_chance === 5);
   return (
     <div className="overlay" onClick={onClose}>
@@ -279,19 +291,30 @@ function JobProbsModal({ jobs, vipLevel, onClose, onSend, slaveName }) {
   );
 }
 
-// НОВЫЙ ЭКРАН ЗАДАНИЙ (Ежедневные + Спонсоры)
+// ЭКРАН ЗАДАНИЙ
 function TasksScreen({ tasksData, onRefresh, showToast }) {
   const [tab, setTab] = useState('daily');
   const [claiming, setClaiming] = useState(false);
 
   const daily = tasksData?.daily || [];
   const sponsors = tasksData?.sponsors || [];
+  const loginBonus = tasksData?.login_bonus;
 
   async function claimTask(taskId) {
     setClaiming(true);
     try {
       const r = await post('/api/tasks/claim_daily', { task_id: taskId });
       showToast(`🎁 Вы получили +${r.reward} RC!`);
+      onRefresh();
+    } catch(e) { showToast('❌ ' + e.message); }
+    setClaiming(false);
+  }
+
+  async function claimLoginBonus() {
+    setClaiming(true);
+    try {
+      const r = await post('/api/tasks/claim_login');
+      showToast(`🎁 Награда за день ${r.day}: +${r.reward} RC!`);
       onRefresh();
     } catch(e) { showToast('❌ ' + e.message); }
     setClaiming(false);
@@ -309,16 +332,45 @@ function TasksScreen({ tasksData, onRefresh, showToast }) {
       <div style={{padding:'16px'}}>
         {tab === 'daily' && (
           <div>
-            <div className="f12 text-muted text-center mb16" style={{lineHeight:1.5}}>
+            {/* БЛОК НАГРАД ЗА ВХОД */}
+            {loginBonus && (
+              <div className="card" style={{padding:'16px', background:'linear-gradient(145deg, #111 0%, #1a1a1a 100%)', borderColor:'rgba(232,197,71,0.2)'}}>
+                <div className="row-sb mb12">
+                  <div className="fw8" style={{fontSize:16}}>📅 Награды за вход</div>
+                  {loginBonus.can_claim ? (
+                    <button className="btn btn-primary btn-sm" disabled={claiming} onClick={claimLoginBonus} style={{padding:'6px 12px'}}>Забрать</button>
+                  ) : (
+                    <span className="text-muted f12 fw6">Получено ✓</span>
+                  )}
+                </div>
+                <div className="f12 text-muted" style={{lineHeight:1.4}}>Заходите каждый день, чтобы забрать главную награду! Если пропустить день, прогресс сбросится.</div>
+                
+                <div className="login-track">
+                  {loginBonus.rewards.map((rew, idx) => {
+                    const dayNum = idx + 1;
+                    const isActive = dayNum === loginBonus.current_day;
+                    const isPast = dayNum < loginBonus.current_day || (!loginBonus.can_claim && isActive);
+                    return (
+                      <div key={idx} className={`login-day ${isActive && loginBonus.can_claim ? 'active' : ''} ${isPast ? 'past' : ''}`}>
+                        <div className="ld-day">День {dayNum}</div>
+                        <div className="ld-val">{rew >= 1000 ? (rew/1000).toFixed(1).replace('.0','')+'k' : rew}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="f12 text-muted text-center mb16 mt16" style={{lineHeight:1.5}}>
               Выполняйте задания каждый день и получайте RC.<br/>Список обновляется каждую ночь в 00:00 МСК.
             </div>
+            
             {daily.map(t => {
               const perc = Math.min(100, (t.current_progress / t.target) * 100);
-              const isActionable = t.action === 'checkin' && !t.is_completed;
               return (
                 <div className="task-card" key={t.id}>
                   <div className="task-header">
-                    <div className="task-icon">{t.action==='buy_slave'?'🛒':t.action==='send_work'?'💼':t.action==='collect'?'💰':'📅'}</div>
+                    <div className="task-icon">{t.action==='buy_slave'?'🛒':t.action==='send_work'?'💼':t.action==='collect'?'💰':'⭐'}</div>
                     <div className="task-info">
                       <div className="task-title">{t.title}</div>
                       <div className="task-reward">+{t.reward} RC</div>
@@ -327,11 +379,9 @@ function TasksScreen({ tasksData, onRefresh, showToast }) {
                       <span className="text-green fw8 f13" style={{padding:'8px'}}>✅</span>
                     ) : t.is_completed ? (
                       <button className="btn btn-primary btn-sm" disabled={claiming} onClick={()=>claimTask(t.id)}>Забрать</button>
-                    ) : isActionable ? (
-                      <button className="btn btn-ghost btn-sm" disabled={claiming} onClick={()=>claimTask(t.id)}>Отметиться</button>
                     ) : null}
                   </div>
-                  {!t.is_claimed && t.action !== 'checkin' && (
+                  {!t.is_claimed && (
                     <div>
                       <div className="task-progress-wrap"><div className="task-progress-bar" style={{width:`${perc}%`}}/></div>
                       <div className="task-progress-text">{t.current_progress} / {t.target}</div>
@@ -393,6 +443,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
       <div className="section gap8" style={{marginTop:0}}><button className="btn btn-ghost" onClick={() => { navigator.clipboard?.writeText(refLink); showToast('🔗 Ссылка скопирована!'); }}>🔗 Пригласить друга (реф. ссылка)</button>{user.owner && <button className="btn btn-danger" onClick={doSelfbuy} disabled={loadingSelf}>{loadingSelf ? '...' : `🔓 Выкупить себя (${user.price.toFixed(0)} RC)`}</button>}</div>
       {user.is_admin && (<div className="section"><div className="card row-sb" style={{padding:'12px 16px', margin:0}}><div><div className="fw7" style={{fontSize:13}}>👻 Режим призрака</div><div className="text-muted f11 mt4">Скрыть себя из рейтингов и поиска</div></div><AdminGhostToggle userId={user.id} initialHidden={user.admin_hidden} onToast={showToast}/></div></div>)}
       <div className="stories-card"><div className="stories-ico">📸</div><div className="stories-title">Stories Бонус</div><div className="stories-sub">Опубликуй Story с карточкой — получи +250 RC</div>{user.story_cooldown_until && storiesCountdown > 0 ? (<><div className="stories-timer">{fmtCountdown(storiesCountdown)}</div><div className="f12 text-muted mt4">до следующей возможности</div></>) : (<button className="btn btn-primary mt16" onClick={() => generateAndShareStory(user, showToast, setStoryPendingModal)}>✨ Выложить Story</button>)}</div>
+      
       {user.slaves.length > 0 && (<div className="section"><div className="section-title">Мои рабы ({user.slaves_count})</div><div className="card" style={{padding:0, margin:0}}>{user.slaves.map((s, idx) => { const isProtected = s.purchase_protection_until && new Date(s.purchase_protection_until) > new Date(); return (<div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===user.slaves.length-1?'none':'1px solid var(--border)'}}><div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div><div className="li-info" onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f11">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.id}`)}</div><div className="li-sub mt4">{s.working ? <><span className="text-green">{s.job_emoji} {s.job_title}</span><span className="text-green fw6"> · +{s.income_per_hour_effective.toFixed(1)} RC/ч</span></> : <span>😴 Отдыхает</span>}</div><div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div></div><div className="gap6"><button className="btn btn-primary btn-sm" style={{padding:'8px 12px'}} onClick={() => setSendWorkSlave(s.id)}>💼</button><button className="btn btn-ghost btn-sm" style={{padding:'8px 12px'}} onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button></div></div>);})}</div></div>)}
       {sendWorkSlave && workingSlave && jobs.length > 0 && <JobProbsModal jobs={jobs} vipLevel={user.vip_level} slaveName={workingSlave.custom_name || workingSlave.first_name} onClose={() => setSendWorkSlave(null)} onSend={() => doSendWork(sendWorkSlave)} />}
       {storyPendingModal && (<div className="overlay" onClick={()=>setStoryPendingModal(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-handle"/><div className="modal-title">📸 Вы опубликовали Story?</div><div className="f13 text-muted mb16" style={{lineHeight:1.5}}>Если вы поделились историей, нажмите кнопку ниже для отправки заявки модераторам. После проверки вам начислят бонус +250 RC!</div><button className="btn btn-primary" onClick={claimStory}>✅ Да, я выложил</button><button className="btn btn-ghost mt8" onClick={()=>setStoryPendingModal(false)}>Отмена</button></div></div>)}
@@ -522,7 +573,6 @@ function App() {
   if (maintenanceMode && !user.is_admin && !user.is_admin_flag) return (<div className="overlay-full"><div className="overlay-icon" style={{animation: 'spin 4s linear infinite'}}>🛠</div><div className="overlay-title amber">Технические работы</div><div className="overlay-desc">Платформа обновляется. Мы скоро вернемся! Пожалуйста, зайдите позже.</div><button className="btn btn-ghost" style={{width: 200}} onClick={init}>🔄 Обновить</button></div>);
   if (user.is_banned) { if (banSupportMode) { return (<div className="app"><SupportScreen user={user} showToast={showToast}/><div className="section mt16" style={{paddingBottom: 20}}><button className="btn btn-ghost" onClick={() => setBanSupportMode(false)}>‹ Назад к блокировке</button></div></div>); } return (<div className="overlay-full"><div className="overlay-icon">🚫</div><div className="overlay-title red">Аккаунт Заблокирован</div><div className="overlay-desc">Ваш аккаунт был заблокирован за нарушение правил. Если вы считаете, что это ошибка, обратитесь в поддержку.</div>{user.ban_reason && <div className="ban-reason-box">Причина: {user.ban_reason}</div>}<button className="btn btn-primary" style={{width: '100%', maxWidth: '300px'}} onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button></div>); }
   
-  // ✅ ЖЕСТКАЯ БЛОКИРОВКА ПРИ ОТСУТСТВИИ ПОДПИСКИ НА ГЕНЕРАЛЬНЫХ СПОНСОРОВ
   if (tasksData.missing_main_sponsors && tasksData.missing_main_sponsors.length > 0) {
     return (
       <div className="overlay-full">
@@ -570,7 +620,6 @@ function App() {
             {adminTab==='tickets' && (<div className="gap8">{tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}{tickets.map(t => (<div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}><div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div><div className="fw7 text-muted" style={{fontSize:20}}>›</div></div>))}</div>)}
             {adminTab==='stories' && (<div className="gap8">{stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}{stories.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div><button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅ Одобрить</button></div>))}</div>)}
             
-            {/* ВКЛАДКА СПОНСОРОВ */}
             {adminTab==='sponsors' && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Спонсора</div><div className="f12 text-muted mb8">Бот должен быть админом в канале!</div><input className="input" placeholder="ID Канала (-100123...)" value={spId} onChange={e=>setSpId(e.target.value)}/><input className="input" placeholder="Название (Для кнопки)" value={spTitle} onChange={e=>setSpTitle(e.target.value)}/><input className="input" placeholder="Ссылка (https://t.me/...)" value={spUrl} onChange={e=>setSpUrl(e.target.value)}/><input className="input" type="number" placeholder="Награда RC" value={spRc} onChange={e=>setSpRc(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ if(!spId||!spTitle||!spUrl||!spRc) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); setSpId(''); setSpTitle(''); setSpUrl(''); setSpRc('250'); }catch(e){showToast('❌ '+e.message);} }}>Добавить</button></div>{sponsors.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">{s.is_main ? '👑 Генеральный' : '📢 Обычный'}</div><div className="fw8 mt4" style={{fontSize:15}}>{s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div><div className="gap6"><button className="btn btn-ghost btn-sm" style={{borderColor: s.is_main ? 'var(--gold)' : 'var(--border2)'}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/toggle_main',{sponsor_id:s.id}); showToast('✅ Статус изменен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>{s.is_main ? 'Сделать обычным' : 'Сделать генеральным'}</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Удалить спонсора?'))return; try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑 Удалить</button></div></div>))}</div>)}
             
             {adminTab==='admins' && adminsData && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Админа</div><input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button></div><div className="gap8">{adminsData.db_admins.map(a => (<div className="card row-sb" key={a.user_id} style={{margin:0}}><div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button></div>))}</div></div>)}
