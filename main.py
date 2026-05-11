@@ -63,8 +63,9 @@ CREATE TABLE IF NOT EXISTS admin_users (user_id BIGINT PRIMARY KEY, added_by BIG
 CREATE TABLE IF NOT EXISTS sponsors (id SERIAL PRIMARY KEY, channel_id TEXT UNIQUE NOT NULL, channel_title TEXT, channel_url TEXT, reward_rc DECIMAL DEFAULT 0, is_main BOOLEAN DEFAULT FALSE, is_active BOOLEAN DEFAULT TRUE);
 CREATE TABLE IF NOT EXISTS user_sponsors (user_id BIGINT, sponsor_id INT, claimed_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (user_id, sponsor_id));
 CREATE TABLE IF NOT EXISTS season_snapshots (id SERIAL PRIMARY KEY, snapshot_data JSONB, created_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT);
 
--- Безопасные миграции (предотвращает UndefinedColumnError)
+-- Безопасные миграции
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS photo_b64 TEXT;
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS reply_to_id INT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS slaves_count INT DEFAULT 0;
@@ -72,6 +73,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin_flag BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS purchase_protection_until TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
+
+INSERT INTO global_settings (key, value) VALUES ('maintenance', '0') ON CONFLICT DO NOTHING;
 
 DELETE FROM jobs WHERE id NOT IN (SELECT MIN(id) FROM jobs GROUP BY title);
 CREATE UNIQUE INDEX IF NOT EXISTS jobs_title_idx ON jobs(title);
@@ -271,10 +274,9 @@ async def lifespan(app: FastAPI):
             if not purchase: return await msg.answer("⚠️ Покупка уже обработана.")
             await db.execute("UPDATE pending_purchases SET status='completed' WHERE id=$1", purchase_id)
             await _grant_shop_item(uid, item_type, purchase['cosmetic_id'], purchase['slave_id'])
-            await msg.answer("✅ Покупка успешна! Предмет активирован.")
+            await msg.answer("✅ Покупка успешна! Предмет активирован. Обновите приложение.")
         except Exception as e: print(f"[payment] error: {e}")
 
-    # FIX: Удаляем старый вебхук чтобы избежать конфликта при поллинге
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(dp.start_polling(bot, skip_updates=True))
     
@@ -301,7 +303,7 @@ class InitReq(BaseModel): init_data: str; ref_id: Optional[int] = None; photo_ur
 class BuyReq(BaseModel): target_id: int
 class RenameReq(BaseModel): slave_id: int; new_name: str
 class SendWorkReq(BaseModel): slave_id: int
-class SupportReq(BaseModel): message: str = ""; photo_b64: Optional[str] = None; reply_to_id: Optional[int] = None
+class SupportReq(BaseModel): message: str; photo_b64: Optional[str] = None; reply_to_id: Optional[int] = None
 class ShopInvoiceReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class ShopRcBuyReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class PromoUseReq(BaseModel): code: str
@@ -318,6 +320,7 @@ class SponsorAddReq(BaseModel): channel_id: str; channel_title: str; channel_url
 class SponsorDelReq(BaseModel): sponsor_id: int
 class CheckSponsorReq(BaseModel): sponsor_id: int
 class AdminHiddenReq(BaseModel): hidden: bool
+class MaintToggleReq(BaseModel): state: bool
 
 # ─── PROFILE HELPER ───────────────────────────────────────────────────────────
 
@@ -362,7 +365,12 @@ async def _full_profile(uid: int) -> dict:
     if last_story:
         next_avail = last_story['created_at'] + timedelta(hours=24)
         if next_avail > now: story_cooldown_until = next_avail.isoformat()
+        
+    maint_val = await db.fetchval("SELECT value FROM global_settings WHERE key='maintenance'")
+    maintenance = (maint_val == '1')
 
+    is_admin = await is_admin_user(u['id'])
+    
     return {
         "id":           u['id'],
         "username":     u['username'],
@@ -378,17 +386,20 @@ async def _full_profile(uid: int) -> dict:
         "shield_active": bool(u['shield_until'] and u['shield_until'] > now),
         "stealth_active": bool(u['stealth_until'] and u['stealth_until'] > now),
         "booster_active": bool(u['booster_until'] and u['booster_until'] > now),
+        "booster_mult":   float(u['booster_mult']),
         "chains_active":  bool(u['chains_until'] and u['chains_until'] > now),
         "vip_level":  u['vip_level'],
         "name_color": u['name_color'],
         "avatar_frame": u['avatar_frame'],
         "emoji_status": u['emoji_status'],
-        "is_admin":   await is_admin_user(u['id']),
+        "is_admin":   is_admin,
         "is_admin_flag": bool(u.get('is_admin_flag')),
         "is_super_admin": u['id'] == SUPER_ADMIN_ID,
         "admin_hidden": bool(u.get('admin_hidden')),
         "story_cooldown_until": story_cooldown_until,
         "bot_username": BOT_USERNAME,
+        "maintenance": maintenance,
+        "is_banned": bool(u['is_banned'])
     }
 
 # ─── ROUTES ───────────────────────────────────────────────────────────────────
@@ -409,7 +420,6 @@ async def init_user(req: InitReq):
 
     photo_url = req.photo_url or tg.get('photo_url')
     
-    # Фетч аватарки через Telegram API, если фронтенд её не передал
     if not photo_url and bot:
         try:
             photos = await bot.get_user_profile_photos(uid, limit=1)
@@ -417,8 +427,7 @@ async def init_user(req: InitReq):
                 file_id = photos.photos[0][0].file_id
                 file_info = await bot.get_file(file_id)
                 photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
-        except Exception:
-            pass
+        except Exception: pass
 
     existing = await db.fetchrow("SELECT id FROM users WHERE id=$1", uid)
     if not existing:
@@ -435,12 +444,14 @@ async def init_user(req: InitReq):
     return await _full_profile(uid)
 
 @app.get("/api/profile")
-async def get_profile(user: dict = Depends(get_current_user)):
-    await collect_income(user['id'])
-    return await _full_profile(user['id'])
+async def get_profile(x_init_data: str = Header(...)):
+    uid = await _resolve_uid(x_init_data)
+    await collect_income(uid)
+    return await _full_profile(uid)
 
 @app.get("/api/profile/{uid}")
-async def get_user_profile(uid: int, _: dict = Depends(get_current_user)):
+async def get_user_profile(uid: int, x_init_data: str = Header(...)):
+    my_uid = await _resolve_uid(x_init_data)
     return await _full_profile(uid)
 
 @app.post("/api/buy")
@@ -597,12 +608,13 @@ async def stories_claim(u: dict = Depends(get_current_user)):
 # ─── SPONSORS API ─────────────────────────────────────────────────────────────
 
 @app.get("/api/sponsors/status")
-async def get_sponsors_status(u: dict = Depends(get_current_user)):
+async def get_sponsors_status(x_init_data: str = Header(...)):
+    uid = await _resolve_uid(x_init_data)
     sponsors = await db.fetch("SELECT * FROM sponsors")
     main_subbed, main_sponsor, tasks = True, None, []
     for s in sponsors:
         try:
-            member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=u['id'])
+            member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
             is_subbed = member.status in ['member', 'administrator', 'creator']
         except Exception:
             is_subbed = False
@@ -611,7 +623,7 @@ async def get_sponsors_status(u: dict = Depends(get_current_user)):
             main_sponsor = dict(s)
             main_subbed = is_subbed
         else:
-            claimed = await db.fetchrow("SELECT 1 FROM user_sponsors WHERE user_id=$1 AND sponsor_id=$2", u['id'], s['id'])
+            claimed = await db.fetchrow("SELECT 1 FROM user_sponsors WHERE user_id=$1 AND sponsor_id=$2", uid, s['id'])
             task = dict(s)
             task['claimed'] = bool(claimed)
             tasks.append(task)
@@ -634,19 +646,21 @@ async def check_sponsor(req: CheckSponsorReq, u: dict = Depends(get_current_user
 # ─── SUPPORT CHAT (FILES & REPLIES) ───────────────────────────────────────────
 
 @app.post("/api/support")
-async def send_support(req: SupportReq, user: dict = Depends(get_current_user)):
-    await db.execute("INSERT INTO support_tickets(user_id,message,photo_b64,reply_to_id,is_read) VALUES($1,$2,$3,$4,FALSE)", user['id'], req.message, req.photo_b64, req.reply_to_id)
+async def send_support(req: SupportReq, x_init_data: str = Header(...)):
+    uid = await _resolve_uid(x_init_data)
+    await db.execute("INSERT INTO support_tickets(user_id,message,photo_b64,reply_to_id,is_read) VALUES($1,$2,$3,$4,FALSE)", uid, req.message, req.photo_b64, req.reply_to_id)
     return {"ok": True}
 
 @app.get("/api/support/history")
-async def support_history(user: dict = Depends(get_current_user)):
+async def support_history(x_init_data: str = Header(...)):
+    uid = await _resolve_uid(x_init_data)
     query = """
     SELECT st.id, st.message, st.photo_b64, st.is_from_admin, st.created_at, rt.message as reply_text 
     FROM support_tickets st LEFT JOIN support_tickets rt ON st.reply_to_id = rt.id 
     WHERE st.user_id=$1 ORDER BY st.created_at ASC
     """
-    rows = await db.fetch(query, user['id'])
-    await db.execute("UPDATE support_tickets SET is_read=TRUE WHERE user_id=$1 AND is_from_admin=TRUE", user['id'])
+    rows = await db.fetch(query, uid)
+    await db.execute("UPDATE support_tickets SET is_read=TRUE WHERE user_id=$1 AND is_from_admin=TRUE", uid)
     return [dict(r) for r in rows]
 
 # ─── SHOP ─────────────────────────────────────────────────────────────────────
@@ -717,6 +731,12 @@ async def use_promo(req: PromoUseReq, user: dict = Depends(get_current_user)):
 
 # ─── ADMIN ENDPOINTS ──────────────────────────────────────────────────────────
 
+@app.post("/api/admin/maintenance")
+async def admin_maintenance(req: MaintToggleReq, _: dict = Depends(get_admin_user)):
+    val = '1' if req.state else '0'
+    await db.execute("UPDATE global_settings SET value=$1 WHERE key='maintenance'", val)
+    return {"ok": True}
+
 @app.get("/api/admin/dashboard")
 async def admin_dashboard(_: dict = Depends(get_admin_user)):
     stats = await db.fetchrow(
@@ -763,9 +783,9 @@ async def admin_toggle_hidden(req: AdminHiddenReq, admin: dict = Depends(get_adm
 @app.get("/api/admin/tickets")
 async def admin_tickets(_: dict = Depends(get_admin_user)):
     rows = await db.fetch("""
-        SELECT st.user_id, u.username, u.first_name, COUNT(CASE WHEN st.is_from_admin=FALSE AND st.is_read=FALSE THEN 1 END) AS unread, 
+        SELECT st.user_id, u.username, u.first_name, u.photo_url, COUNT(CASE WHEN st.is_from_admin=FALSE AND st.is_read=FALSE THEN 1 END) AS unread, 
         MAX(st.created_at) AS last_at, (array_agg(st.message ORDER BY st.created_at DESC))[1] AS last_msg 
-        FROM support_tickets st JOIN users u ON u.id=st.user_id GROUP BY st.user_id, u.username, u.first_name ORDER BY MAX(st.created_at) DESC
+        FROM support_tickets st JOIN users u ON u.id=st.user_id GROUP BY st.user_id, u.username, u.first_name, u.photo_url ORDER BY MAX(st.created_at) DESC
     """)
     return [dict(r) for r in rows]
 
