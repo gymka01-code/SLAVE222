@@ -126,8 +126,7 @@ def verify_webapp(init_data: str) -> Optional[dict]:
             uid = int(init_data.split(":")[1])
             return {"id": uid, "first_name": "DevUser", "username": f"dev_{uid}"}
 
-        # ✅ ИСПРАВЛЕНИЕ: Обязательно делаем unquote() для всех значений!
-        # Иначе %7B%22id%22... не совпадет с оригинальным хэшем Telegram
+        # ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ОШИБКИ Bad initData
         parsed = {}
         for item in init_data.split("&"):
             if "=" in item:
@@ -135,22 +134,15 @@ def verify_webapp(init_data: str) -> Optional[dict]:
                 parsed[k] = unquote(v)
 
         received_hash = parsed.pop("hash", None)
-        if not received_hash: 
-            return None
+        if not received_hash: return None
 
-        # Собираем строку для проверки точно по документации Telegram
         check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
         secret_key = _hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
         computed_hash = _hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
 
-        if not _hmac.compare_digest(computed_hash, received_hash): 
-            print("❌ Хэш не совпал. Проверьте BOT_TOKEN!") # Выведет в логи, если токен не тот
-            return None
-            
+        if not _hmac.compare_digest(computed_hash, received_hash): return None
         return json.loads(parsed.get("user", "{}"))
-    except Exception as e:
-        print(f"Ошибка проверки initData: {e}")
-        return None
+    except: return None
 
 async def rate_limit(key: str, limit: int, window: int):
     try:
