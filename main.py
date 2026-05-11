@@ -119,23 +119,23 @@ ON CONFLICT (name) DO UPDATE SET price_stars=EXCLUDED.price_stars, price_rc=0;
 """
 
 SHOP_ITEMS = [
-    {"id":"shield_24", "name":"🛡 Щит 24ч", "price_stars":25, "price_rc":5000, "desc":"Защита от покупки на 24 часа"},
-    {"id":"shield_48", "name":"🛡 Щит 48ч", "price_stars":45, "price_rc":9000, "desc":"Защита от покупки на 48 часов"},
-    {"id":"chains", "name":"⛓ Оковы", "price_stars":20, "price_rc":3500, "desc":"Выкуп раба дорожает на 50%"},
-    {"id":"boost_15", "name":"🚀 Буст ×1.5", "price_stars":20, "price_rc":4500, "desc":"Доход +50% на 24 часа"},
-    {"id":"boost_20", "name":"🚀 Буст ×2.0", "price_stars":35, "price_rc":8000, "desc":"Двойной доход на 24 часа"},
-    {"id":"stealth", "name":"👻 Стелс", "price_stars":20, "price_rc":3000, "desc":"Скрывает вас из рейтингов"},
-    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":15000, "desc":"Лимит +5 рабов, на 30 дней"},
-    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":30000, "desc":"Лимит +15 рабов, на 30 дней"},
-    {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":50000, "desc":"Лимит +35 рабов, редкие работы, на 30 дней"},
+    {"id":"shield_24", "name":"🛡 Щит 24ч", "price_stars":25, "price_rc":0, "desc":"Защита от покупки на 24 часа"},
+    {"id":"shield_48", "name":"🛡 Щит 48ч", "price_stars":45, "price_rc":0, "desc":"Защита от покупки на 48 часов"},
+    {"id":"chains", "name":"⛓ Оковы", "price_stars":20, "price_rc":0, "desc":"Выкуп раба дорожает на 50%"},
+    {"id":"boost_15", "name":"🚀 Буст ×1.5", "price_stars":20, "price_rc":0, "desc":"Доход +50% на 24 часа"},
+    {"id":"boost_20", "name":"🚀 Буст ×2.0", "price_stars":35, "price_rc":0, "desc":"Двойной доход на 24 часа"},
+    {"id":"stealth", "name":"👻 Стелс", "price_stars":20, "price_rc":0, "desc":"Скрывает вас из рейтингов"},
+    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":0, "desc":"Лимит +5 рабов, на 30 дней"},
+    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":0, "desc":"Лимит +15 рабов, на 30 дней"},
+    {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":0, "desc":"Лимит +35 рабов, редкие работы, на 30 дней"},
 ]
 
 DAILY_TASKS_POOL = [
-    *[{"id": f"buy_{i}", "title": f"Купить {i} рабов", "action": "buy_slave", "target": i, "reward": i * 300} for i in [1, 2, 3, 5, 8, 10, 15, 20, 25, 30]],
-    *[{"id": f"work_{i}", "title": f"Отправить на работу {i} раз", "action": "send_work", "target": i, "reward": i * 150} for i in [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50]],
-    *[{"id": f"collect_{i}", "title": f"Собрать налог {i} раз", "action": "collect", "target": i, "reward": i * 200} for i in [1, 2, 3, 4, 5, 8, 10, 15, 20, 30]]
+    *[{"id": f"buy_{i}", "title": f"Купить {i} рабов", "action": "buy_slave", "target": i, "reward": i * 50} for i in [1, 2, 3, 5, 8, 10, 15, 20, 25, 30]],
+    *[{"id": f"work_{i}", "title": f"Отправить на работу {i} раз", "action": "send_work", "target": i, "reward": i * 20} for i in [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50]],
+    *[{"id": f"collect_{i}", "title": f"Собрать налог {i} раз", "action": "collect", "target": i, "reward": i * 30} for i in [1, 2, 3, 4, 5, 8, 10, 15, 20, 30]]
 ]
-LOGIN_REWARDS = [200, 500, 800, 1200, 2000, 3000, 5000]
+LOGIN_REWARDS = [50, 100, 150, 200, 300, 500, 1000]
 
 def get_daily_tasks():
     msk_time = datetime.utcnow() + timedelta(hours=3)
