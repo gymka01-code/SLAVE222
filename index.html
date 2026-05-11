@@ -1,5 +1,3 @@
---- START OF FILE index.html ---
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -24,7 +22,6 @@
   --red:       #E84040;
   --green:     #27C264;
   --blue:      #1A7FE8;
-  --purple:    #9B52E8;
   --text:      #F0EDE8;
   --text2:     rgba(240,237,232,0.68);
   --text3:     rgba(240,237,232,0.36);
@@ -357,15 +354,20 @@ function AdminGhostToggle({ userId, initialHidden, onToast }) {
 // ── PROFILE SCREEN ──
 function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) {
   const [sendWorkSlave, setSendWorkSlave] = useState(null);
+  const [jobs, setJobs] = useState([]);
   const [storyPendingModal, setStoryPendingModal] = useState(false);
   const [renaming, setRenaming] = useState(null);
   const [newName, setNewName] = useState('');
   const [loadingSelf, setLoadingSelf] = useState(false);
   const storiesCountdown = useCountdown(user.story_cooldown_until);
 
+  useEffect(() => { get('/api/jobs').then(setJobs).catch(()=>{}); }, []);
+
   async function doSendWork(slaveId) {
-    try { const r = await post('/api/slaves/send_to_work', { slave_id: slaveId }); showToast(`✅ ${r.job.emoji} ${r.job.title}`); setSendWorkSlave(null); onRefresh(); }
-    catch(e) { showToast('❌ ' + e.message); setSendWorkSlave(null); }
+    try { 
+      const r = await post('/api/slaves/send_to_work', { slave_id: slaveId }); 
+      showToast(`✅ ${r.job.emoji} ${r.job.title}`); setSendWorkSlave(null); onRefresh(); 
+    } catch(e) { showToast('❌ ' + e.message); setSendWorkSlave(null); }
   }
 
   async function doRename() {
@@ -398,7 +400,7 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
           <div style={{flex:1,minWidth:0}}>
             <div className="hero-name"><PlayerName user={user}/></div>
             <div className="hero-handle">@{user.username || user.id}</div>
-            <div className="hero-status">{user.owner ? <span className="text-red">⛓ Раб — {user.owner.first_name || 'Владелец'}</span> : <span className="text-green">✅ Свободен</span>}</div>
+            <div className="hero-status">{user.owner ? <span className="text-red">⛓ Раб — {user.owner.first_name}</span> : <span className="text-green">✅ Свободен</span>}</div>
           </div>
         </div>
         <div className="hero-stats">
@@ -894,9 +896,14 @@ function AdminChatScreen({ conv, onBack, showToast }) {
 
 // ── APP ROOT ──
 function App() {
-  const [user, setUser] = useState(null); const [sponsorsData, setSponsorsData] = useState(null);
-  const [tab, setTab] = useState('profile'); const [error, setError] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false); const [toasts, setToasts] = useState([]);
+  const [user, setUser]   = useState(null);
+  const [sponsorsData, setSponsorsData] = useState(null);
+  const [tab, setTab]     = useState('profile');
+  const [error, setError] = useState(null);
+  const [viewingUid, setViewingUid] = useState(null);
+  const [banSupportMode, setBanSupportMode] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
   
   // Admin states
   const [adminTab, setAdminTab] = useState('dash');
@@ -913,30 +920,44 @@ function App() {
   async function init() {
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
+
     let initData = tg?.initData || '';
-    let refId = null; let photoUrl = tg?.initDataUnsafe?.user?.photo_url || null;
+    let refId    = null;
+    let photoUrl = tg?.initDataUnsafe?.user?.photo_url || null;
+
     const sp = tg?.initDataUnsafe?.start_param;
     if (sp && sp.startsWith('ref_')) { try { refId = parseInt(sp.split('_')[1]); } catch {} }
 
-    if (!initData) initData = 'dev:' + (Math.floor(Math.random()*100000) + 100000);
+    if (!initData) {
+      initData = 'dev:' + (Math.floor(Math.random()*100000) + 100000);
+      console.warn('[DEV] fake initData:', initData);
+    }
     _initData = initData;
 
     try {
-      const cfg = await get('/api/config'); _botUsername = cfg.bot_username || 'Bot';
+      const cfg = await get('/api/config');
+      _botUsername = cfg.bot_username || _botUsername;
       const data = await post('/api/init', { init_data: initData, ref_id: refId, photo_url: photoUrl });
-      setUser(data); setSponsorsData(await get('/api/sponsors/status'));
+      setUser(data);
+      if (data.bot_username) _botUsername = data.bot_username;
+      
+      const spData = await get('/api/sponsors/status');
+      setSponsorsData(spData);
     } catch(e) { setError(e.message); }
   }
 
-  async function refreshUser() { try { setUser(await get('/api/profile')); setSponsorsData(await get('/api/sponsors/status')); } catch {} }
+  async function refreshUser() {
+    try { setUser(await get('/api/profile')); setSponsorsData(await get('/api/sponsors/status')); } catch {}
+  }
+
   useEffect(() => { init(); }, []);
 
-  if (error) return <div className="screen" style={{justifyContent:'center',alignItems:'center'}}>❌ {error}</div>;
-  if (!user || !sponsorsData) return <div className="screen" style={{justifyContent:'center',alignItems:'center'}}><div className="spinner"/></div>;
+  if (error) return <div className="loading-screen"><div style={{fontSize:40}}>❌</div><div style={{color:'var(--red)',fontWeight:700}}>{error}</div><button className="btn btn-ghost" style={{width:140}} onClick={() => {setError(null);init();}}>Повтор</button></div>;
+  if (!user || !sponsorsData) return <div className="loading-screen"><div className="loading-logo">⛓</div><div className="spinner"/><div className="text-muted f13">Загружаем...</div></div>;
 
   if (user.is_banned) {
-    if (banSupportMode) return <div className="app"><SupportScreen user={user}/><nav className="nav"><button className="nav-btn active" style={{color:'var(--red)'}}><span className="ico">💬</span>Поддержка</button></nav></div>;
-    return <div className="ban-screen"><div className="ban-icon">🚫</div><div className="ban-title">Доступ ограничен</div><div className="ban-sub">Ваш аккаунт заблокирован администрацией.</div>{user.ban_reason && <div className="ban-reason-box"><div style={{fontSize:11,color:'var(--text3)',marginBottom:4,letterSpacing:'1px',textTransform:'uppercase'}}>Причина</div>{user.ban_reason}</div>}<button className="ban-support-btn" onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button></div>;
+    if (banSupportMode) return <div className="app"><SupportScreen user={user} showToast={showToast}/><nav className="nav"><button className="nav-btn active" style={{color:'var(--red)'}}><span className="ico">💬</span>Поддержка</button></nav></div>;
+    return <div className="ban-screen"><div className="ban-icon">🚫</div><div className="ban-title">Доступ ограничен</div><div className="ban-sub">Ваш аккаунт заблокирован администрацией.</div><button className="ban-support-btn" onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button></div>;
   }
 
   // ── SPONSOR BLOCKER (MAIN SPONSOR) ──
@@ -945,11 +966,17 @@ function App() {
       <div className="sponsor-block">
         <div className="sponsor-icon">📢</div>
         <div className="sponsor-title">Доступ ограничен</div>
-        <div className="sponsor-sub">Для участия в игре необходимо подписаться на канал нашего главного спонсора.</div>
-        <button className="btn btn-primary" style={{marginBottom:16, width:'100%', maxWidth:'300px'}} onClick={() => window.Telegram.WebApp.openTelegramLink(sponsorsData.main_sponsor.channel_url)}>Подписаться</button>
-        <button className="btn btn-ghost" style={{width:'100%', maxWidth:'300px'}} onClick={() => init()}>Проверить подписку</button>
+        <div className="sponsor-sub">Для участия в игре необходимо быть подписанным на канал нашего спонсора.</div>
+        <button className="btn btn-primary" style={{marginBottom:12, width:'200px'}} onClick={() => window.Telegram.WebApp.openTelegramLink(sponsorsData.main_sponsor.channel_url)}>
+          Подписаться
+        </button>
+        <button className="btn btn-ghost" style={{width:'200px'}} onClick={() => init()}>Проверить подписку</button>
       </div>
     );
+  }
+
+  if (viewingUid && viewingUid !== user.id) {
+    return <div className="app"><UserProfileScreen uid={viewingUid} currentUserId={user.id} onBack={() => setViewingUid(null)} onBuy={refreshUser} showToast={showToast}/></div>;
   }
 
   const handleNav = (t) => { setTab(t); setMenuOpen(false); if(t==='admin') { setAdminTab('dash'); loadAdminTab('dash'); } }
@@ -993,9 +1020,9 @@ function App() {
       )}
 
       {/* ── ROUTING ── */}
-      {tab==='profile' && <ProfileScreen user={user} sponsors={sponsorsData.tasks} onRefresh={refreshUser} onViewProfile={(uid)=>console.log(uid)} showToast={showToast}/>}
-      {tab==='search'  && <SearchScreen user={user} onBuy={refreshUser} onViewProfile={(uid)=>console.log(uid)} showToast={showToast}/>}
-      {tab==='top'     && <TopScreen onViewProfile={(uid)=>console.log(uid)}/>}
+      {tab==='profile' && <ProfileScreen user={user} sponsors={sponsorsData.tasks} onRefresh={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} showToast={showToast}/>}
+      {tab==='search'  && <SearchScreen user={user} onBuy={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} showToast={showToast}/>}
+      {tab==='top'     && <TopScreen onViewProfile={(uid)=>setViewingUid(uid)}/>}
       {tab==='shop'    && <ShopScreen user={user} onRefresh={refreshUser} showToast={showToast}/>}
       {tab==='support' && <SupportScreen user={user} showToast={showToast}/>}
       
