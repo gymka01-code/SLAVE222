@@ -605,7 +605,7 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
             fee, payout, new_price = round(price * 0.10, 2), round(price * 0.90, 2), round(float(target['current_price']) * multiplier, 2)
             
             await conn.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", price, buyer_id)
-            await conn.execute("UPDATE users SET current_price=$1,owner_id=$2,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,purchase_protection_until=$3 WHERE id=$4", new_price, buyer_id, now + timedelta(hours=2), target_id)
+            await conn.execute("UPDATE users SET current_price=$1,owner_id=$2,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,purchase_protection_until=$3 WHERE id=$4", new_price, buyer_id, now + timedelta(hours=1), target_id)
             await conn.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", payout, seller_id)
             await conn.execute("INSERT INTO transactions(buyer_id,slave_id,seller_id,amount,fee) VALUES($1,$2,$3,$4,$5)", buyer_id, target_id, target['owner_id'], price, fee)
             
