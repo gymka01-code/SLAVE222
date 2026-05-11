@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS sponsors (id SERIAL PRIMARY KEY, channel_id TEXT UNIQ
 CREATE TABLE IF NOT EXISTS user_sponsors (user_id BIGINT, sponsor_id INT, claimed_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (user_id, sponsor_id));
 CREATE TABLE IF NOT EXISTS season_snapshots (id SERIAL PRIMARY KEY, snapshot_data JSONB, created_at TIMESTAMP DEFAULT NOW());
 
--- Безопасные миграции
+-- Безопасные миграции (предотвращает UndefinedColumnError)
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS photo_b64 TEXT;
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS reply_to_id INT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS slaves_count INT DEFAULT 0;
@@ -146,13 +146,6 @@ async def is_admin_user(uid: int) -> bool:
         row = await db.fetchrow("SELECT 1 FROM admin_users WHERE user_id=$1", uid)
         return row is not None
     except Exception: return False
-
-async def notify_admins(text: str):
-    notified: set = set(ADMIN_IDS)
-    try:
-        for r in await db.fetch("SELECT user_id FROM admin_users"): notified.add(r['user_id'])
-    except: pass
-    for uid in notified: asyncio.create_task(push(uid, text))
 
 async def collect_income(owner_id: int) -> float:
     now = datetime.utcnow()
@@ -249,12 +242,51 @@ async def lifespan(app: FastAPI):
         
     bot = Bot(token=BOT_TOKEN)
     dp  = Dispatcher()
-    _register_bot_handlers()
     
-    # Принудительно удаляем Webhook, чтобы избежать TelegramConflictError при перезапусках
+    @dp.message(CommandStart())
+    async def cmd_start(msg: types.Message):
+        uid = msg.from_user.id
+        ref_id = None
+        if msg.text and "ref_" in msg.text:
+            try: ref_id = int(msg.text.split("ref_")[1])
+            except: pass
+        existing = await db.fetchrow("SELECT id FROM users WHERE id=$1", uid)
+        if not existing:
+            owner_id = ref_id if ref_id and ref_id != uid else None
+            await db.execute("INSERT INTO users(id,username,first_name,balance,current_price,owner_id) VALUES($1,$2,$3,50,100,$4) ON CONFLICT DO NOTHING", uid, msg.from_user.username, msg.from_user.first_name, owner_id)
+        kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]])
+        await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=kb)
+
+    @dp.pre_checkout_query()
+    async def pre_checkout(query: PreCheckoutQuery):
+        await query.answer(ok=True)
+
+    @dp.message(F.successful_payment)
+    async def successful_payment(msg: types.Message):
+        payload = msg.successful_payment.invoice_payload
+        try:
+            parts = payload.split(":")
+            purchase_id, uid, item_type = int(parts[1]), int(parts[2]), parts[3]
+            purchase = await db.fetchrow("SELECT * FROM pending_purchases WHERE id=$1 AND user_id=$2 AND status='pending'", purchase_id, uid)
+            if not purchase: return await msg.answer("⚠️ Покупка уже обработана.")
+            await db.execute("UPDATE pending_purchases SET status='completed' WHERE id=$1", purchase_id)
+            await _grant_shop_item(uid, item_type, purchase['cosmetic_id'], purchase['slave_id'])
+            await msg.answer("✅ Покупка успешна! Предмет активирован.")
+        except Exception as e: print(f"[payment] error: {e}")
+
+    # FIX: Удаляем старый вебхук чтобы избежать конфликта при поллинге
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(dp.start_polling(bot, skip_updates=True))
     
+    async def _income_cron():
+        while True:
+            await asyncio.sleep(1800)
+            try:
+                for row in await db.fetch("SELECT DISTINCT owner_id FROM users WHERE owner_id IS NOT NULL AND job_id IS NOT NULL"):
+                    try: await collect_income(row['owner_id'])
+                    except: pass
+            except: pass
+            
     asyncio.create_task(_income_cron())
     yield
     await db.close()
@@ -269,7 +301,7 @@ class InitReq(BaseModel): init_data: str; ref_id: Optional[int] = None; photo_ur
 class BuyReq(BaseModel): target_id: int
 class RenameReq(BaseModel): slave_id: int; new_name: str
 class SendWorkReq(BaseModel): slave_id: int
-class SupportReq(BaseModel): message: str; photo_b64: Optional[str] = None; reply_to_id: Optional[int] = None
+class SupportReq(BaseModel): message: str = ""; photo_b64: Optional[str] = None; reply_to_id: Optional[int] = None
 class ShopInvoiceReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class ShopRcBuyReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class PromoUseReq(BaseModel): code: str
@@ -346,7 +378,6 @@ async def _full_profile(uid: int) -> dict:
         "shield_active": bool(u['shield_until'] and u['shield_until'] > now),
         "stealth_active": bool(u['stealth_until'] and u['stealth_until'] > now),
         "booster_active": bool(u['booster_until'] and u['booster_until'] > now),
-        "booster_mult":   float(u['booster_mult']),
         "chains_active":  bool(u['chains_until'] and u['chains_until'] > now),
         "vip_level":  u['vip_level'],
         "name_color": u['name_color'],
@@ -377,6 +408,18 @@ async def init_user(req: InitReq):
         uid = int(tg['id'])
 
     photo_url = req.photo_url or tg.get('photo_url')
+    
+    # Фетч аватарки через Telegram API, если фронтенд её не передал
+    if not photo_url and bot:
+        try:
+            photos = await bot.get_user_profile_photos(uid, limit=1)
+            if photos.total_count > 0:
+                file_id = photos.photos[0][0].file_id
+                file_info = await bot.get_file(file_id)
+                photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+        except Exception:
+            pass
+
     existing = await db.fetchrow("SELECT id FROM users WHERE id=$1", uid)
     if not existing:
         owner_id = req.ref_id if (req.ref_id and req.ref_id != uid) else None
@@ -388,6 +431,7 @@ async def init_user(req: InitReq):
         if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{tg.get('username', uid)}! Новый раб."))
     else:
         await db.execute("UPDATE users SET username=$1,first_name=$2,photo_url=$3 WHERE id=$4", tg.get('username'), tg.get('first_name'), photo_url, uid)
+        
     return await _full_profile(uid)
 
 @app.get("/api/profile")
@@ -817,55 +861,6 @@ async def remove_admin(req: AdminManageReq, _: dict = Depends(get_super_admin)):
     await db.execute("DELETE FROM admin_users WHERE user_id=$1", req.user_id)
     await db.execute("UPDATE users SET is_admin_flag=FALSE WHERE id=$1", req.user_id)
     return {"ok": True}
-
-# ─── BOT HANDLERS ─────────────────────────────────────────────────────────────
-
-def _register_bot_handlers():
-    @dp.message(CommandStart())
-    async def cmd_start(msg: types.Message):
-        uid = msg.from_user.id
-        ref_id = None
-        if msg.text and "ref_" in msg.text:
-            try: ref_id = int(msg.text.split("ref_")[1])
-            except: pass
-        existing = await db.fetchrow("SELECT id FROM users WHERE id=$1", uid)
-        if not existing:
-            owner_id = ref_id if ref_id and ref_id != uid else None
-            await db.execute("INSERT INTO users(id,username,first_name,balance,current_price,owner_id) VALUES($1,$2,$3,50,100,$4) ON CONFLICT DO NOTHING", uid, msg.from_user.username, msg.from_user.first_name, owner_id)
-        kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]])
-        await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=kb)
-
-    @dp.pre_checkout_query()
-    async def pre_checkout(query: PreCheckoutQuery):
-        await query.answer(ok=True)
-
-    @dp.message(F.successful_payment)
-    async def successful_payment(msg: types.Message):
-        payload = msg.successful_payment.invoice_payload
-        try:
-            parts = payload.split(":")
-            purchase_id, uid, item_type = int(parts[1]), int(parts[2]), parts[3]
-            purchase = await db.fetchrow("SELECT * FROM pending_purchases WHERE id=$1 AND user_id=$2 AND status='pending'", purchase_id, uid)
-            if not purchase: return await msg.answer("⚠️ Покупка уже обработана.")
-            await db.execute("UPDATE pending_purchases SET status='completed' WHERE id=$1", purchase_id)
-            await _grant_shop_item(uid, item_type, purchase['cosmetic_id'], purchase['slave_id'])
-            await msg.answer("✅ Покупка успешна! Предмет активирован.")
-        except Exception as e: print(f"[payment] error: {e}")
-
-# ─── BACKGROUND ───────────────────────────────────────────────────────────────
-
-async def _income_cron():
-    while True:
-        await asyncio.sleep(1800)
-        try:
-            for row in await db.fetch("SELECT DISTINCT owner_id FROM users WHERE owner_id IS NOT NULL AND job_id IS NOT NULL"):
-                try: await collect_income(row['owner_id'])
-                except: pass
-        except: pass
-
-async def _bot_polling():
-    try: await dp.start_polling(bot, skip_updates=True)
-    except: pass
 
 @app.get("/")
 async def serve(): 
