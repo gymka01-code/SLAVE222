@@ -23,11 +23,11 @@ from pydantic import BaseModel
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
-BOT_TOKEN    = os.getenv("BOT_TOKEN",    "8606742629:AAE0l0AylYWg7Rjgk167GBkchFjBEtf2JFw")
+BOT_TOKEN    = os.getenv("BOT_TOKEN",    "YOUR_BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://rabstvo:rabstvo@localhost/rabstvo")
 REDIS_URL    = os.getenv("REDIS_URL",    "redis://localhost:6379")
-WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://slave222-production.up.railway.app")
-ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "7502434760").split(",")))
+WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://yourdomain.com")
+ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "000000000").split(",")))
 SEASON_PASS  = "Niva01102007"
 
 # ─── GLOBALS ──────────────────────────────────────────────────────────────────
@@ -263,7 +263,19 @@ async def get_admin_user(x_init_data: str = Header(...)) -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global bot, dp, db, rdb
-    db  = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=15)
+
+    # Retry-loop: ждём PostgreSQL до 30 секунд (6 попыток × 5 сек)
+    for attempt in range(1, 7):
+        try:
+            db = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=15)
+            print(f"[db] connected on attempt {attempt}")
+            break
+        except Exception as e:
+            print(f"[db] attempt {attempt}/6 failed: {e}")
+            if attempt == 6:
+                raise
+            await asyncio.sleep(5)
+
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
     async with db.acquire() as c:
         await c.execute(SCHEMA)
