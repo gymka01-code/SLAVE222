@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>⛓ Рабство</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -12,66 +12,73 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg:        #050505;
+  --bg:        #000000;
   --bg2:       #0a0a0a;
-  --bg3:       #121212;
+  --bg3:       #111111;
   --bg4:       #1a1a1a;
-  --border:    rgba(255,255,255,0.06);
+  --surface:   #141414;
+  --surface2:  #1e1e1e;
+  --surface3:  #252525;
+  --border:    rgba(255,255,255,0.07);
   --border2:   rgba(255,255,255,0.12);
   --gold:      #E8C547;
-  --gold-glow: rgba(232,197,71,0.15);
-  --red:       #E84040;
-  --green:     #27C264;
-  --blue:      #1A7FE8;
-  --text:      #F0EDE8;
-  --text2:     rgba(240,237,232,0.68);
-  --text3:     rgba(240,237,232,0.36);
-  --r:         20px;
-  --r2:        14px;
+  --gold-dim:  rgba(232,197,71,0.15);
+  --red:       #ef4444;
+  --red-dim:   rgba(239,68,68,0.15);
+  --green:     #22c55e;
+  --green-dim: rgba(34,197,94,0.15);
+  --blue:      #3b82f6;
+  --blue-dim:  rgba(59,130,246,0.15);
+  --text:      #f1f5f9;
+  --text-2:    #94a3b8;
+  --text-3:    #475569;
+  --r:         16px;
+  --r2:        10px;
   --font:      'Inter', sans-serif;
 }
 
 * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
 html, body, #root { height:100%; width:100%; overflow:hidden; }
-body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.5; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
 
-.app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+.app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; position: relative; }
 .screen { flex:1; overflow:hidden; display:flex; flex-direction:column; }
-.content { flex:1; overflow-y:auto; padding:0 0 24px; }
+.content { flex:1; overflow-y:auto; padding:0 0 24px; scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 
 /* ── HEADER & BURGER ── */
-.hdr { padding: 16px 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: rgba(5,5,5,0.85); backdrop-filter: blur(12px); z-index: 10; }
-.hdr-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
-.hdr-sub { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-.burger-btn { background: none; border: none; color: var(--text); font-size: 28px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
-.burger-btn:active { opacity: 0.6; }
+.hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
+.hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
+.hdr-sub { font-size: 10px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+.burger-btn { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 6px; padding: 4px 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.burger-btn:active { transform: scale(0.95); }
 
 /* ── SIDEBAR MENU ── */
 .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; justify-content: flex-end; animation: fadeIn 0.2s ease; }
-.sidebar { width: 280px; height: 100%; background: var(--bg2); border-left: 1px solid var(--border); padding: 24px 16px; display: flex; flex-direction: column; gap: 8px; animation: slideLeft 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: -10px 0 40px rgba(0,0,0,0.5); }
+.sidebar { width: 260px; height: 100%; background: var(--surface); border-left: 1px solid var(--border); padding: 24px 16px; display: flex; flex-direction: column; gap: 8px; animation: slideLeft 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: -10px 0 40px rgba(0,0,0,0.8); }
 @keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.menu-btn { width: 100%; text-align: left; background: transparent; border: none; padding: 14px 16px; color: var(--text); font-size: 16px; font-weight: 600; font-family: var(--font); border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
-.menu-btn:active { background: var(--border); }
-.menu-btn.active { background: rgba(232,197,71,0.1); color: var(--gold); }
-.menu-ico { font-size: 20px; }
+.menu-btn { width: 100%; text-align: left; background: transparent; border: none; padding: 14px 16px; border-bottom: 1px solid var(--border2); color: var(--text); font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
+.menu-btn:last-child { border-bottom: none; }
+.menu-btn:active { background: var(--surface2); }
+.menu-btn.active { color: var(--gold); }
+.menu-ico { font-size: 18px; }
 
 /* ── PREMIUM TABS ── */
 .tabs-wrap { padding: 12px 16px; background: var(--bg); position: sticky; top: 0; z-index: 5; }
-.tabs { display: flex; background: rgba(255,255,255,0.06); border-radius: 14px; padding: 4px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); padding: 4px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
-.tab { flex: 1; padding: 10px 16px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text3); border: none; background: transparent; border-radius: 10px; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); white-space: nowrap; outline: none; -webkit-tap-highlight-color: transparent; }
-.tab.active { background: rgba(255,255,255,0.12); color: var(--gold); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.tab { flex: 1; padding: 10px 16px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--text-2); border: none; background: transparent; border-radius: 12px; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); white-space: nowrap; outline: none; -webkit-tap-highlight-color: transparent; text-transform: uppercase; }
+.tab.active { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(232,197,71,0.3); }
 
 /* ── CARDS & HERO ── */
-.card { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); transition: transform 0.2s; }
-.hero { margin: 16px 16px 0; background: linear-gradient(145deg, #141414 0%, #1a1a1a 100%); border: 1px solid rgba(232,197,71,0.15); border-radius: 20px; padding: 22px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 12px; }
+.hero { margin: 16px 16px 12px; background: linear-gradient(145deg, #111 0%, #1a1a1a 100%); border: 1px solid rgba(232,197,71,0.2); border-radius: var(--r); padding: 20px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 .hero-row { display: flex; align-items: center; gap: 16px; }
 .avatar-wrap { position: relative; flex-shrink: 0; }
-.avatar { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #1e1e1e, #141414); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: var(--gold); overflow: hidden; border: 2px solid rgba(232,197,71,0.35); box-shadow: 0 0 15px rgba(232,197,71,0.1); }
+.avatar { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #1e1e1e, #111); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: var(--gold); overflow: hidden; border: 2px solid rgba(232,197,71,0.4); box-shadow: 0 0 15px rgba(232,197,71,0.1); }
 .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-.avatar-sm { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #222, #111); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--text3); overflow: hidden; flex-shrink: 0; border: 1px solid var(--border2); }
+.avatar-sm { width: 44px; height: 44px; border-radius: 50%; background: var(--bg4); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--text-2); overflow: hidden; flex-shrink: 0; border: 1px solid var(--border2); }
 .avatar-sm img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
 
 /* ── AVATAR FRAMES ── */
@@ -83,72 +90,73 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 @keyframes spinRainbow { 100% { filter: hue-rotate(360deg); } }
 
 .vip-badge { position: absolute; bottom: -2px; right: -2px; background: var(--bg); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 1px solid rgba(232,197,71,0.2); z-index: 2; }
-.hero-name { font-size: 19px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.3px; }
-.hero-handle { font-size: 13px; color: var(--text3); margin-top: 2px; }
+.hero-name { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.02em; }
+.hero-handle { font-size: 12px; color: var(--text-2); margin-top: 2px; }
 .hero-status { font-size: 13px; margin-top: 6px; font-weight: 600; }
-.hero-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 18px; }
-.stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--r2); padding: 12px 8px; text-align: center; }
-.stat-val { font-size: 18px; font-weight: 800; color: var(--text); }
-.stat-lbl { font-size: 10px; color: var(--text3); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.hero-stats { display: flex; align-items:center; gap: 0; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+.stat { flex: 1; text-align: center; position: relative; }
+.stat + .stat::before { content:''; position:absolute; left:0; top:50%; transform:translateY(-50%); height:24px; width:1px; background:var(--border2); }
+.stat-val { font-size: 18px; font-weight: 800; color: var(--text); letter-spacing:-0.02em; line-height: 1; }
+.stat-lbl { font-size: 9px; color: var(--text-3); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
 
 /* ── EFFECTS ── */
 .effects-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.effect-chip { font-size: 12px; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.06); border: 1px solid var(--border2); color: var(--text2); display: flex; align-items: center; gap: 4px; font-weight: 600; }
-.effect-chip.gold { background: rgba(255,214,10,0.1); border-color: rgba(255,214,10,0.3); color: var(--gold); }
-.effect-chip.green { background: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.3); color: var(--green); }
-.effect-chip.red { background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.3); color: var(--red); }
+.effect-chip { font-size: 11px; padding: 4px 10px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border2); color: var(--text-2); display: flex; align-items: center; gap: 4px; font-weight: 600; }
+.effect-chip.gold { background: var(--gold-dim); border-color: rgba(232,197,71,0.3); color: var(--gold); }
+.effect-chip.green { background: var(--green-dim); border-color: rgba(34,197,94,0.3); color: var(--green); }
+.effect-chip.red { background: var(--red-dim); border-color: rgba(239,68,68,0.3); color: var(--red); }
 
 /* ── BUTTONS ── */
-.btn { display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: var(--r2); cursor: pointer; font-family: var(--font); font-weight: 600; transition: opacity .15s, transform .15s; padding: 14px 20px; width: 100%; font-size: 15px; }
-.btn:active { opacity: 0.75; transform: scale(0.97); }
-.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; filter: grayscale(1); }
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: var(--r2); cursor: pointer; font-family: var(--font); font-weight: 600; transition: opacity .15s, transform .15s; padding: 12px 20px; width: 100%; font-size: 14px; }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.5; pointer-events: none; }
 .btn-primary { background: linear-gradient(135deg, #F3D250 0%, #E8C547 100%); color: #000; box-shadow: 0 4px 15px rgba(232,197,71,0.2); }
 .btn-danger { background: var(--red); color: #fff; }
-.btn-ghost { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--border2); }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
 .btn-green { background: var(--green); color: #000; }
-.btn-sm { padding: 9px 16px; font-size: 13px; border-radius: 10px; width: auto; }
+.btn-sm { padding: 8px 14px; font-size: 12px; border-radius: 8px; width: auto; }
 
 /* ── UI ELEMENTS ── */
-.section { padding: 0 16px; margin-top: 20px; }
-.section-title { font-size: 13px; font-weight: 700; color: var(--text3); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; padding-left: 4px; }
-.list-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.section { padding: 0 16px; margin-top: 16px; }
+.section-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 12px; letter-spacing: -0.02em; display:flex; justify-content:space-between; align-items:center; }
+.section-sub { font-size: 11px; color: var(--text-3); font-weight: 500; }
+.list-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .list-item:last-child { border-bottom: none; }
-.input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r2); color: var(--text); font-family: var(--font); font-size: 15px; padding: 14px 16px; outline: none; transition: 0.2s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+.input { width: 100%; background: var(--bg1); border: 1px solid var(--border2); border-radius: var(--r2); color: var(--text); font-family: var(--font); font-size: 16px; padding: 12px 16px; outline: none; transition: 0.2s; }
 .input:focus { border-color: var(--gold); }
 
 /* ── PREMIUM SHOP ── */
-.shop-item { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: transform 0.2s; }
+.shop-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: transform 0.2s; margin-bottom: 12px; }
 .si-ico { font-size: 36px; line-height: 1; }
-.si-name { font-weight: 800; font-size: 16px; }
-.si-desc { font-size: 13px; color: var(--text3); line-height: 1.5; }
+.si-name { font-weight: 800; font-size: 15px; letter-spacing:-0.02em; }
+.si-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; }
 .si-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--border); }
-.si-price { font-size: 15px; font-weight: 800; color: var(--gold); }
 
 /* ── PLAYER CARD ── */
-.player-card { display: flex; align-items: center; gap: 12px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 16px; cursor: pointer; transition: all .15s; }
-.player-card:active { opacity: 0.7; transform: scale(0.98); }
+.player-card { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; cursor: pointer; transition: all .15s; margin-bottom: 8px;}
+.player-card:active { transform: scale(0.98); }
 .pc-meta { flex: 1; min-width: 0; }
-.pc-name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
-.pc-price { font-size: 16px; font-weight: 800; color: var(--gold); }
+.pc-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.pc-price { font-size: 15px; font-weight: 800; color: var(--gold); letter-spacing:-0.02em; }
 
 /* ── PREMIUM TOASTS ── */
-.toast-container { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 9999; pointer-events: none; }
-.toast { background: rgba(30, 30, 30, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 14px 24px; font-size: 14px; font-weight: 600; color: #fff; box-shadow: 0 12px 40px rgba(0,0,0,0.6); animation: slideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; gap: 8px; }
+.toast-container { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 99999; pointer-events: none; }
+.toast { background: rgba(30, 30, 30, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 14px 24px; font-size: 13px; font-weight: 600; color: #fff; box-shadow: 0 12px 40px rgba(0,0,0,0.6); animation: slideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; gap: 8px; text-align: center; max-width: 90vw; }
 @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* ── MODALS ── */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: flex-end; backdrop-filter: blur(8px); }
-.modal { background: var(--bg2); border-top-left-radius: 28px; border-top-right-radius: 28px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(24px, env(safe-area-inset-bottom)); width: 100%; max-height: 88vh; overflow-y: auto; animation: slideUp .3s cubic-bezier(.32,0,.15,1); }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: flex; align-items: flex-end; backdrop-filter: blur(8px); justify-content: center; }
+.modal { background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(24px, env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp .3s cubic-bezier(.32,0,.15,1); }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
 .modal-handle { width:40px; height:4px; border-radius:2px; background:var(--border2); margin:0 auto 20px; }
-.modal-title { font-size:22px; font-weight:800; margin-bottom:16px; letter-spacing: -0.5px; }
+.modal-title { font-size:18px; font-weight:800; margin-bottom:16px; letter-spacing: -0.02em; }
 
 /* ── UTILS ── */
 .row { display:flex; align-items:center; gap:8px; } .row-sb { display:flex; align-items:center; justify-content:space-between; }
 .gap6 { display:flex; flex-direction:column; gap:6px; } .gap8 { display:flex; flex-direction:column; gap:8px; } .gap12 { display:flex; flex-direction:column; gap:12px; }
 .mt4 { margin-top:4px; } .mt8 { margin-top:8px; } .mt12 { margin-top:12px; } .mt16 { margin-top:16px; } .mb16 { margin-bottom:16px; } .mt20 { margin-top:20px; }
-.text-gold { color:var(--gold); } .text-red { color:var(--red); } .text-green { color:var(--green); } .text-muted { color:var(--text3); }
+.text-gold { color:var(--gold); } .text-red { color:var(--red); } .text-green { color:var(--green); } .text-muted { color:var(--text-2); }
 .fw6 { font-weight:600; } .fw7 { font-weight:700; } .fw8 { font-weight:800; }
 .f11 { font-size:11px; } .f12 { font-size:12px; } .f13 { font-size:13px; }
 .divider { height:1px; background:var(--border); margin:16px 0; }
@@ -159,55 +167,58 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .msg-wrap { display: flex; flex-direction: column; cursor: pointer; transition: 0.2s; }
 .msg-wrap:active { opacity: 0.7; }
 .msg-wrap.me { align-items: flex-end; } .msg-wrap.them { align-items: flex-start; }
-.msg-bubble { max-width: 82%; padding: 12px 16px; border-radius: 20px; font-size: 14.5px; line-height: 1.4; position: relative; word-wrap: break-word; }
+.msg-bubble { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.4; position: relative; word-wrap: break-word; }
 .msg-bubble.me { background: var(--gold); color: #000; border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(232,197,71,0.15); }
-.msg-bubble.them { background: var(--bg3); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-.msg-reply-box { font-size: 12px; background: rgba(0,0,0,0.1); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid rgba(255,255,255,0.4); color: inherit; opacity: 0.85; font-weight: 500; }
-.msg-img { max-width: 100%; border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.1); }
+.msg-bubble.them { background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.msg-reply-box { font-size: 11px; background: rgba(0,0,0,0.1); padding: 6px 10px; border-radius: 8px; margin-bottom: 6px; border-left: 3px solid rgba(255,255,255,0.4); color: inherit; opacity: 0.85; font-weight: 500; }
+.msg-img { max-width: 100%; border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.1); }
 .msg-time { font-size: 10px; opacity: 0.5; margin-top: 4px; font-weight: 500; padding: 0 4px; }
-.msg-sender { font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--gold); padding: 0 4px; }
-.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-.reply-preview-bar { display: flex; justify-content: space-between; align-items: center; background: var(--bg4); padding: 10px 14px; border-radius: 12px; border-left: 3px solid var(--gold); font-size: 13px; font-weight: 500; }
-.file-btn { background: none; border: none; color: var(--text3); font-size: 24px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
-.chat-input { flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; color: var(--text); padding: 12px 16px; outline: none; resize: none; max-height: 100px; font-family: var(--font); font-size: 15px; }
+.msg-sender { font-size: 10px; font-weight: 700; margin-bottom: 4px; color: var(--gold); padding: 0 4px; }
+.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.reply-preview-bar { display: flex; justify-content: space-between; align-items: center; background: var(--bg4); padding: 8px 12px; border-radius: 10px; border-left: 3px solid var(--gold); font-size: 12px; font-weight: 500; }
+.file-btn { background: none; border: none; color: var(--text-2); font-size: 22px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+.chat-input { flex: 1; background: var(--bg1); border: 1px solid var(--border2); border-radius: 20px; color: var(--text); padding: 10px 16px; outline: none; resize: none; max-height: 100px; font-family: var(--font); font-size: 16px; } /* font-size 16px prevents zoom */
 
 /* ── STORIES CTA ── */
-.stories-card { margin: 16px; background: linear-gradient(135deg, #111111, #1a1a1a); border: 1px solid rgba(232,197,71,0.2); border-radius: 22px; padding: 24px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.stories-card { margin: 0 16px 16px; background: linear-gradient(135deg, #111111, #1a1a1a); border: 1px solid rgba(232,197,71,0.2); border-radius: var(--r); padding: 20px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 .stories-card::before { content:''; position:absolute; bottom:-40px; right:-40px; width:150px; height:150px; background: radial-gradient(circle, rgba(232,197,71,0.1) 0%, transparent 70%); border-radius:50%; }
-.stories-ico { font-size:36px; margin-bottom:12px; }
-.stories-title { font-size:19px; font-weight:800; letter-spacing: -0.3px; }
-.stories-sub { font-size:13px; color:var(--text3); margin-top:6px; line-height:1.5; font-weight: 500; }
-.stories-timer { font-size:24px; font-weight:800; color:var(--gold); margin-top:8px; }
+.stories-ico { font-size:32px; margin-bottom:8px; }
+.stories-title { font-size:16px; font-weight:800; letter-spacing: -0.02em; }
+.stories-sub { font-size:12px; color:var(--text-2); margin-top:4px; line-height:1.5; font-weight: 500; }
+.stories-timer { font-size:20px; font-weight:800; color:var(--gold); margin-top:8px; }
 
 /* ── ADMIN & COLORS ── */
 .clr-ruby { color:#FF453A; } .clr-gold { color:#FFD60A; } .clr-neon { color:#30D158; }
 .admin-gradient-name { background: linear-gradient(90deg, #FFD60A, #FF9F0A, #FF6B6B, #BF5AF2, #0A84FF, #30D158, #FFD60A); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: adminShimmer 2.5s linear infinite; font-weight: 800; }
 @keyframes adminShimmer { to { background-position: 200% center; } }
-.spinner { width:28px; height:28px; border:3px solid var(--bg4); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
+.spinner { width:24px; height:24px; border:3px solid var(--bg4); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
-.admin-stat { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 16px; }
+.admin-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; text-align: center;}
 
-/* ── BAN & SPONSOR BLOCKER ── */
-.sponsor-block { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
-.sponsor-icon { font-size: 64px; margin-bottom: 20px; }
-.sponsor-title { font-size: 28px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; }
-.sponsor-sub { font-size: 15px; color: var(--text2); margin-bottom: 40px; line-height: 1.6; max-width: 300px; }
-.ban-reason-box { background: rgba(232,64,64,0.08); border: 1px solid rgba(232,64,64,0.25); border-radius: 14px; padding: 14px 18px; margin-bottom: 32px; font-size: 13px; color: var(--text2); line-height: 1.5; max-width: 280px; }
+/* ── BAN & MAINTENANCE & SPONSOR OVERLAYS (PHOTOFLIP STYLE) ── */
+.overlay-full { position: fixed; inset: 0; z-index: 99999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; }
+.overlay-icon { font-size: 60px; margin-bottom: 20px; }
+.overlay-title { font-size: 20px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.02em; }
+.overlay-title.red { color: var(--red); }
+.overlay-title.amber { color: var(--gold); }
+.overlay-desc { font-size: 14px; color: var(--text-2); line-height: 1.6; margin-bottom: 30px; max-width: 300px; }
+.ban-reason-box { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--r2); padding: 14px; font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 20px; width: 100%; max-width: 300px; }
 
 /* ── PROTECTION BADGE ── */
-.protection-badge { font-size: 10px; font-weight: 600; color: var(--blue); background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.3); border-radius: 6px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px; }
+.protection-badge { font-size: 10px; font-weight: 600; color: var(--blue); background: var(--blue-dim); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px; }
 
 /* ── BACK BTN ── */
-.back-btn { display:flex; align-items:center; gap:6px; background:none; border:none; color:var(--text3); font-size:15px; font-weight:600; cursor:pointer; padding:8px; border-radius:12px; background: rgba(255,255,255,0.05); }
+.back-btn { display:flex; align-items:center; gap:6px; background:none; border:none; color:var(--text-2); font-size:14px; font-weight:600; cursor:pointer; padding:6px 12px; border-radius:8px; background: var(--surface2); border: 1px solid var(--border2); }
 .back-btn:active { opacity:0.6; }
 
 /* ── RANK ITEM ── */
-.rank-item { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
-.rank-num { font-size: 15px; font-weight: 800; width: 28px; text-align: center; flex-shrink: 0; color: var(--text3); }
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface); border-radius: var(--r2); margin-bottom: 8px; }
+.rank-item:last-child { margin-bottom: 0; }
+.rank-num { font-size: 14px; font-weight: 800; width: 24px; text-align: center; flex-shrink: 0; color: var(--text-3); }
 .rank-meta { flex: 1; min-width: 0; }
-.rank-name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank-sub { font-size: 12px; color: var(--text3); margin-top:2px; }
-.rank-val { font-size: 16px; font-weight: 800; color: var(--gold); }
+.rank-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-sub { font-size: 11px; color: var(--text-3); margin-top:2px; }
+.rank-val { font-size: 15px; font-weight: 800; color: var(--gold); }
 </style>
 </head>
 <body>
@@ -358,7 +369,7 @@ function AdminGhostToggle({ userId, initialHidden, onToast }) {
   const [hidden, setHidden] = useState(initialHidden || false);
   const [loading, setLoading] = useState(false);
   async function toggle() { setLoading(true); try { const newVal = !hidden; await post('/api/admin/toggle_hidden', { hidden: newVal }); setHidden(newVal); onToast(newVal ? '👻 Скрыт' : '👁 Видим'); } catch(e) { onToast('❌ ' + e.message); } setLoading(false); }
-  return <button onClick={toggle} disabled={loading} style={{ background: hidden ? 'rgba(232,197,71,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${hidden ? 'rgba(232,197,71,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 12, padding: '8px 16px', cursor: 'pointer', color: hidden ? 'var(--gold)' : 'var(--text3)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font)', transition: 'all .2s', minWidth: 80, textAlign: 'center', opacity: loading ? 0.5 : 1 }}>{loading ? '...' : hidden ? '🟡 Скрыт' : '⚫ Виден'}</button>;
+  return <button onClick={toggle} disabled={loading} className="btn btn-ghost btn-sm" style={{borderColor: hidden ? 'var(--gold)' : 'var(--border2)', color: hidden ? 'var(--gold)' : 'var(--text-2)'}}>{loading ? '...' : hidden ? '🟡 Скрыт' : '⚫ Виден'}</button>;
 }
 
 // ── PROFILE SCREEN ──
@@ -410,17 +421,23 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
           <div style={{flex:1,minWidth:0}}>
             <div className="hero-name"><PlayerName user={user}/></div>
             <div className="hero-handle">@{user.username || user.id}</div>
-            <div className="hero-status">{user.owner ? <span className="text-red">⛓ Раб — {user.owner.first_name}</span> : <span className="text-green">✅ Свободен</span>}</div>
+            <div className="hero-status">
+              {user.owner ? (
+                <span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(user.owner.id)}>{user.owner.first_name || 'Владелец'}</span></span>
+              ) : (
+                <span className="text-green">✅ Свободен</span>
+              )}
+            </div>
           </div>
         </div>
         <div className="hero-stats">
           <div className="stat"><div className="stat-val">{user.balance.toFixed(0)}</div><div className="stat-lbl">💰 Баланс RC</div></div>
           <div className="stat"><div className="stat-val">{user.price.toFixed(0)}</div><div className="stat-lbl">🏷 Моя цена</div></div>
           <div className="stat"><div className="stat-val">{user.slaves_count}</div><div className="stat-lbl">⛓ Рабов</div></div>
-          {user.total_income_per_hour > 0 && <div className="stat" style={{gridColumn:'1/-1'}}><div className="stat-val text-green">+{user.total_income_per_hour.toFixed(1)}</div><div className="stat-lbl">📈 RC/ч от рабов</div></div>}
         </div>
-        {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (
-          <div className="effects-row">
+        {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active || user.total_income_per_hour > 0) && (
+          <div className="effects-row" style={{marginTop: 16, borderTop:'1px solid var(--border)', paddingTop:12}}>
+            {user.total_income_per_hour > 0 && <div className="effect-chip green">📈 +{user.total_income_per_hour.toFixed(1)} RC/ч</div>}
             {user.shield_active  && <div className="effect-chip gold">🛡 Щит</div>}
             {user.stealth_active && <div className="effect-chip">👻 Стелс</div>}
             {user.booster_active && <div className="effect-chip green">🚀 Буст ×{user.booster_mult}</div>}
@@ -429,15 +446,15 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
         )}
       </div>
 
-      <div className="section gap8">
-        <button className="btn btn-ghost" onClick={() => { navigator.clipboard?.writeText(refLink); showToast('🔗 Ссылка скопирована!'); }}>🔗 Пригласить друга (реферальная ссылка)</button>
+      <div className="section gap8" style={{marginTop:0}}>
+        <button className="btn btn-ghost" onClick={() => { navigator.clipboard?.writeText(refLink); showToast('🔗 Ссылка скопирована!'); }}>🔗 Пригласить друга (реф. ссылка)</button>
         {user.owner && <button className="btn btn-danger" onClick={doSelfbuy} disabled={loadingSelf}>{loadingSelf ? '...' : `🔓 Выкупить себя (${user.price.toFixed(0)} RC)`}</button>}
       </div>
 
       {user.is_admin && (
         <div className="section">
-          <div className="card row-sb" style={{padding:'14px 16px'}}>
-            <div><div className="fw7" style={{fontSize:14}}>👻 Режим призрака</div><div className="text-muted f12 mt4">Скрыть себя из рейтингов и поиска</div></div>
+          <div className="card row-sb" style={{padding:'12px 16px', margin:0}}>
+            <div><div className="fw7" style={{fontSize:13}}>👻 Режим призрака</div><div className="text-muted f11 mt4">Скрыть себя из рейтингов и поиска</div></div>
             <AdminGhostToggle userId={user.id} initialHidden={user.admin_hidden} onToast={showToast}/>
           </div>
         </div>
@@ -459,9 +476,9 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
           <div className="section-title">Бонусы за подписку</div>
           <div className="gap8">
             {sponsors.map(s => (
-              <div className="card row-sb" key={s.id} style={{padding:'14px 16px'}}>
+              <div className="card row-sb" key={s.id} style={{padding:'14px 16px', margin:0}}>
                 <div><div className="fw7">{s.channel_title}</div><div className="f12 text-muted mt4">Награда: {s.reward_rc} RC</div></div>
-                {s.claimed ? <span className="text-green fw7 f13">✅ Получено</span> : <div className="row"><button className="btn btn-ghost btn-sm" onClick={() => window.Telegram.WebApp.openTelegramLink(s.channel_url)}>Подписаться</button><button className="btn btn-primary btn-sm" onClick={async ()=>{ try{ await post('/api/sponsors/check',{sponsor_id:s.id}); showToast('✅ Успешно!'); onRefresh();}catch(e){showToast('❌ '+e.message);} }}>Проверить</button></div>}
+                {s.claimed ? <span className="text-green fw7 f13">✅ Получено</span> : <div className="row"><button className="btn btn-ghost btn-sm" onClick={() => window.Telegram.WebApp.openTelegramLink(s.channel_url)}>Вступить</button><button className="btn btn-primary btn-sm" onClick={async ()=>{ try{ await post('/api/sponsors/check',{sponsor_id:s.id}); showToast('✅ Успешно!'); onRefresh();}catch(e){showToast('❌ '+e.message);} }}>Проверить</button></div>}
               </div>
             ))}
           </div>
@@ -471,20 +488,20 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
       {user.slaves.length > 0 && (
         <div className="section">
           <div className="section-title">Мои рабы ({user.slaves_count})</div>
-          <div className="card" style={{padding:0}}>
-            {user.slaves.map((s, index) => {
+          <div className="card" style={{padding:0, margin:0}}>
+            {user.slaves.map((s, idx) => {
               const isProtected = s.purchase_protection_until && new Date(s.purchase_protection_until) > new Date();
               return (
-                <div className="list-item" key={s.id} style={{padding:'16px', borderBottom: index === user.slaves.length-1 ? 'none' : '1px solid var(--border)'}}>
-                  <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={48}/></div>
+                <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===user.slaves.length-1?'none':'1px solid var(--border)'}}>
+                  <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div>
                   <div className="li-info" onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
-                    <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f12">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.id}`)}</div>
+                    <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f11">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.id}`)}</div>
                     <div className="li-sub mt4">{s.working ? <><span className="text-green">{s.job_emoji} В работе</span><span className="text-green fw6"> · +{s.income_per_hour_effective.toFixed(1)} RC/ч</span></> : <span>😴 Отдыхает</span>}</div>
-                    <div className="row mt8" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
+                    <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
                   </div>
-                  <div className="gap8">
-                    <button className="btn btn-primary btn-sm" style={{padding:'10px 14px'}} onClick={() => setSendWorkSlave(s.id)}>💼</button>
-                    <button className="btn btn-ghost btn-sm" style={{padding:'10px 14px'}} onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button>
+                  <div className="gap6">
+                    <button className="btn btn-primary btn-sm" style={{padding:'8px 12px'}} onClick={() => setSendWorkSlave(s.id)}>💼</button>
+                    <button className="btn btn-ghost btn-sm" style={{padding:'8px 12px'}} onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button>
                   </div>
                 </div>
               );
@@ -532,9 +549,8 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
 }
 
 // ── USER PROFILE VIEW ──
-function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast }) {
+function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onViewProfile }) {
   const [profile, setProfile] = useState(null); const [loading, setLoading] = useState(true); const [buying, setBuying] = useState(false);
-  const [viewingSlaveId, setViewingSlaveId] = useState(null);
 
   useEffect(() => { setLoading(true); get(`/api/profile/${uid}`).then(p => { setProfile(p); setLoading(false); }).catch(() => setLoading(false)); }, [uid]);
 
@@ -547,19 +563,24 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast }) {
 
   if (loading) return <div className="screen"><div style={{display:'flex',justifyContent:'center',padding:60}}><div className="spinner"/></div></div>;
   if (!profile) return <div className="screen"><div className="section mt20 text-center text-muted">Профиль не найден</div></div>;
-  if (viewingSlaveId) return <UserProfileScreen uid={viewingSlaveId} currentUserId={currentUserId} onBack={() => setViewingSlaveId(null)} onBuy={onBuy} showToast={showToast} />;
 
   return (
     <div className="screen">
       <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button></div>
       <div className="content">
-        <div className="hero">
+        <div className="hero" style={{marginTop:16}}>
           <div className="hero-row">
             <div className="avatar-wrap"><Avatar user={profile} size={68}/>{profile.vip_level > 0 && <div className="vip-badge">{profile.vip_level===3?'👑':profile.vip_level===2?'🥈':'🥉'}</div>}</div>
             <div style={{flex:1,minWidth:0}}>
               <div className="hero-name"><PlayerName user={profile}/></div>
               <div className="hero-handle">{profile.username ? `@${profile.username}` : `#${profile.id}`}</div>
-              <div className="hero-status">{profile.owner ? <span className="text-red">⛓ Раб</span> : <span className="text-green">✅ Свободен</span>}</div>
+              <div className="hero-status">
+                {profile.owner ? (
+                    <span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(profile.owner.id)}>{profile.owner.first_name || 'Владелец'}</span></span>
+                ) : (
+                    <span className="text-green">✅ Свободен</span>
+                )}
+              </div>
             </div>
           </div>
           <div className="hero-stats">
@@ -580,9 +601,9 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast }) {
             <div className="section-title">Рабы ({profile.slaves_count})</div>
             <div className="card" style={{padding:0}}>
               {profile.slaves.map((s, idx) => (
-                <div className="list-item" key={s.id} style={{padding:'16px', borderBottom: idx===profile.slaves.length-1?'none':'1px solid var(--border)', cursor:'pointer'}} onClick={() => setViewingSlaveId(s.id)}>
+                <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===profile.slaves.length-1?'none':'1px solid var(--border)', cursor:'pointer'}} onClick={() => onViewProfile(s.id)}>
                   <Avatar user={s} size={44}/>
-                  <div className="li-info"><div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.id}`}</div><div className="li-sub">{s.job_emoji} {s.job_title || 'Нет работы'}</div></div>
+                  <div className="li-info"><div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.id}`}</div><div className="li-sub mt4">{s.job_emoji} {s.job_title || 'Нет работы'}</div></div>
                   <div className="li-price">{s.price.toFixed(0)} RC</div>
                 </div>
               ))}
@@ -638,7 +659,7 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
               </div>
               <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
                 <div className="pc-price">{parseFloat(p.current_price).toFixed(0)} RC</div>
-                {p.owner_id === user.id ? <span className="f11 fw7" style={{padding:'6px 12px',background:'var(--bg4)',borderRadius:8,color:'var(--text3)'}}>⛓ Ваш</span> : <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>}
+                {p.owner_id === user.id ? <span className="f11 fw7" style={{padding:'6px 12px',background:'var(--surface3)',borderRadius:8,color:'var(--text-3)'}}>⛓ Ваш</span> : <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>}
               </div>
             </div>
           ))}
@@ -652,12 +673,14 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
             <div className="modal-handle"/>
             <div className="modal-title">⛓ Купить игрока</div>
             <div className="row mb16"><Avatar user={selected} size={56}/><div><div className="fw8 f13">{selected.first_name || selected.username || `#${selected.id}`}</div><div className="text-muted f12">@{selected.username || selected.id}</div></div></div>
-            <div className="card mb20">
+            <div className="card mb20" style={{margin:0}}>
               <div className="row-sb"><span className="text-muted f13">Стоимость</span><span className="fw8 text-gold">{parseFloat(selected.current_price).toFixed(0)} RC</span></div>
               <div className="row-sb mt12"><span className="text-muted f13">Ваш баланс</span><span className={`fw8 f13 ${user.balance >= parseFloat(selected.current_price) ? 'text-green' : 'text-red'}`}>{user.balance.toFixed(0)} RC</span></div>
               <div className="row-sb mt12"><span className="text-muted f13">Комиссия системы</span><span className="text-muted f13">10%</span></div>
             </div>
-            {user.balance < parseFloat(selected.current_price) ? <button className="btn btn-ghost" disabled>❌ Недостаточно RC</button> : <button className="btn btn-primary" onClick={doBuy}>⛓ Купить за {parseFloat(selected.current_price).toFixed(0)} RC</button>}
+            <div className="mt16">
+                {user.balance < parseFloat(selected.current_price) ? <button className="btn btn-ghost" disabled>❌ Недостаточно RC</button> : <button className="btn btn-primary" onClick={doBuy}>⛓ Купить за {parseFloat(selected.current_price).toFixed(0)} RC</button>}
+            </div>
           </div>
         </div>
       )}
@@ -682,21 +705,23 @@ function TopScreen({ onViewProfile }) {
       <div className="tabs-wrap">
         <div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div>
       </div>
-      <div style={{padding:'4px 16px 12px', fontSize:12, color:'var(--text3)'}}>{tabInfo[tab].desc}</div>
+      <div style={{padding:'4px 16px 12px', fontSize:12, color:'var(--text-3)'}}>{tabInfo[tab].desc}</div>
       
       {loading ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : (
-        <div style={{paddingBottom:16}}>
-          {rows.map((r, i) => {
-            const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null;
-            return (
-              <div className="rank-item" key={r.id} style={{cursor:'pointer'}} onClick={() => onViewProfile(r.id)}>
-                <div className="rank-num" style={{color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div>
-                <Avatar user={r} size={44}/>
-                <div className="rank-meta"><div className="rank-name"><PlayerName user={r}/></div><div className="rank-sub">@{r.username||r.id}</div></div>
-                <div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f12" style={{marginLeft:4}}>{tabInfo[tab].valSuffix}</span></div>
-              </div>
-            );
-          })}
+        <div style={{padding: '0 16px 16px'}}>
+          <div className="card" style={{padding:0, margin:0}}>
+              {rows.map((r, i) => {
+                const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null;
+                return (
+                  <div className="rank-item" key={r.id} style={{cursor:'pointer', borderBottom: i === rows.length-1 ? 'none' : '1px solid var(--border)', background:'transparent', marginBottom:0}} onClick={() => onViewProfile(r.id)}>
+                    <div className="rank-num" style={{color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div>
+                    <Avatar user={r} size={40}/>
+                    <div className="rank-meta"><div className="rank-name"><PlayerName user={r}/></div><div className="rank-sub">@{r.username||r.id}</div></div>
+                    <div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f11" style={{marginLeft:4}}>{tabInfo[tab].valSuffix}</span></div>
+                  </div>
+                );
+              })}
+          </div>
           {rows.length===0 && <div className="text-center text-muted" style={{padding:40}}>Рейтинг пуст</div>}
         </div>
       )}
@@ -750,13 +775,13 @@ function ShopScreen({ user, onRefresh, showToast }) {
       <div className="tabs-wrap">
         <div className="tabs">{['items','cosmetics','promo'].map(t => <button key={t} className={`tab${tab===t?' active':''}`} onClick={() => setTab(t)}>{t==='items'?'ПРЕДМЕТЫ':t==='cosmetics'?'КОСМЕТИКА (⭐)':'ПРОМОКОД'}</button>)}</div>
       </div>
-      <div style={{padding:'16px'}}>
+      <div style={{padding:'0 16px 16px'}}>
         {!shop ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : tab==='items' ? (
           <div>
-            <div className="section-title">Для вас</div>
+            <div className="section-title mt8">Для вас</div>
             <div className="gap12">
               {selfItems.map(item => (
-                <div className="shop-item" key={item.id}>
+                <div className="shop-item" key={item.id} style={{margin:0}}>
                   <div className="row-sb"><div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div><div style={{fontSize:36}}>{item.name.split(' ')[0]}</div></div>
                   <div className="si-foot mt8">
                     <div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
@@ -771,7 +796,7 @@ function ShopScreen({ user, onRefresh, showToast }) {
                 <select className="input mb16" value={selectedSlave} onChange={e => setSelectedSlave(e.target.value)}><option value="">— Выберите раба —</option>{user.slaves.map(s => <option key={s.id} value={s.id}>{s.custom_name||s.first_name||s.username||s.id}</option>)}</select>
                 <div className="gap12">
                   {slaveItems.map(item => (
-                    <div className="shop-item" key={item.id}>
+                    <div className="shop-item" key={item.id} style={{margin:0}}>
                       <div className="row-sb"><div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div><div style={{fontSize:36}}>{item.name.split(' ')[0]}</div></div>
                       <div className="si-foot mt8">
                         <div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
@@ -784,17 +809,17 @@ function ShopScreen({ user, onRefresh, showToast }) {
             )}
           </div>
         ) : tab==='cosmetics' ? (
-          <div>
+          <div className="mt8">
             <div className="f13 text-muted mb16" style={{lineHeight:1.5, padding:16, background:'rgba(232,197,71,0.05)', borderRadius:16, border:'1px solid rgba(232,197,71,0.2)'}}>🎨 Косметика навсегда сохраняется между сезонами. Покупка только за Telegram Stars ⭐.</div>
             <div className="section-title">🎨 Цвет имени</div>
-            <div className="gap8 mb20">{cosmByType.colors?.map(c => <div className="card row-sb" style={{padding:'14px 16px'}} key={c.id}><div className={`fw7 ${c.css_class}`} style={{fontSize:16}}>Aa — {c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+            <div className="gap8 mb20">{cosmByType.colors?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className={`fw7 ${c.css_class}`} style={{fontSize:16}}>Aa — {c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
             <div className="section-title">🖼 Рамка аватара</div>
-            <div className="gap8 mb20">{cosmByType.frames?.map(c => <div className="card row-sb" style={{padding:'14px 16px'}} key={c.id}><div className="fw7" style={{fontSize:16}}>{c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+            <div className="gap8 mb20">{cosmByType.frames?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="fw7" style={{fontSize:16}}>{c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
             <div className="section-title">😀 Эмодзи-статус</div>
-            <div className="gap8">{cosmByType.emojis?.map(c => <div className="card row-sb" style={{padding:'14px 16px'}} key={c.id}><div className="row"><span style={{fontSize:26}}>{c.value}</span><div className="fw7" style={{fontSize:16}}>{c.name}</div></div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+            <div className="gap8">{cosmByType.emojis?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="row"><span style={{fontSize:26}}>{c.value}</span><div className="fw7" style={{fontSize:16}}>{c.name}</div></div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
           </div>
         ) : (
-          <div>
+          <div className="mt8">
             <div className="section-title">Промокод</div>
             <input className="input" placeholder="Введите код..." value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} onKeyDown={e => e.key==='Enter' && usePromo()}/>
             <button className="btn btn-primary mt16" onClick={usePromo}>🎁 Применить код</button>
@@ -878,8 +903,8 @@ function AdminChatScreen({ conv, onBack, showToast }) {
 
   return (
     <div className="content" style={{display:'flex', flexDirection:'column', padding:0}}>
-      <div className="row-sb" style={{padding:'12px 16px',borderBottom:'1px solid var(--border)', background:'var(--bg2)'}}>
-        <div className="row"><button className="btn btn-ghost btn-sm" onClick={onBack}>‹ Назад</button><div className="fw7">{conv.first_name||conv.username||`ID: ${conv.user_id}`}</div></div>
+      <div className="row-sb" style={{padding:'12px 16px',borderBottom:'1px solid var(--border)', background:'var(--bg)'}}>
+        <div className="row"><button className="btn btn-ghost btn-sm" style={{border:'none', background:'transparent', padding:0}} onClick={onBack}>‹ Назад</button><div className="fw7">{conv.first_name||conv.username||`ID: ${conv.user_id}`}</div></div>
         <button className="btn btn-danger btn-sm" onClick={deleteChat}>🗑 Закрыть тикет</button>
       </div>
       <div style={{flex:1, overflowY:'auto'}}>
@@ -919,6 +944,7 @@ function App() {
   const [banSupportMode, setBanSupportMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
   
   // Admin states
   const [adminTab, setAdminTab] = useState('dash');
@@ -929,6 +955,7 @@ function App() {
   const [spId, setSpId] = useState(''); const [spTitle, setSpTitle] = useState(''); const [spUrl, setSpUrl] = useState(''); const [spRc, setSpRc] = useState('250');
   const [newAdminId, setNewAdminId] = useState(''); const [broadcast, setBroadcast] = useState(''); const [seasonPass, setSeasonPass] = useState('');
   const [promoCode, setPromoCode] = useState(''); const [promoRc, setPromoRc] = useState(''); const [promoMax, setPromoMax] = useState('1');
+  const [sysMaint, setSysMaint] = useState(false);
 
   const showToast = useToast(setToasts);
 
@@ -954,6 +981,8 @@ function App() {
       _botUsername = cfg.bot_username || _botUsername;
       const data = await post('/api/init', { init_data: initData, ref_id: refId, photo_url: photoUrl });
       setUser(data);
+      setMaintenanceMode(data.maintenance || false);
+      setSysMaint(data.maintenance || false);
       if (data.bot_username) _botUsername = data.bot_username;
       
       const spData = await get('/api/sponsors/status');
@@ -962,26 +991,61 @@ function App() {
   }
 
   async function refreshUser() {
-    try { setUser(await get('/api/profile')); setSponsorsData(await get('/api/sponsors/status')); } catch {}
+    try { 
+        const u = await get('/api/profile'); 
+        setUser(u); 
+        setMaintenanceMode(u.maintenance || false);
+        setSponsorsData(await get('/api/sponsors/status')); 
+    } catch {}
   }
 
   useEffect(() => { init(); }, []);
 
-  if (error) return <div className="loading-screen"><div style={{fontSize:40}}>❌</div><div style={{color:'var(--red)',fontWeight:700}}>{error}</div><button className="btn btn-ghost" style={{width:140}} onClick={() => {setError(null);init();}}>Повтор</button></div>;
-  if (!user || !sponsorsData) return <div className="loading-screen"><div className="loading-logo">⛓</div><div className="spinner"/><div className="text-muted f13">Загружаем...</div></div>;
+  if (error) return <div className="overlay-full"><div className="overlay-icon">❌</div><div className="overlay-title red">Ошибка</div><div className="overlay-desc">{error}</div><button className="btn btn-ghost" onClick={() => {setError(null);init();}}>Повтор</button></div>;
+  if (!user || !sponsorsData) return <div className="overlay-full"><div className="spinner"/><div className="f13 text-muted mt16">Загружаем...</div></div>;
 
+  // ── MAINTENANCE BLOCKER ──
+  if (maintenanceMode && !user.is_admin && !user.is_admin_flag) {
+    return (
+      <div className="overlay-full">
+        <div className="overlay-icon" style={{animation: 'spin 4s linear infinite'}}>🛠</div>
+        <div className="overlay-title amber">Технические работы</div>
+        <div className="overlay-desc">Платформа обновляется. Мы скоро вернемся! Пожалуйста, зайдите позже.</div>
+        <button className="btn btn-ghost" style={{width: 200}} onClick={init}>🔄 Обновить</button>
+      </div>
+    );
+  }
+
+  // ── BAN BLOCKER ──
   if (user.is_banned) {
-    if (banSupportMode) return <div className="app"><SupportScreen user={user} showToast={showToast}/><div className="tabs-wrap" style={{padding:8}}><button className="btn btn-ghost" onClick={()=>setBanSupportMode(false)}>Вернуться</button></div></div>;
-    return <div className="ban-screen"><div className="ban-icon">🚫</div><div className="ban-title">Доступ ограничен</div><div className="ban-sub">Ваш аккаунт заблокирован администрацией.</div><button className="ban-support-btn" onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button></div>;
+    if (banSupportMode) {
+      return (
+        <div className="app">
+          <SupportScreen user={user} showToast={showToast}/>
+          <div className="section mt16" style={{paddingBottom: 20}}>
+              <button className="btn btn-ghost" onClick={() => setBanSupportMode(false)}>‹ Назад к блокировке</button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="overlay-full">
+        <div className="overlay-icon">🚫</div>
+        <div className="overlay-title red">Аккаунт Заблокирован</div>
+        <div className="overlay-desc">Ваш аккаунт был заблокирован за нарушение правил. Если вы считаете, что это ошибка, обратитесь в поддержку.</div>
+        {user.ban_reason && <div className="ban-reason-box">Причина: {user.ban_reason}</div>}
+        <button className="btn btn-primary" style={{width: '100%', maxWidth: '300px'}} onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button>
+      </div>
+    );
   }
 
   // ── SPONSOR BLOCKER (MAIN SPONSOR) ──
   if (sponsorsData.main_sponsor && !sponsorsData.main_subscribed) {
     return (
-      <div className="sponsor-block">
-        <div className="sponsor-icon">📢</div>
-        <div className="sponsor-title">Доступ ограничен</div>
-        <div className="sponsor-sub">Для участия в игре необходимо подписаться на канал нашего главного спонсора.</div>
+      <div className="overlay-full">
+        <div className="overlay-icon">📢</div>
+        <div className="overlay-title">Доступ ограничен</div>
+        <div className="overlay-desc">Для участия в игре необходимо быть подписанным на канал нашего спонсора.</div>
         <button className="btn btn-primary" style={{marginBottom:12, width:'100%', maxWidth:'300px'}} onClick={() => window.Telegram.WebApp.openTelegramLink(sponsorsData.main_sponsor.channel_url)}>
           Подписаться
         </button>
@@ -991,7 +1055,7 @@ function App() {
   }
 
   if (viewingUid && viewingUid !== user.id) {
-    return <div className="app"><UserProfileScreen uid={viewingUid} currentUserId={user.id} onBack={() => setViewingUid(null)} onBuy={refreshUser} showToast={showToast}/></div>;
+    return <div className="app"><UserProfileScreen uid={viewingUid} currentUserId={user.id} onBack={() => setViewingUid(null)} onBuy={refreshUser} showToast={showToast} onViewProfile={setViewingUid}/></div>;
   }
 
   const handleNav = (t) => { setTab(t); setMenuOpen(false); if(t==='admin') { setAdminTab('dash'); loadAdminTab('dash'); } }
@@ -1003,6 +1067,14 @@ function App() {
     if(t==='stories') { get('/api/admin/stories').then(setStories).catch(()=>{}); }
     if(t==='sponsors') { get('/api/admin/sponsors').then(setSponsors).catch(()=>{}); }
     if(t==='admins') { get('/api/admin/admins_list').then(setAdminsData).catch(()=>{}); }
+  }
+
+  async function toggleMaint(state) {
+      try {
+          await post('/api/admin/maintenance', { state });
+          setSysMaint(state);
+          showToast(`Тех. работы ${state ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ'}`);
+      } catch(e) { showToast('❌ Ошибка', 'error'); }
   }
 
   const adminTitles = { 'dash':'📊 Дашборд', 'users':'👥 Юзеры', 'tickets':'💬 Тикеты', 'stories':'📸 Заявки Stories', 'sponsors':'📢 Спонсоры', 'system':'⚙️ Система', 'admins':'👑 Супер Админ' };
@@ -1053,7 +1125,9 @@ function App() {
           <div style={{padding:'0 16px'}}>
             {adminTab==='dash' && dash && (
               <div className="gap8">
-                <div className="stat-grid">{[['👥','Всего игроков', dash.total_users],['🆕','Новых сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Новых тикетов', dash.tickets],['📸','Сторис ждут', dash.stories_pending]].map(([ico,lbl,val]) => <div className="card text-center" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}</div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                    {[['👥','Игроков', dash.total_users],['🆕','За сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Тикеты', dash.tickets],['📸','Сторис', dash.stories_pending]].map(([ico,lbl,val]) => <div className="admin-stat" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}
+                </div>
                 <button className="btn btn-ghost mt12" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button>
               </div>
             )}
@@ -1070,7 +1144,7 @@ function App() {
                   <button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button>
                 </div>
                 <div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div>
-                <div className="gap8">{users.map(u => <div className="card row-sb" key={u.id}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id}</div></div><button className={`btn btn-sm ${u.is_banned?'btn-green':'btn-danger'}`} onClick={async ()=>{ try{ await post('/api/admin/users/edit',{user_id:u.id, is_banned:!u.is_banned}); loadAdminTab('users'); }catch(e){showToast('❌ '+e.message);} }}>{u.is_banned?'Разбан':'Бан'}</button></div>)}</div>
+                <div className="gap8">{users.map(u => <div className="card row-sb" key={u.id} style={{margin:0}}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id}</div></div><button className={`btn btn-sm ${u.is_banned?'btn-green':'btn-danger'}`} onClick={async ()=>{ try{ await post('/api/admin/users/edit',{user_id:u.id, is_banned:!u.is_banned}); loadAdminTab('users'); }catch(e){showToast('❌ '+e.message);} }}>{u.is_banned?'Разбан':'Бан'}</button></div>)}</div>
               </div>
             )}
 
@@ -1078,7 +1152,7 @@ function App() {
               <div className="gap8">
                 {tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}
                 {tickets.map(t => (
-                  <div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer'}}>
+                  <div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}>
                     <div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div>
                     <div className="fw7 text-muted" style={{fontSize:20}}>›</div>
                   </div>
@@ -1090,7 +1164,7 @@ function App() {
               <div className="gap8">
                 {stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}
                 {stories.map(s => (
-                  <div className="card row-sb" key={s.id}>
+                  <div className="card row-sb" key={s.id} style={{margin:0}}>
                     <div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div>
                     <button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅ Одобрить</button>
                   </div>
@@ -1110,7 +1184,7 @@ function App() {
                   <div className="row mt12"><button className="btn btn-ghost" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Обычный</button><button className="btn btn-primary" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:true}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Главный (Обяз.)</button></div>
                 </div>
                 {sponsors.map(s => (
-                  <div className="card row-sb" key={s.id}>
+                  <div className="card row-sb" key={s.id} style={{margin:0}}>
                     <div><div className="fw7">{s.is_main && '👑 '} {s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div>
                     <button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑</button>
                   </div>
@@ -1127,7 +1201,7 @@ function App() {
                 </div>
                 <div className="gap8">
                   {adminsData.db_admins.map(a => (
-                    <div className="card row-sb" key={a.user_id}>
+                    <div className="card row-sb" key={a.user_id} style={{margin:0}}>
                       <div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div>
                       <button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button>
                     </div>
@@ -1138,6 +1212,14 @@ function App() {
 
             {adminTab==='system' && (
               <div className="gap16">
+                <div className="card gap8">
+                    <div className="fw8 text-amber" style={{fontSize:16}}>🛠 Технические работы</div>
+                    <div className="f13 text-muted">Закрывает доступ всем игрокам кроме админов.</div>
+                    <div className="row mt8">
+                        <button className={`btn ${sysMaint ? 'btn-danger' : 'btn-ghost'}`} onClick={() => toggleMaint(true)}>ВКЛЮЧИТЬ</button>
+                        <button className={`btn ${!sysMaint ? 'btn-green' : 'btn-ghost'}`} onClick={() => toggleMaint(false)}>ВЫКЛЮЧИТЬ</button>
+                    </div>
+                </div>
                 <div className="card gap8"><div className="fw8" style={{fontSize:16}}>📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div>
                 <div className="card gap8"><div className="fw8" style={{fontSize:16}}>🎫 Создать промокод</div><input className="input" placeholder="КОД" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/><input className="input" type="number" placeholder="Награда RC" value={promoRc} onChange={e=>setPromoRc(e.target.value)}/><input className="input" type="number" placeholder="Кол-во использований" value={promoMax} onChange={e=>setPromoMax(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ if(!promoCode||!promoRc)return; try{ await post('/api/admin/promo/create',{code:promoCode,reward_rc:parseFloat(promoRc),max_uses:parseInt(promoMax)}); showToast('✅ Создан'); setPromoCode(''); setPromoRc(''); }catch(e){showToast('❌ '+e.message);} }}>Создать код</button></div>
                 <div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Новый сезон</div><div className="f13 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются.</div><input className="input" type="password" placeholder="Пароль" value={seasonPass} onChange={e=>setSeasonPass(e.target.value)}/><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:seasonPass}); showToast('🔥 Сезон начат'); setSeasonPass(''); }catch(e){showToast('❌ '+e.message);} }}>Начать сезон</button></div>
