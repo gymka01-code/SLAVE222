@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS users (
     purchase_protection_until TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), slaves_count INT DEFAULT 0,
     ban_reason TEXT DEFAULT NULL, login_streak INT DEFAULT 0, last_login_date TEXT,
     referrer_id BIGINT,
-    energy INT DEFAULT 1000, max_energy INT DEFAULT 1000, click_power DECIMAL DEFAULT 1.0, last_energy_update TIMESTAMP DEFAULT NOW(),
+    energy DECIMAL DEFAULT 1000, max_energy INT DEFAULT 1000, click_power DECIMAL DEFAULT 1.0, last_energy_update TIMESTAMP DEFAULT NOW(),
     robberies_today INT DEFAULT 0, last_robbery_date TEXT,
     riot_expires_at TIMESTAMP DEFAULT NULL, is_injured_until TIMESTAMP DEFAULT NULL
 );
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS daily_progress (
     PRIMARY KEY (user_id, task_id, date_str)
 );
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS energy INT DEFAULT 1000;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS energy DECIMAL DEFAULT 1000;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS max_energy INT DEFAULT 1000;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS click_power DECIMAL DEFAULT 1.0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_energy_update TIMESTAMP DEFAULT NOW();
@@ -187,7 +187,7 @@ async def rate_limit(key: str, limit: int, window: int):
         await pipe.incr(key)
         await pipe.expire(key, window)
         results = await pipe.execute()
-        if results[0] > limit: raise HTTPException(429, "Слишком много запросов. Подождите немного.")
+        if results[0] > limit: raise HTTPException(429, "Слишком много запросов.")
     except HTTPException: raise
     except: pass
 
@@ -211,12 +211,6 @@ async def is_admin_user(uid: int) -> bool:
     try: return bool(await db.fetchrow("SELECT 1 FROM admin_users WHERE user_id=$1", uid))
     except: return False
 
-async def get_admin_ids() -> set:
-    ids = set(ADMIN_IDS)
-    try: ids.update([r['user_id'] for r in await db.fetch("SELECT user_id FROM admin_users")])
-    except: pass
-    return ids
-
 async def collect_income(owner_id: int) -> float:
     now = datetime.utcnow()
     slaves = await db.fetch("""
@@ -224,9 +218,7 @@ async def collect_income(owner_id: int) -> float:
         FROM users u JOIN jobs j ON u.job_id = j.id 
         WHERE u.owner_id=$1 AND u.job_id IS NOT NULL AND u.job_assigned_at <= $2
     """, owner_id, now - timedelta(hours=2))
-    
     if not slaves: return 0.0
-
     ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
     event = json.loads(ev_data) if ev_data else {"type": "normal"}
 
@@ -243,7 +235,6 @@ async def collect_income(owner_id: int) -> float:
         await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total, 2), owner_id)
         owner_ref = await db.fetchval("SELECT referrer_id FROM users WHERE id=$1", owner_id)
         if owner_ref: await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total * 0.05, 2), owner_ref)
-            
     return total
 
 async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
@@ -292,12 +283,13 @@ async def get_super_admin(x_init_data: str = Header(...)) -> dict:
     if user['id'] != SUPER_ADMIN_ID: raise HTTPException(403, "Super admin only")
     return user
 
-def _calc_energy(u: dict) -> int:
+def _calc_energy(u: dict) -> float:
     now = datetime.utcnow()
     last_update = u.get('last_energy_update') or now
     seconds_passed = (now - last_update).total_seconds()
-    regen = int(seconds_passed * 1.5) # 1.5 энергии в секунду
-    return min(u['max_energy'], u['energy'] + regen)
+    # Восстановление: от 0 до max_energy ровно за 2 часа (7200 сек)
+    regen_per_sec = float(u['max_energy']) / 7200.0
+    return min(float(u['max_energy']), float(u['energy']) + seconds_passed * regen_per_sec)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -322,14 +314,12 @@ async def lifespan(app: FastAPI):
     @dp.message(CommandStart())
     async def cmd_start(msg: types.Message):
         uid = msg.from_user.id
-        
         main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
         missing_subs = []
         for s in main_sponsors:
             try:
                 member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
-                if member.status not in ['member', 'administrator', 'creator']:
-                    missing_subs.append(s)
+                if member.status not in ['member', 'administrator', 'creator']: missing_subs.append(s)
             except: missing_subs.append(s)
             
         if missing_subs:
@@ -358,7 +348,6 @@ async def lifespan(app: FastAPI):
                 member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
                 if member.status not in ['member', 'administrator', 'creator']: missing_subs.append(s)
             except: missing_subs.append(s)
-            
         if missing_subs: await cq.answer("❌ Вы не подписаны на все каналы!", show_alert=True)
         else:
             await cq.answer("✅ Доступ разрешен!", show_alert=True)
@@ -389,7 +378,6 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(60)
             try:
                 now = datetime.utcnow()
-                # 1. Глобальные События (раз в 6 часов)
                 ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
                 ev = json.loads(ev_data) if ev_data else None
                 if not ev or ev.get('expires_at', 0) < now.timestamp():
@@ -401,27 +389,21 @@ async def lifespan(app: FastAPI):
                     new_ev['expires_at'] = (now + timedelta(hours=6)).timestamp()
                     await db.execute("INSERT INTO global_settings(key,value) VALUES('event_data', $1) ON CONFLICT(key) DO UPDATE SET value=$1", json.dumps(new_ev))
 
-                # 2. Амортизация
                 if now.minute == 0:
                     await db.execute("UPDATE users SET current_price = GREATEST(current_price * 0.95, 100) WHERE (job_assigned_at IS NULL OR job_assigned_at < NOW() - INTERVAL '24 hours') AND created_at < NOW() - INTERVAL '24 hours'")
                 
-                # 3. Автосбор
                 owners_to_collect = await db.fetch("SELECT DISTINCT owner_id FROM users WHERE job_assigned_at <= NOW() - INTERVAL '2 hours'")
                 for r in owners_to_collect:
                     if r['owner_id']: await collect_income(r['owner_id'])
                     
-                # 4. Система БУНТОВ (Riot)
-                # Выбираем случайных владельцев рабов (шанс ~1% каждую минуту) и вешаем на них бунт на 10 минут
                 targets = await db.fetch("SELECT id FROM users WHERE slaves_count > 0 AND riot_expires_at IS NULL AND random() < 0.01 LIMIT 50")
-                for t in targets:
-                    await db.execute("UPDATE users SET riot_expires_at = $1 WHERE id=$2", now + timedelta(minutes=10), t['id'])
+                for t in targets: await db.execute("UPDATE users SET riot_expires_at = $1 WHERE id=$2", now + timedelta(minutes=10), t['id'])
                     
-                # Проверяем истекшие бунты
                 expired_riots = await db.fetch("SELECT id, balance FROM users WHERE riot_expires_at IS NOT NULL AND riot_expires_at < $1", now)
                 for er in expired_riots:
-                    penalty = float(er['balance']) * 0.10 # 10% штраф
+                    penalty = float(er['balance']) * 0.10
                     await db.execute("UPDATE users SET balance = balance - $1, riot_expires_at = NULL WHERE id=$2", penalty, er['id'])
-                    asyncio.create_task(push(er['id'], f"🚨 <b>Ваши рабы устроили бунт, а вы не успели его подавить!</b>\nОни разграбили 10% вашей казны ({penalty:.0f} RC)."))
+                    asyncio.create_task(push(er['id'], f"🚨 <b>Ваши рабы устроили бунт!</b>\nОни разграбили 10% вашей казны ({penalty:.0f} RC)."))
 
             except: pass
             
@@ -433,13 +415,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, title="Рабство API")
 allow_credentials = True if "*" not in ALLOWED_ORIGINS else False
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=allow_credentials,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
+app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_credentials=allow_credentials, allow_methods=["*"], allow_headers=["*"])
 
 class InitReq(BaseModel): init_data: str; ref_id: Optional[int] = None; photo_url: Optional[str] = None
 class BuyReq(BaseModel): target_id: int
@@ -448,11 +424,7 @@ class SendWorkReq(BaseModel): slave_id: int
 class ShopInvoiceReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class ShopRcBuyReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class PromoUseReq(BaseModel): code: str
-class AdminEditReq(BaseModel):
-    user_id: int; balance: Optional[float] = None; price: Optional[float] = None
-    custom_name: Optional[str] = None; is_banned: Optional[bool] = None
-    free_slave: Optional[bool] = None; ban_reason: Optional[str] = None
-    vip_level: Optional[int] = None; max_slaves_override: Optional[int] = None
+class AdminEditReq(BaseModel): user_id: int; balance: Optional[float]=None; price: Optional[float]=None; custom_name: Optional[str]=None; is_banned: Optional[bool]=None; free_slave: Optional[bool]=None; ban_reason: Optional[str]=None; vip_level: Optional[int]=None; max_slaves_override: Optional[int]=None
 class SeasonReq(BaseModel): password: str
 class BroadcastReq(BaseModel): text: str
 class AdminChatSendReq(BaseModel): target_uid: int; text: str = ""; reply_to_id: Optional[int] = None
@@ -556,7 +528,7 @@ async def init_user(req: InitReq):
     if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
         owner_id = req.ref_id if (req.ref_id and req.ref_id != uid) else None
         await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,$4,50,100,$5,$6) ON CONFLICT DO NOTHING", uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id, req.ref_id)
-        if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{tg.get('username', uid)}! Вы будете получать 5% с его доходов."))
+        if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{msg.from_user.username or uid}! Вы будете получать 5% с его доходов."))
     else: await db.execute("UPDATE users SET username=$1,first_name=$2,photo_url=$3 WHERE id=$4", tg.get('username'), tg.get('first_name'), photo_url, uid)
     return await _full_profile(uid)
 
@@ -575,7 +547,6 @@ async def get_user_profile(uid: int, x_init_data: str = Header(...)):
 async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
     buyer_id, target_id = user['id'], req.target_id
     await rate_limit(f"rl:buy:{buyer_id}", 15, 60)
-
     if buyer_id == target_id: raise HTTPException(400, "Нельзя купить самого себя")
     await collect_income(buyer_id)
     
@@ -591,10 +562,7 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
             target_pre = await conn.fetchrow("SELECT owner_id FROM users WHERE id=$1", target_id)
             if not target_pre: raise HTTPException(404, "Игрок не найден")
             seller_id = target_pre['owner_id'] if target_pre['owner_id'] else target_id
-            
-            for locked_id in sorted(list(set([buyer_id, target_id, seller_id]))):
-                await conn.execute("SELECT 1 FROM users WHERE id=$1 FOR UPDATE", locked_id)
-                
+            for locked_id in sorted(list(set([buyer_id, target_id, seller_id]))): await conn.execute("SELECT 1 FROM users WHERE id=$1 FOR UPDATE", locked_id)
             buyer = dict(await conn.fetchrow("SELECT * FROM users WHERE id=$1", buyer_id))
             target = dict(await conn.fetchrow("SELECT * FROM users WHERE id=$1", target_id))
             
@@ -604,11 +572,9 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
             
             price = float(target['current_price']) * (1.5 if target['chains_until'] and target['chains_until'] > now else 1.0)
             if float(buyer['balance']) < price: raise HTTPException(400, f"Недостаточно RC. Нужно {price:.0f}")
-            
             ev_data = await conn.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
             event = json.loads(ev_data) if ev_data else {}
             multiplier = 1.15 if event.get('type') == 'boom' else 1.20
-            
             fee, payout, new_price = round(price * 0.10, 2), round(price * 0.90, 2), round(float(target['current_price']) * multiplier, 2)
             
             await conn.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", price, buyer_id)
@@ -624,10 +590,9 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
 @app.post("/api/slaves/send_to_work")
 async def send_to_work(req: SendWorkReq, user: dict = Depends(get_current_user)):
     s = await db.fetchrow("SELECT * FROM users WHERE id=$1", req.slave_id)
-    if not s or s['owner_id'] != user['id']: raise HTTPException(403, "Это не ваш раб")
-    if s['job_assigned_at'] and (datetime.utcnow() - s['job_assigned_at']).total_seconds() < 7200: raise HTTPException(400, "Раб уже занят")
-    if s['is_injured_until'] and s['is_injured_until'] > datetime.utcnow(): raise HTTPException(400, "Раб травмирован на Арене! Дайте ему отдохнуть.")
-    
+    if not s or s['owner_id'] != user['id']: raise HTTPException(403)
+    if s['job_assigned_at'] and (datetime.utcnow() - s['job_assigned_at']).total_seconds() < 7200: raise HTTPException(400, "Уже работает")
+    if s['is_injured_until'] and s['is_injured_until'] > datetime.utcnow(): raise HTTPException(400, "Раб травмирован")
     new_job = pick_job(user['vip_level'], await get_jobs_list())
     await db.execute("UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3", new_job['id'], datetime.utcnow(), req.slave_id)
     asyncio.create_task(push(req.slave_id, f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b> на 2 часа!"))
@@ -712,7 +677,6 @@ async def stories_claim(u: dict = Depends(get_current_user)):
     last = await db.fetchrow("SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", u['id'])
     if last and (datetime.utcnow() - last['created_at']).total_seconds() < 86400: raise HTTPException(400, "Доступно раз в 24 часа")
     await db.execute("INSERT INTO stories_claims(user_id, status) VALUES($1, 'pending')", u['id'])
-    asyncio.create_task(notify_admins(f"📸 <b>Новая заявка на Story!</b>\nОт пользователя @{u['username'] or u['id']}"))
     return {"ok": True, "msg": "Заявка отправлена модераторам!"}
 
 @app.get("/api/tasks/status")
@@ -773,7 +737,7 @@ async def claim_daily_task(req: ClaimTaskReq, u: dict = Depends(get_current_user
     task = next((t for t in daily_tasks_data if t['id'] == req.task_id), None)
     if not task: raise HTTPException(404, "Задание не найдено или истекло")
     prog = await db.fetchrow("SELECT progress, claimed FROM daily_progress WHERE user_id=$1 AND task_id=$2 AND date_str=$3", u['id'], req.task_id, date_str)
-    if not prog or prog['progress'] < task['target']: raise HTTPException(400, "Задание еще не выполнено")
+    if not prog or prog['progress'] < task['target']: raise HTTPException(400, "Еще не выполнено")
     if prog.get('claimed'): raise HTTPException(400, "Награда уже получена")
     await db.execute("UPDATE daily_progress SET claimed=TRUE WHERE user_id=$1 AND task_id=$2 AND date_str=$3", u['id'], req.task_id, date_str)
     await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", task['reward'], u['id'])
@@ -803,7 +767,6 @@ async def send_support(req: SupportMessageReq, x_init_data: str = Header(...)):
         tkt_id = tkt['id']
         if tkt['status'] == 'closed': await db.execute("UPDATE tickets SET status='open' WHERE id=$1", tkt_id)
     await db.execute("INSERT INTO support_messages (ticket_id, user_id, text, photo_b64, reply_to_id, is_from_admin) VALUES ($1,$2,$3,$4,$5,FALSE)", tkt_id, uid, message, req.photo_b64, req.reply_to_id)
-    asyncio.create_task(notify_admins(f"💬 <b>Новое сообщение в ТП</b> от ID {uid}\n\n{message[:100]}"))
     return {"ok": True}
 
 @app.get("/api/support/history")
@@ -874,18 +837,18 @@ async def use_promo(req: PromoUseReq, user: dict = Depends(get_current_user)):
 async def mine_sync(req: MineSyncReq, user: dict = Depends(get_current_user)):
     uid = user['id']
     if req.clicks <= 0: return {"ok": True}
-    if req.clicks > 50: req.clicks = 50 # Защита от автокликеров (в рамках 2-3 секундного интервала)
+    if req.clicks > 50: req.clicks = 50 
     
     now = datetime.utcnow()
     current_energy = _calc_energy(user)
-    actual_clicks = min(req.clicks, current_energy)
+    actual_clicks = min(req.clicks, int(current_energy))
     if actual_clicks <= 0: return {"ok": True, "energy": current_energy}
 
-    earned = float(actual_clicks * user['click_power'])
+    # Прибыль уменьшена в 2 раза: множитель 0.5
+    earned = float(actual_clicks * user['click_power'] * 0.5)
     
     async with db.acquire() as conn:
         async with conn.transaction():
-            # Налог владельцу (20%), если раб
             if user['owner_id']:
                 tax = earned * 0.20
                 earned -= tax
@@ -899,20 +862,19 @@ async def mine_sync(req: MineSyncReq, user: dict = Depends(get_current_user)):
 @app.post("/api/mine/upgrade")
 async def mine_upgrade(req: MineUpgradeReq, user: dict = Depends(get_current_user)):
     uid = user['id']
-    if req.type == "power": price = 1000 * float(user['click_power']) # Растет с уровнем
-    elif req.type == "energy": price = user['max_energy'] * 1.5
+    
+    if req.type == "power": price = 3000 * float(user['click_power']) # Увеличена цена кирок
+    elif req.type == "energy": price = 1500 # Фиксированная цена за +100 энергии
     else: raise HTTPException(400)
     
     if float(user['balance']) < price: raise HTTPException(400, "Недостаточно RC")
     
-    if req.type == "power":
-        await db.execute("UPDATE users SET balance=balance-$1, click_power=click_power+1.0 WHERE id=$2", price, uid)
-    else:
-        await db.execute("UPDATE users SET balance=balance-$1, max_energy=max_energy+500 WHERE id=$2", price, uid)
+    if req.type == "power": await db.execute("UPDATE users SET balance=balance-$1, click_power=click_power+1.0 WHERE id=$2", price, uid)
+    else: await db.execute("UPDATE users SET balance=balance-$1, max_energy=max_energy+100 WHERE id=$2", price, uid)
         
     return {"ok": True}
 
-# === МИНИ-ИГРЫ: РЭКЕТ (ОГРАБЛЕНИЕ) ===
+# === МИНИ-ИГРЫ: РЭКЕТ ===
 @app.post("/api/robbery/resolve")
 async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user)):
     uid = user['id']
@@ -921,7 +883,7 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
     
     robberies_today = user['robberies_today'] if user['last_robbery_date'] == today_str else 0
     if robberies_today >= 3: raise HTTPException(400, "Лимит ограблений на сегодня исчерпан")
-    if req.amount > 100 or req.amount < 0: req.amount = 0 # Защита
+    if req.amount > 100 or req.amount < 0: req.amount = 0 
     
     async with db.acquire() as conn:
         async with conn.transaction():
@@ -930,13 +892,12 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
             if target['shield_until'] and target['shield_until'] > now: raise HTTPException(400, "У игрока активирован Щит")
             
             actual_amount = min(float(req.amount), float(target['balance']))
-            
             await conn.execute("UPDATE users SET robberies_today=$1, last_robbery_date=$2 WHERE id=$3", robberies_today + 1, today_str, uid)
             
             if req.status == "success" and actual_amount > 0:
                 await conn.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", actual_amount, uid)
                 await conn.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", actual_amount, req.target_id)
-                msg = f"💸 Успешное ограбление! Вы украли {actual_amount:.0f} RC."
+                msg = f"💸 Вы украли {actual_amount:.0f} RC."
                 asyncio.create_task(push(req.target_id, f"🥷 <b>Вас ограбили!</b>\nИгрок @{user['username'] or uid} украл у вас {actual_amount:.0f} RC."))
             elif req.status == "caught":
                 penalty = min(50.0, float(user['balance']))
@@ -944,56 +905,45 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
                 await conn.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", penalty, req.target_id)
                 msg = f"👮 Вы попались! Штраф {penalty:.0f} RC переведен жертве."
                 asyncio.create_task(push(req.target_id, f"🛡 <b>Попытка ограбления!</b>\nИгрок @{user['username'] or uid} пытался вас ограбить, но попался полиции. Вы получаете компенсацию {penalty:.0f} RC."))
-            else:
-                msg = "Ничего не украдено."
+            else: msg = "Ничего не украдено."
                 
     return {"ok": True, "msg": msg}
 
-# === МИНИ-ИГРЫ: БУНТ (ПОДАВЛЕНИЕ) ===
+# === МИНИ-ИГРЫ: БУНТ ===
 @app.post("/api/riot/suppress")
 async def riot_suppress(user: dict = Depends(get_current_user)):
-    if not user['riot_expires_at'] or user['riot_expires_at'] < datetime.utcnow():
-        raise HTTPException(400, "Бунта нет или время вышло")
+    if not user['riot_expires_at'] or user['riot_expires_at'] < datetime.utcnow(): raise HTTPException(400, "Бунта нет")
     await db.execute("UPDATE users SET riot_expires_at=NULL, balance=balance+100 WHERE id=$1", user['id'])
-    return {"ok": True, "msg": "Бунт успешно подавлен! Вы получили 100 RC за решительность."}
+    return {"ok": True, "msg": "Бунт подавлен! Вы получили 100 RC."}
 
-# === МИНИ-ИГРЫ: ПОДПОЛЬНЫЕ БОИ (АРЕНА) ===
+# === МИНИ-ИГРЫ: АРЕНА ===
 @app.post("/api/arena/fight")
 async def arena_fight(req: ArenaFightReq, user: dict = Depends(get_current_user)):
     uid = user['id']
     if req.bet <= 0 or req.bet > float(user['balance']): raise HTTPException(400, "Неверная ставка")
-    
     slave = await db.fetchrow("SELECT * FROM users WHERE id=$1 AND owner_id=$2", req.slave_id, uid)
     if not slave: raise HTTPException(404, "Раб не найден")
     now = datetime.utcnow()
     if slave['is_injured_until'] and slave['is_injured_until'] > now: raise HTTPException(400, "Раб травмирован")
     if slave['job_assigned_at']: raise HTTPException(400, "Раб на работе")
     
-    # Ищем случайного оппонента (любого юзера с ценой +-30%)
     opp = await db.fetchrow("SELECT * FROM users WHERE id != $1 AND current_price >= $2 AND current_price <= $3 ORDER BY random() LIMIT 1", req.slave_id, float(slave['current_price'])*0.7, float(slave['current_price'])*1.3)
+    opp_price = float(opp['current_price']) if opp else float(slave['current_price'])
     
-    if not opp: opp_price = float(slave['current_price']) # Если нет, бьемся с "тенью"
-    else: opp_price = float(opp['current_price'])
-    
-    # Шанс победы
     my_price = float(slave['current_price'])
     win_chance = my_price / (my_price + opp_price)
-    
-    roll = random.random()
-    is_win = roll < win_chance
+    is_win = random.random() < win_chance
     
     if is_win:
-        win_amount = req.bet * 0.90 # 10% комиссия арены
+        win_amount = req.bet * 0.90
         await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", win_amount, uid)
         log = f"Победа! Ваш боец ({my_price:.0f} RC) одолел противника ({opp_price:.0f} RC). Вы выиграли {win_amount:.0f} RC."
     else:
         await db.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", req.bet, uid)
         await db.execute("UPDATE users SET is_injured_until=$1 WHERE id=$2", now + timedelta(hours=4), req.slave_id)
-        log = f"Поражение. Ваш боец ({my_price:.0f} RC) проиграл противнику ({opp_price:.0f} RC). Ставка потеряна, раб травмирован на 4 часа."
-        asyncio.create_task(push(req.slave_id, "🤕 <b>Вы получили травму на Арене!</b>\nВаш хозяин выставил вас на бой и вы проиграли. Вы не можете работать ближайшие 4 часа."))
+        log = f"Поражение. Противник ({opp_price:.0f} RC) оказался сильнее. Ставка потеряна, раб травмирован на 4 часа."
         
     return {"ok": True, "is_win": is_win, "log": log, "opp_name": opp['first_name'] if opp else "Гладиатор"}
-
 
 # === АДМИНКА ===
 @app.post("/api/admin/maintenance")
@@ -1054,8 +1004,7 @@ async def admin_tickets(_: dict = Depends(get_admin_user)):
 @app.get("/api/admin/chat/{user_id}")
 async def admin_ticket_chat(user_id: int, _: dict = Depends(get_admin_user)):
     await db.execute("UPDATE support_messages SET is_read=TRUE WHERE user_id=$1 AND is_from_admin=FALSE", user_id)
-    rows = await db.fetch("SELECT st.id, st.text as message, st.photo_b64, st.is_from_admin, st.created_at, rt.text as reply_text FROM support_messages st LEFT JOIN support_messages rt ON st.reply_to_id = rt.id WHERE st.user_id=$1 ORDER BY st.created_at ASC", user_id)
-    return {"messages": [dict(r) for r in rows]}
+    return {"messages": [dict(r) for r in await db.fetch("SELECT st.id, st.text as message, st.photo_b64, st.is_from_admin, st.created_at, rt.text as reply_text FROM support_messages st LEFT JOIN support_messages rt ON st.reply_to_id = rt.id WHERE st.user_id=$1 ORDER BY st.created_at ASC", user_id)]}
 
 @app.post("/api/admin/chat/send")
 async def admin_chat_send(req: AdminChatSendReq, admin: dict = Depends(get_admin_user)):
@@ -1066,7 +1015,6 @@ async def admin_chat_send(req: AdminChatSendReq, admin: dict = Depends(get_admin
         tkt_id = tkt['id']
     else: tkt_id = await db.fetchval("INSERT INTO tickets (user_id, status, claimed_by) VALUES ($1, 'claimed', $2) RETURNING id", req.target_uid, admin['id'])
     await db.execute("INSERT INTO support_messages (ticket_id, user_id, text, direction, reply_to_id, is_from_admin, is_read) VALUES ($1,$2,$3,'out',$4,TRUE,FALSE)", tkt_id, req.target_uid, text, req.reply_to_id)
-    asyncio.create_task(push(req.target_uid, f"📨 <b>Ответ поддержки:</b>\n\n{text}"))
     return {"ok": True}
 
 @app.post("/api/admin/chat/msg/{msg_id}/edit")
@@ -1103,7 +1051,6 @@ async def admin_approve_story(claim_id: int, _: dict = Depends(get_admin_user)):
     if not c or c['status'] != 'pending': raise HTTPException(400)
     await db.execute("UPDATE stories_claims SET status='approved' WHERE id=$1", claim_id)
     await db.execute("UPDATE users SET balance=balance+250 WHERE id=$1", c['user_id'])
-    asyncio.create_task(push(c['user_id'], "📸 Story одобрена! +250 RC."))
     return {"ok": True}
 
 @app.post("/api/admin/broadcast")
@@ -1194,7 +1141,6 @@ async def send_chat_message(req: SendChatReq, user: dict = Depends(get_current_u
     text = req.text.strip()[:1000]
     if not text: return {"ok": False}
     await db.execute("INSERT INTO user_chats (sender_id, receiver_id, text) VALUES ($1,$2,$3)", user['id'], req.target_uid, text)
-    asyncio.create_task(push(req.target_uid, "✉️ У вас новое личное сообщение!"))
     return {"ok": True}
 
 @app.get("/")
