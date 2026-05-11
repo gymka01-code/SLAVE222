@@ -490,11 +490,31 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
                     <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f11">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.id}`)}</div>
                     <div className="li-sub mt4">
                       {s.job_finishes_at && timeLeft > 0 ? (
-                        <><span className="text-green">💼 В работе</span><span className="text-muted fw6 ml4"> ({fmtCountdown(timeLeft)})</span></>
+                        <>
+                          <div className="text-green fw6">{s.job_emoji} {s.job_title} <span className="text-muted ml4">({fmtCountdown(timeLeft)})</span></div>
+                          <div className="f11 text-gold mt4">Ожидаемая прибыль: ~{Math.round(s.price * s.min_yield_perc / 100)}-{Math.round(s.price * s.max_yield_perc / 100)} RC</div>
+                        </>
                       ) : (
                         <span>😴 Отдыхает</span>
                       )}
                     </div>
+                    <div className="row mt4" style={{gap:6}}>
+                      <span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>
+                      {isProtected && (
+                        <span 
+                          className="protection-badge" 
+                          style={{cursor: 'pointer'}} 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            const d = new Date(s.purchase_protection_until);
+                            showToast(`🔒 Защита до ${d.toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'})}. Причина: Недавно куплен`);
+                          }}
+                        >
+                          🔒 защита
+                        </span>
+                      )}
+                    </div>
+                    <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
                     <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
                   </div>
                   <div className="gap6">
