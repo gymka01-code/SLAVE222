@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS users (
     emoji_status TEXT DEFAULT '', vip_level INT DEFAULT 0, vip_until TIMESTAMP, 
     is_banned BOOLEAN DEFAULT FALSE, is_admin_flag BOOLEAN DEFAULT FALSE, admin_hidden BOOLEAN DEFAULT FALSE,
     purchase_protection_until TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), slaves_count INT DEFAULT 0,
-    ban_reason TEXT DEFAULT NULL
+    ban_reason TEXT DEFAULT NULL, login_streak INT DEFAULT 0, last_login_date TEXT
 );
 CREATE TABLE IF NOT EXISTS jobs (id SERIAL PRIMARY KEY, title TEXT UNIQUE, income_per_hour DECIMAL, drop_chance INT, emoji TEXT);
 CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, buyer_id BIGINT, slave_id BIGINT, seller_id BIGINT, amount DECIMAL, fee DECIMAL, created_at TIMESTAMP DEFAULT NOW());
@@ -71,7 +71,6 @@ CREATE TABLE IF NOT EXISTS user_sponsors (user_id BIGINT, sponsor_id INT, claime
 CREATE TABLE IF NOT EXISTS season_snapshots (id SERIAL PRIMARY KEY, snapshot_data JSONB, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT);
 
--- ТАБЛИЦА ДЛЯ ЕЖЕДНЕВНЫХ ЗАДАНИЙ
 CREATE TABLE IF NOT EXISTS daily_progress (
     user_id BIGINT, task_id TEXT, date_str TEXT, progress INT DEFAULT 0, claimed BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (user_id, task_id, date_str)
@@ -85,6 +84,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS purchase_protection_until TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INT DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date TEXT;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_main BOOLEAN DEFAULT FALSE;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS channel_url TEXT;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
@@ -113,7 +114,6 @@ INSERT INTO cosmetics (type, name, value, price_stars, css_class, price_rc) VALU
 ON CONFLICT (name) DO UPDATE SET price_stars=EXCLUDED.price_stars, price_rc=0;
 """
 
-# ✅ ПОВЫШЕННЫЕ ЦЕНЫ ДЛЯ МАГАЗИНА (RC)
 SHOP_ITEMS = [
     {"id":"shield_24", "name":"🛡 Щит 24ч", "price_stars":25, "price_rc":5000, "desc":"Защита от покупки на 24 часа"},
     {"id":"shield_48", "name":"🛡 Щит 48ч", "price_stars":45, "price_rc":9000, "desc":"Защита от покупки на 48 часов"},
@@ -126,23 +126,22 @@ SHOP_ITEMS = [
     {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":50000, "desc":"Налог 8%, редкие работы, на 30 дней"},
 ]
 
-# ✅ ПУЛ ИЗ 50 ЕЖЕДНЕВНЫХ ЗАДАНИЙ
+# ✅ ПУЛ ИЗ ЕЖЕДНЕВНЫХ ЗАДАНИЙ (БЕЗ ОТМЕТОК ПО ДНЯМ)
 DAILY_TASKS_POOL = [
     *[{"id": f"buy_{i}", "title": f"Купить {i} рабов", "action": "buy_slave", "target": i, "reward": i * 300} for i in [1, 2, 3, 5, 8, 10, 15, 20, 25, 30]],
     *[{"id": f"work_{i}", "title": f"Отправить на работу {i} раз", "action": "send_work", "target": i, "reward": i * 150} for i in [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50]],
-    *[{"id": f"collect_{i}", "title": f"Собрать налог {i} раз", "action": "collect", "target": i, "reward": i * 200} for i in [1, 2, 3, 4, 5, 8, 10, 15, 20, 30]],
-    *[{"id": f"checkin_{i}", "title": f"Ежедневная отметка (День {i})", "action": "checkin", "target": 1, "reward": 500} for i in range(1, 19)]
+    *[{"id": f"collect_{i}", "title": f"Собрать налог {i} раз", "action": "collect", "target": i, "reward": i * 200} for i in [1, 2, 3, 4, 5, 8, 10, 15, 20, 30]]
 ]
 
+# Награды за 7 дней (недельный вход)
+LOGIN_REWARDS = [200, 500, 800, 1200, 2000, 3000, 5000]
+
 def get_daily_tasks():
-    # По МСК времени
     msk_time = datetime.utcnow() + timedelta(hours=3)
     date_str = msk_time.strftime("%Y-%m-%d")
-    
-    # Сид генератора = текущая дата, чтобы у всех 5 заданий на сегодня были одинаковыми
     random.seed(date_str)
     selected = random.sample(DAILY_TASKS_POOL, 5)
-    random.seed() # Сбрасываем сид, чтобы не сломать рандом в игре
+    random.seed()
     return date_str, selected
 
 async def add_task_progress(user_id: int, action: str, amount: int = 1):
@@ -230,7 +229,7 @@ async def collect_income(owner_id: int) -> float:
         await db.execute("UPDATE users SET job_assigned_at=$1 WHERE id=$2", now, s['id'])
     if total > 0: 
         await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total, 2), owner_id)
-        await add_task_progress(owner_id, 'collect') # Прогресс задания
+        await add_task_progress(owner_id, 'collect')
     return total
 
 async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
@@ -303,7 +302,6 @@ async def lifespan(app: FastAPI):
     async def cmd_start(msg: types.Message):
         uid = msg.from_user.id
         
-        # ✅ ЖЕСТКАЯ БЛОКИРОВКА БОТА: ПРОВЕРКА ГЕНЕРАЛЬНЫХ СПОНСОРОВ
         main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
         missing_subs = []
         for s in main_sponsors:
@@ -311,7 +309,7 @@ async def lifespan(app: FastAPI):
                 member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
                 if member.status not in ['member', 'administrator', 'creator']:
                     missing_subs.append(s)
-            except: missing_subs.append(s) # Если бот не в админке или юзер не подписан
+            except: missing_subs.append(s)
             
         if missing_subs:
             buttons = [[InlineKeyboardButton(text=s['channel_title'], url=s['channel_url'])] for s in missing_subs]
@@ -390,7 +388,6 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# ─── Pydantic models ─────────────────────────────────────────────────────────
 class InitReq(BaseModel): init_data: str; ref_id: Optional[int] = None; photo_url: Optional[str] = None
 class BuyReq(BaseModel): target_id: int
 class RenameReq(BaseModel): slave_id: int; new_name: str
@@ -404,10 +401,7 @@ class AdminEditReq(BaseModel):
     free_slave: Optional[bool] = None; ban_reason: Optional[str] = None
 class SeasonReq(BaseModel): password: str
 class BroadcastReq(BaseModel): text: str
-class AdminChatSendReq(BaseModel):
-    target_uid: int
-    text: str = ""
-    reply_to_id: Optional[int] = None
+class AdminChatSendReq(BaseModel): target_uid: int; text: str = ""; reply_to_id: Optional[int] = None
 class EditMsgReq(BaseModel): text: str
 class TicketDeleteReq(BaseModel): user_id: int
 class PromoCreateReq(BaseModel): code: str; reward_rc: float; max_uses: int = 1
@@ -421,10 +415,7 @@ class CheckSponsorReq(BaseModel): sponsor_id: int
 class ClaimTaskReq(BaseModel): task_id: str
 class AdminHiddenReq(BaseModel): hidden: bool
 class MaintToggleReq(BaseModel): state: bool
-class SupportMessageReq(BaseModel):
-    message: str = ""
-    photo_b64: Optional[str] = None
-    reply_to_id: Optional[int] = None
+class SupportMessageReq(BaseModel): message: str = ""; photo_b64: Optional[str] = None; reply_to_id: Optional[int] = None
 
 async def _full_profile(uid: int) -> dict:
     u = await db.fetchrow("SELECT * FROM users WHERE id=$1", uid)
@@ -514,7 +505,7 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
     asyncio.create_task(push(target_id, f"⛓ Вас купил @{buyer['username'] or buyer_id}! Ожидайте работу."))
     if target['owner_id']: asyncio.create_task(push(target['owner_id'], f"💰 Вашего раба @{target['username'] or target_id} перекупили! Прибыль: <b>{payout:.0f} RC</b>."))
     
-    await add_task_progress(buyer_id, 'buy_slave') # Прогресс задания
+    await add_task_progress(buyer_id, 'buy_slave')
     return {"ok": True, "paid": price, "new_price": new_price}
 
 @app.post("/api/slaves/send_to_work")
@@ -526,7 +517,7 @@ async def send_to_work(req: SendWorkReq, user: dict = Depends(get_current_user))
     await db.execute("UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3", new_job['id'], datetime.utcnow(), req.slave_id)
     asyncio.create_task(push(req.slave_id, f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b>!"))
     
-    await add_task_progress(user['id'], 'send_work') # Прогресс задания
+    await add_task_progress(user['id'], 'send_work')
     return {"ok": True, "job": dict(new_job)}
 
 @app.get("/api/jobs")
@@ -648,12 +639,63 @@ async def get_tasks_status(x_init_data: str = Header(...)):
             "is_completed": p['progress'] >= t['target'],
             "is_claimed": p['claimed']
         })
+        
+    # 3. Ежедневный вход (7 дней)
+    u = await db.fetchrow("SELECT login_streak, last_login_date FROM users WHERE id=$1", uid)
+    today = (datetime.utcnow() + timedelta(hours=3)).strftime("%Y-%m-%d")
+    yesterday = (datetime.utcnow() + timedelta(hours=3) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    streak = u['login_streak'] or 0
+    last_date = u['last_login_date']
+
+    can_claim_login = False
+    display_streak = streak
+
+    if last_date == today:
+        can_claim_login = False
+    elif last_date == yesterday:
+        can_claim_login = True
+        display_streak = (streak % 7) + 1
+    else:
+        can_claim_login = True
+        display_streak = 1
+        
+    if display_streak == 0: display_streak = 1
 
     return {
         "missing_main_sponsors": missing_main_sponsors,
         "sponsors": tasks_sponsors,
-        "daily": daily_tasks
+        "daily": daily_tasks,
+        "login_bonus": {
+            "current_day": display_streak,
+            "can_claim": can_claim_login,
+            "rewards": LOGIN_REWARDS
+        }
     }
+
+@app.post("/api/tasks/claim_login")
+async def claim_login_bonus(u: dict = Depends(get_current_user)):
+    today = (datetime.utcnow() + timedelta(hours=3)).strftime("%Y-%m-%d")
+    yesterday = (datetime.utcnow() + timedelta(hours=3) - timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    uid = u['id']
+    user_db = await db.fetchrow("SELECT login_streak, last_login_date FROM users WHERE id=$1", uid)
+    
+    streak = user_db['login_streak'] or 0
+    last_date = user_db['last_login_date']
+    
+    if last_date == today:
+        raise HTTPException(400, "Награда за сегодня уже получена")
+        
+    if last_date == yesterday:
+        new_streak = (streak % 7) + 1
+    else:
+        new_streak = 1
+        
+    reward = LOGIN_REWARDS[new_streak - 1]
+    
+    await db.execute("UPDATE users SET balance=balance+$1, login_streak=$2, last_login_date=$3 WHERE id=$4", reward, new_streak, today, uid)
+    return {"ok": True, "reward": reward, "day": new_streak}
 
 @app.post("/api/tasks/claim_daily")
 async def claim_daily_task(req: ClaimTaskReq, u: dict = Depends(get_current_user)):
@@ -661,16 +703,10 @@ async def claim_daily_task(req: ClaimTaskReq, u: dict = Depends(get_current_user
     task = next((t for t in daily_tasks_data if t['id'] == req.task_id), None)
     if not task: raise HTTPException(404, "Задание не найдено или истекло")
 
-    if task['action'] == 'checkin':
-        await add_task_progress(u['id'], 'checkin')
-
     prog = await db.fetchrow("SELECT progress, claimed FROM daily_progress WHERE user_id=$1 AND task_id=$2 AND date_str=$3", u['id'], req.task_id, date_str)
     
     if not prog or prog['progress'] < task['target']:
-        if task['action'] == 'checkin':
-            prog = {'progress': 1, 'claimed': False} # Только что добавили
-        else:
-            raise HTTPException(400, "Задание еще не выполнено")
+        raise HTTPException(400, "Задание еще не выполнено")
             
     if prog.get('claimed'): raise HTTPException(400, "Награда уже получена")
 
