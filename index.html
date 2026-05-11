@@ -341,13 +341,15 @@ function RiotModal({ onClose, onSuppress }) {
 function GamesScreen({ user, onRefresh, showToast }) {
   const [tab, setTab] = useState('mine');
   
-  const [localEnergy, setLocalEnergy] = useState(user.energy);
+  const [localEnergy, setLocalEnergy] = useState(parseFloat(user.energy) || 0);
   const [unsyncedClicks, setUnsyncedClicks] = useState(0);
   const [floats, setFloats] = useState([]);
   
+  // Регенерация энергии: От 0 до max за 7200 сек (2 часа) -> max/7200 в секунду
   useEffect(() => {
     if (tab !== 'mine') return;
-    const int = setInterval(() => setLocalEnergy(e => Math.min(user.max_energy, e + 1)), 1000);
+    const regenPerSec = user.max_energy / 7200;
+    const int = setInterval(() => setLocalEnergy(e => Math.min(user.max_energy, e + regenPerSec)), 1000);
     return () => clearInterval(int);
   }, [tab, user.max_energy]);
 
@@ -364,7 +366,7 @@ function GamesScreen({ user, onRefresh, showToast }) {
   }, [unsyncedClicks, tab]);
 
   const handleMineTap = (e) => {
-    if (localEnergy <= 0) return;
+    if (Math.floor(localEnergy) <= 0) return;
     setLocalEnergy(e => e - 1); setUnsyncedClicks(c => c + 1);
     const rect = e.currentTarget.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
     const id = Date.now() + Math.random();
@@ -393,11 +395,11 @@ function GamesScreen({ user, onRefresh, showToast }) {
             {user.owner && <div className="f12 text-red mt4">⛓ 20% добычи уходит вашему хозяину</div>}
             {!user.owner && <div className="f12 text-green mt4">✅ Вы свободны. 100% добычи ваши.</div>}
           </div>
-          <div className="mine-rock" onPointerDown={handleMineTap}>🪨{floats.map(f => (<div key={f.id} className="floating-number" style={{left: f.x, top: f.y}}>+{user.click_power}</div>))}</div>
-          <div className="mt20"><div className="row-sb mb8"><span className="fw7 f12 text-muted">Энергия</span><span className="fw8 f13">{localEnergy} / {user.max_energy}</span></div><div className="energy-bar-wrap"><div className="energy-bar-fill" style={{width: `${(localEnergy/user.max_energy)*100}%`}}></div></div></div>
+          <div className="mine-rock" onPointerDown={handleMineTap}>🪨{floats.map(f => (<div key={f.id} className="floating-number" style={{left: f.x, top: f.y}}>+{(user.click_power * 0.5).toFixed(1)}</div>))}</div>
+          <div className="mt20"><div className="row-sb mb8"><span className="fw7 f12 text-muted">Энергия</span><span className="fw8 f13">{Math.floor(localEnergy)} / {user.max_energy}</span></div><div className="energy-bar-wrap"><div className="energy-bar-fill" style={{width: `${(localEnergy/user.max_energy)*100}%`}}></div></div></div>
           <div className="section-title mt20">Прокачка кирки</div>
-          <div className="card row-sb" style={{margin:0, marginBottom:8}}><div><div className="fw7">Мощь тапа (ур. {user.click_power})</div><div className="f12 text-muted mt4">+1 RC за клик</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('power')}>{(user.click_power * 1000).toFixed(0)} RC</button></div>
-          <div className="card row-sb" style={{margin:0}}><div><div className="fw7">Запас энергии ({user.max_energy})</div><div className="f12 text-muted mt4">+500 макс. энергии</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('energy')}>{(user.max_energy * 1.5).toFixed(0)} RC</button></div>
+          <div className="card row-sb" style={{margin:0, marginBottom:8}}><div><div className="fw7">Мощь тапа (ур. {user.click_power})</div><div className="f12 text-muted mt4">+0.5 RC за клик</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('power')}>{(user.click_power * 3000).toFixed(0)} RC</button></div>
+          <div className="card row-sb" style={{margin:0}}><div><div className="fw7">Запас энергии ({user.max_energy})</div><div className="f12 text-muted mt4">+100 макс. энергии</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('energy')}>1500 RC</button></div>
         </div>
       )}
       
@@ -467,7 +469,15 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
   async function doRename() { if (!newName.trim()) return; try { await post('/api/rename', { slave_id: renaming, new_name: newName.trim() }); showToast('✅ Кличка установлена'); setRenaming(null); setNewName(''); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } }
   async function claimStory() { try { const r = await post('/api/stories/claim'); showToast('📸 ' + r.msg); setStoryPendingModal(false); onRefresh(); } catch(e) { showToast('❌ ' + e.message); setStoryPendingModal(false); } }
   async function doSelfbuy() { if (!confirm(`Выкупить себя за ${(user.price * 1.5).toFixed(0)} RC? (50% уйдет владельцу, 50% сгорит)`)) return; setLoadingSelf(true); try { await post('/api/selfbuy'); showToast('🎉 Вы на свободе!'); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } setLoadingSelf(false); }
-  const workingSlave = sendWorkSlave ? user.slaves.find(s => s.id === sendWorkSlave) : null; const refLink = `https://t.me/${user.bot_username || _botUsername}?start=ref_${user.id}`; const ev = user.current_event || {};
+  const workingSlave = sendWorkSlave ? user.slaves.find(s => s.id === sendWorkSlave) : null; 
+  const refLink = `https://t.me/${user.bot_username || _botUsername}?start=ref_${user.id}`; 
+  const ev = user.current_event || {};
+
+  const handleShareReferral = () => {
+    const shareText = "⛓ Залетай в РАБСТВО! \nТут можно покупать и продавать людей, зарабатывать и строить свою империю! 👇";
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`;
+    window.Telegram.WebApp.openTelegramLink(shareUrl);
+  };
 
   return (
     <div className="content">
@@ -477,7 +487,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
         <div className="hero-stats"><div className="stat"><div className="stat-val">{user.balance.toFixed(0)}</div><div className="stat-lbl">💰 Баланс RC</div></div><div className="stat"><div className="stat-val">{user.price.toFixed(0)}</div><div className="stat-lbl">🏷 Моя цена</div></div><div className="stat"><div className="stat-val">{user.slaves_count}<span className="text-muted f12">/{user.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div></div>
         {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (<div className="effects-row" style={{marginTop: 16, borderTop:'1px solid var(--border)', paddingTop:12}}>{user.shield_active  && <div className="effect-chip gold">🛡 Щит</div>}{user.stealth_active && <div className="effect-chip">👻 Стелс</div>}{user.booster_active && <div className="effect-chip green">🚀 Буст ×{user.booster_mult}</div>}{user.chains_active  && <div className="effect-chip red">⛓ Оковы</div>}</div>)}
       </div>
-      <div className="section gap8" style={{marginTop:0}}><button className="btn btn-ghost" onClick={() => { navigator.clipboard?.writeText(refLink); showToast('🔗 Ссылка скопирована! 5% с дохода реферала — ваши.'); }}>🔗 Пригласить друга (5% бонус)</button>{user.owner && <button className="btn btn-danger" onClick={doSelfbuy} disabled={loadingSelf}>{loadingSelf ? '...' : `🔓 Выкупить себя (${(user.price * 1.5).toFixed(0)} RC)`}</button>}</div>
+      <div className="section gap8" style={{marginTop:0}}><button className="btn btn-ghost" onClick={handleShareReferral}>🔗 Пригласить друга (5% бонус)</button>{user.owner && <button className="btn btn-danger" onClick={doSelfbuy} disabled={loadingSelf}>{loadingSelf ? '...' : `🔓 Выкупить себя (${(user.price * 1.5).toFixed(0)} RC)`}</button>}</div>
       {user.is_admin && (<div className="section"><div className="card row-sb" style={{padding:'12px 16px', margin:0}}><div><div className="fw7" style={{fontSize:13}}>👻 Режим призрака</div><div className="text-muted f11 mt4">Скрыть себя из рейтингов и поиска</div></div><AdminGhostToggle userId={user.id} initialHidden={user.admin_hidden} onToast={showToast}/></div></div>)}
       <div className="stories-card"><div className="stories-ico">📸</div><div className="stories-title">Stories Бонус</div><div className="stories-sub">Опубликуй Story с карточкой — получи +250 RC</div>{user.story_cooldown_until && storiesCountdown > 0 ? (<><div className="stories-timer">{fmtCountdown(storiesCountdown)}</div><div className="f12 text-muted mt4">до следующей возможности</div></>) : (<button className="btn btn-primary mt16" onClick={() => generateAndShareStory(user, showToast, setStoryPendingModal)}>✨ Выложить Story</button>)}</div>
       
