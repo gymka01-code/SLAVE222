@@ -53,9 +53,10 @@ CREATE TABLE IF NOT EXISTS users (
     emoji_status TEXT DEFAULT '', vip_level INT DEFAULT 0, vip_until TIMESTAMP, 
     is_banned BOOLEAN DEFAULT FALSE, is_admin_flag BOOLEAN DEFAULT FALSE, admin_hidden BOOLEAN DEFAULT FALSE,
     purchase_protection_until TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), slaves_count INT DEFAULT 0,
-    ban_reason TEXT DEFAULT NULL, login_streak INT DEFAULT 0, last_login_date TEXT
+    ban_reason TEXT DEFAULT NULL, login_streak INT DEFAULT 0, last_login_date TEXT,
+    referrer_id BIGINT
 );
-CREATE TABLE IF NOT EXISTS jobs (id SERIAL PRIMARY KEY, title TEXT UNIQUE, income_per_hour DECIMAL, drop_chance INT, emoji TEXT);
+CREATE TABLE IF NOT EXISTS jobs (id SERIAL PRIMARY KEY, title TEXT UNIQUE, min_yield DECIMAL, max_yield DECIMAL, drop_chance INT, emoji TEXT);
 CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, buyer_id BIGINT, slave_id BIGINT, seller_id BIGINT, amount DECIMAL, fee DECIMAL, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS tickets (id SERIAL PRIMARY KEY, user_id BIGINT, status TEXT DEFAULT 'open', claimed_by BIGINT, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS support_messages (id SERIAL PRIMARY KEY, ticket_id INT, user_id BIGINT, text TEXT, photo_b64 TEXT, direction TEXT, reply_to_id INT, is_from_admin BOOLEAN DEFAULT FALSE, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW());
@@ -86,6 +87,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS login_streak INT DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referrer_id BIGINT;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_main BOOLEAN DEFAULT FALSE;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS channel_url TEXT;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
@@ -93,14 +95,16 @@ ALTER TABLE sponsors ALTER COLUMN channel_id TYPE TEXT USING channel_id::text;
 
 INSERT INTO global_settings (key, value) VALUES ('maintenance', '0') ON CONFLICT DO NOTHING;
 
-DELETE FROM jobs WHERE id NOT IN (SELECT MIN(id) FROM jobs GROUP BY title);
-CREATE UNIQUE INDEX IF NOT EXISTS jobs_title_idx ON jobs(title);
-
-INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
-  ('Подметать полы', 15.0, 70, '🧹'), ('Раздавать листовки', 20.0, 70, '📄'), 
-  ('Майнить крипту', 85.0, 25, '⛏'), ('Петь на улице', 70.0, 25, '🎤'), 
-  ('Тапать хомяка', 250.0, 5, '🐹'), ('Просить милостыню', 220.0, 5, '🙏')
-ON CONFLICT (title) DO UPDATE SET income_per_hour=EXCLUDED.income_per_hour;
+-- ПЕРЕСОЗДАЕМ РАБОТЫ (НОВАЯ ЭКОНОМИКА: % ОТ СТОИМОСТИ НА 2 ЧАСА)
+DROP TABLE IF EXISTS jobs CASCADE;
+CREATE TABLE jobs (id SERIAL PRIMARY KEY, title TEXT UNIQUE, min_yield DECIMAL, max_yield DECIMAL, drop_chance INT, emoji TEXT);
+INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES
+  ('Подметать полы', 0.03, 0.04, 70, '🧹'), 
+  ('Раздавать листовки', 0.035, 0.045, 70, '📄'), 
+  ('Майнить крипту', 0.045, 0.055, 25, '⛏'), 
+  ('Петь на улице', 0.04, 0.05, 25, '🎤'), 
+  ('Тапать хомяка', 0.06, 0.07, 5, '🐹'), 
+  ('Просить милостыню', 0.055, 0.065, 5, '🙏');
 
 DELETE FROM cosmetics WHERE id NOT IN (SELECT MIN(id) FROM cosmetics GROUP BY name);
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
@@ -121,19 +125,16 @@ SHOP_ITEMS = [
     {"id":"boost_15", "name":"🚀 Буст ×1.5", "price_stars":20, "price_rc":4500, "desc":"Доход +50% на 24 часа"},
     {"id":"boost_20", "name":"🚀 Буст ×2.0", "price_stars":35, "price_rc":8000, "desc":"Двойной доход на 24 часа"},
     {"id":"stealth", "name":"👻 Стелс", "price_stars":20, "price_rc":3000, "desc":"Скрывает вас из рейтингов"},
-    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":15000, "desc":"+2% к доходу, на 30 дней"},
-    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":30000, "desc":"+5% к доходу, на 30 дней"},
-    {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":50000, "desc":"Налог 8%, редкие работы, на 30 дней"},
+    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":15000, "desc":"Лимит +5 рабов, на 30 дней"},
+    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":30000, "desc":"Лимит +15 рабов, на 30 дней"},
+    {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":50000, "desc":"Лимит +35 рабов, редкие работы, на 30 дней"},
 ]
 
-# ✅ ПУЛ ИЗ ЕЖЕДНЕВНЫХ ЗАДАНИЙ (БЕЗ ОТМЕТОК ПО ДНЯМ)
 DAILY_TASKS_POOL = [
     *[{"id": f"buy_{i}", "title": f"Купить {i} рабов", "action": "buy_slave", "target": i, "reward": i * 300} for i in [1, 2, 3, 5, 8, 10, 15, 20, 25, 30]],
     *[{"id": f"work_{i}", "title": f"Отправить на работу {i} раз", "action": "send_work", "target": i, "reward": i * 150} for i in [1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50]],
     *[{"id": f"collect_{i}", "title": f"Собрать налог {i} раз", "action": "collect", "target": i, "reward": i * 200} for i in [1, 2, 3, 4, 5, 8, 10, 15, 20, 30]]
 ]
-
-# Награды за 7 дней (недельный вход)
 LOGIN_REWARDS = [200, 500, 800, 1200, 2000, 3000, 5000]
 
 def get_daily_tasks():
@@ -218,18 +219,44 @@ async def get_admin_ids() -> set:
 async def notify_admins(text: str, photo_path: str = None):
     for uid in await get_admin_ids(): asyncio.create_task(push(uid, text, photo_path=photo_path))
 
+# ✅ НОВАЯ ЛОГИКА СБОРА ДОХОДА (ПО ИСТЕЧЕНИЮ 2 ЧАСОВ)
 async def collect_income(owner_id: int) -> float:
     now = datetime.utcnow()
-    slaves = await db.fetch("SELECT u.id, u.job_assigned_at, u.booster_mult, u.booster_until, j.income_per_hour FROM users u LEFT JOIN jobs j ON u.job_id = j.id WHERE u.owner_id=$1 AND u.job_id IS NOT NULL AND u.job_assigned_at IS NOT NULL", owner_id)
+    # Берем только тех рабов, которые УЖЕ отработали 2 часа
+    slaves = await db.fetch("""
+        SELECT u.id, u.current_price, u.booster_mult, u.booster_until, j.min_yield, j.max_yield 
+        FROM users u JOIN jobs j ON u.job_id = j.id 
+        WHERE u.owner_id=$1 AND u.job_id IS NOT NULL AND u.job_assigned_at <= $2
+    """, owner_id, now - timedelta(hours=2))
+    
+    if not slaves: return 0.0
+
+    ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
+    event = json.loads(ev_data) if ev_data else {"type": "normal"}
+
     total = 0.0
     for s in slaves:
-        hrs = (now - s['job_assigned_at']).total_seconds() / 3600
+        # Формула: Цена * случайный % от работы
+        base_reward = float(s['current_price']) * random.uniform(float(s['min_yield']), float(s['max_yield']))
+        
+        # Если кризис - доход падает на 20%
+        if event.get("type") == "crisis": base_reward *= 0.8
+            
         mult = float(s['booster_mult']) if s['booster_until'] and s['booster_until'] > now else 1.0
-        total += hrs * float(s['income_per_hour']) * mult
-        await db.execute("UPDATE users SET job_assigned_at=$1 WHERE id=$2", now, s['id'])
+        total += base_reward * mult
+        
+        # Сбрасываем работу (освобождаем раба)
+        await db.execute("UPDATE users SET job_id=NULL, job_assigned_at=NULL WHERE id=$1", s['id'])
+        await add_task_progress(owner_id, 'collect')
+
     if total > 0: 
         await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total, 2), owner_id)
-        await add_task_progress(owner_id, 'collect')
+        
+        # 5% Рефоводу (пассивный доход)
+        owner_ref = await db.fetchval("SELECT referrer_id FROM users WHERE id=$1", owner_id)
+        if owner_ref:
+            await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", round(total * 0.05, 2), owner_ref)
+            
     return total
 
 async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
@@ -323,7 +350,9 @@ async def lifespan(app: FastAPI):
             except: pass
         if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
             owner_id = ref_id if ref_id and ref_id != uid else None
-            await db.execute("INSERT INTO users(id,username,first_name,balance,current_price,owner_id) VALUES($1,$2,$3,50,100,$4) ON CONFLICT DO NOTHING", uid, msg.from_user.username, msg.from_user.first_name, owner_id)
+            # Сохраняем реферала
+            await db.execute("INSERT INTO users(id,username,first_name,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,50,100,$4,$5) ON CONFLICT DO NOTHING", uid, msg.from_user.username, msg.from_user.first_name, owner_id, ref_id)
+            if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{tg.get('username', uid)}! Вы будете получать 5% с его доходов."))
         await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]]))
 
     @dp.callback_query(F.data == "check_main_subs")
@@ -363,16 +392,38 @@ async def lifespan(app: FastAPI):
     except: pass
     asyncio.create_task(dp.start_polling(bot, skip_updates=True))
     
-    async def _income_cron():
+    # ✅ СИСТЕМНЫЙ КРОН (События + Амортизация + Автосбор 2х часов)
+    async def _system_cron():
         while True:
-            await asyncio.sleep(1800)
+            await asyncio.sleep(60) # Раз в минуту
             try:
-                for row in await db.fetch("SELECT DISTINCT owner_id FROM users WHERE owner_id IS NOT NULL AND job_id IS NOT NULL"):
-                    try: await collect_income(row['owner_id'])
-                    except: pass
+                now = datetime.utcnow()
+                
+                # 1. Глобальные События (раз в 6 часов)
+                ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
+                ev = json.loads(ev_data) if ev_data else None
+                
+                if not ev or ev.get('expires_at', 0) < now.timestamp():
+                    new_ev = random.choice([
+                        {"type": "normal", "name": "Штиль", "desc": "Экономика стабильна. Никаких эффектов."},
+                        {"type": "crisis", "name": "📉 Кризис", "desc": "Доходы от работ снижены на 20%!"},
+                        {"type": "boom", "name": "📈 Экономический Бум", "desc": "Инфляция замедлена! Цены на покупку растут на 15% вместо 20%."}
+                    ])
+                    new_ev['expires_at'] = (now + timedelta(hours=6)).timestamp()
+                    await db.execute("INSERT INTO global_settings(key,value) VALUES('event_data', $1) ON CONFLICT(key) DO UPDATE SET value=$1", json.dumps(new_event))
+
+                # 2. Амортизация рабов (уценка 5% в сутки если не работают)
+                # Выполняется раз в час:
+                if now.minute == 0:
+                    await db.execute("UPDATE users SET current_price = GREATEST(current_price * 0.95, 100) WHERE (job_assigned_at IS NULL OR job_assigned_at < NOW() - INTERVAL '24 hours') AND created_at < NOW() - INTERVAL '24 hours'")
+                
+                # 3. Автосбор выполненных работ (> 2 часов)
+                owners_to_collect = await db.fetch("SELECT DISTINCT owner_id FROM users WHERE job_assigned_at <= NOW() - INTERVAL '2 hours'")
+                for r in owners_to_collect:
+                    if r['owner_id']: await collect_income(r['owner_id'])
             except: pass
             
-    asyncio.create_task(_income_cron())
+    asyncio.create_task(_system_cron())
     yield
     await db.close()
     await rdb.aclose()
@@ -424,16 +475,55 @@ async def _full_profile(uid: int) -> dict:
     now = datetime.utcnow()
     owner = dict(await db.fetchrow("SELECT id,username,first_name,photo_url FROM users WHERE id=$1", u['owner_id'])) if u['owner_id'] else None
 
-    slaves_raw = await db.fetch("SELECT u.id,u.username,u.first_name,u.custom_name,u.current_price,u.photo_url,u.job_id, u.job_assigned_at, j.title as job_title, j.emoji as job_emoji, j.income_per_hour, u.purchase_protection_until FROM users u LEFT JOIN jobs j ON u.job_id=j.id WHERE u.owner_id=$1", uid)
-    owner_mult = float(u['booster_mult']) if u['booster_until'] and u['booster_until'] > now else 1.0
-    slaves = [{"id": s['id'], "username": s['username'], "first_name": s['first_name'], "photo_url": s['photo_url'], "custom_name": s['custom_name'], "price": float(s['current_price']), "job_id": s['job_id'], "job_title": s['job_title'], "job_emoji": s['job_emoji'], "income_per_hour": float(s['income_per_hour'] or 0), "income_per_hour_effective": round(float(s['income_per_hour'] or 0) * owner_mult, 2), "working": bool(s['job_id'] and s['job_assigned_at']), "purchase_protection_until": s['purchase_protection_until'].isoformat() if s['purchase_protection_until'] else None} for s in slaves_raw]
+    # Достаем рабов с инфой о работе
+    slaves_raw = await db.fetch("SELECT u.id,u.username,u.first_name,u.custom_name,u.current_price,u.photo_url,u.job_id, u.job_assigned_at, j.title as job_title, j.emoji as job_emoji, j.min_yield, j.max_yield, u.purchase_protection_until FROM users u LEFT JOIN jobs j ON u.job_id=j.id WHERE u.owner_id=$1", uid)
+    
+    slaves = []
+    for s in slaves_raw:
+        job_finishes_at = (s['job_assigned_at'] + timedelta(hours=2)).isoformat() if s['job_assigned_at'] else None
+        slaves.append({
+            "id": s['id'], "username": s['username'], "first_name": s['first_name'], 
+            "photo_url": s['photo_url'], "custom_name": s['custom_name'], 
+            "price": float(s['current_price']), "job_id": s['job_id'], 
+            "job_title": s['job_title'], "job_emoji": s['job_emoji'], 
+            "min_yield_perc": float(s['min_yield'] or 0) * 100, 
+            "max_yield_perc": float(s['max_yield'] or 0) * 100, 
+            "job_finishes_at": job_finishes_at,
+            "purchase_protection_until": s['purchase_protection_until'].isoformat() if s['purchase_protection_until'] else None
+        })
+        
     await db.execute("UPDATE users SET slaves_count=$1 WHERE id=$2", len(slaves), uid)
+
+    # Макс лимит рабов
+    max_slaves = 15
+    if u['vip_level'] == 1: max_slaves = 20
+    elif u['vip_level'] == 2: max_slaves = 30
+    elif u['vip_level'] >= 3: max_slaves = 50
 
     last_story = await db.fetchrow("SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", uid)
     story_cooldown_until = None
     if last_story and (last_story['created_at'] + timedelta(hours=24)) > now: story_cooldown_until = (last_story['created_at'] + timedelta(hours=24)).isoformat()
+    
+    # Инфа о текущем событии
+    ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
+    event = json.loads(ev_data) if ev_data else {"type": "normal", "name": "Штиль", "desc": "Экономика стабильна"}
+    
     return {
-        "id": u['id'], "username": u['username'], "first_name": u['first_name'], "photo_url": u['photo_url'], "balance": round(float(u['balance']), 2), "price": round(float(u['current_price']), 2), "owner": owner, "custom_name": u['custom_name'], "slaves": slaves, "slaves_count": len(slaves), "total_income_per_hour": round(sum(s['income_per_hour_effective'] for s in slaves if s['working']), 2), "shield_active": bool(u['shield_until'] and u['shield_until'] > now), "stealth_active": bool(u['stealth_until'] and u['stealth_until'] > now), "booster_active": bool(u['booster_until'] and u['booster_until'] > now), "booster_mult": float(u['booster_mult']), "chains_active": bool(u['chains_until'] and u['chains_until'] > now), "vip_level": u['vip_level'], "name_color": u['name_color'], "avatar_frame": u['avatar_frame'], "emoji_status": u['emoji_status'], "is_admin": await is_admin_user(u['id']), "is_admin_flag": bool(u.get('is_admin_flag')), "is_super_admin": u['id'] == SUPER_ADMIN_ID, "admin_hidden": bool(u.get('admin_hidden')), "story_cooldown_until": story_cooldown_until, "bot_username": BOT_USERNAME, "maintenance": (await db.fetchval("SELECT value FROM global_settings WHERE key='maintenance'") == '1'), "is_banned": bool(u['is_banned']), "ban_reason": u.get('ban_reason')
+        "id": u['id'], "username": u['username'], "first_name": u['first_name'], "photo_url": u['photo_url'], 
+        "balance": round(float(u['balance']), 2), "price": round(float(u['current_price']), 2), 
+        "owner": owner, "custom_name": u['custom_name'], "slaves": slaves, "slaves_count": len(slaves), 
+        "max_slaves": max_slaves,
+        "shield_active": bool(u['shield_until'] and u['shield_until'] > now), 
+        "stealth_active": bool(u['stealth_until'] and u['stealth_until'] > now), 
+        "booster_active": bool(u['booster_until'] and u['booster_until'] > now), "booster_mult": float(u['booster_mult']), 
+        "chains_active": bool(u['chains_until'] and u['chains_until'] > now), "vip_level": u['vip_level'], 
+        "name_color": u['name_color'], "avatar_frame": u['avatar_frame'], "emoji_status": u['emoji_status'], 
+        "is_admin": await is_admin_user(u['id']), "is_admin_flag": bool(u.get('is_admin_flag')), 
+        "is_super_admin": u['id'] == SUPER_ADMIN_ID, "admin_hidden": bool(u.get('admin_hidden')), 
+        "story_cooldown_until": story_cooldown_until, "bot_username": BOT_USERNAME, 
+        "maintenance": (await db.fetchval("SELECT value FROM global_settings WHERE key='maintenance'") == '1'), 
+        "is_banned": bool(u['is_banned']), "ban_reason": u.get('ban_reason'),
+        "current_event": event
     }
 
 @app.get("/api/config")
@@ -451,8 +541,8 @@ async def init_user(req: InitReq):
         except: pass
     if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
         owner_id = req.ref_id if (req.ref_id and req.ref_id != uid) else None
-        await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id) VALUES($1,$2,$3,$4,50,100,$5) ON CONFLICT DO NOTHING", uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id)
-        if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{tg.get('username', uid)}! Новый раб."))
+        await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,$4,50,100,$5,$6) ON CONFLICT DO NOTHING", uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id, req.ref_id)
+        if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{tg.get('username', uid)}! Вы будете получать 5% с его доходов."))
     else: await db.execute("UPDATE users SET username=$1,first_name=$2,photo_url=$3 WHERE id=$4", tg.get('username'), tg.get('first_name'), photo_url, uid)
     return await _full_profile(uid)
 
@@ -475,6 +565,9 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
     if buyer_id == target_id: raise HTTPException(400, "Нельзя купить самого себя")
     await collect_income(buyer_id)
     
+    # Лимит рабов
+    if user['slaves_count'] >= user['max_slaves']: raise HTTPException(400, f"Лимит достигнут ({user['max_slaves']}). Нужен VIP.")
+    
     now = datetime.utcnow()
     async with db.acquire() as conn:
         async with conn.transaction():
@@ -495,7 +588,12 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
             price = float(target['current_price']) * (1.5 if target['chains_until'] and target['chains_until'] > now else 1.0)
             if float(buyer['balance']) < price: raise HTTPException(400, f"Недостаточно RC. Нужно {price:.0f}")
             
-            fee, payout, new_price = round(price * 0.10, 2), round(price * 0.90, 2), round(float(target['current_price']) * (1 + random.uniform(0.10, 0.20)), 2)
+            # 1. Формула покупки (Налог 10%, Рост цены 20% (Или 15% в Бум))
+            ev_data = await conn.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
+            event = json.loads(ev_data) if ev_data else {}
+            multiplier = 1.15 if event.get('type') == 'boom' else 1.20
+            
+            fee, payout, new_price = round(price * 0.10, 2), round(price * 0.90, 2), round(float(target['current_price']) * multiplier, 2)
             
             await conn.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", price, buyer_id)
             await conn.execute("UPDATE users SET current_price=$1,owner_id=$2,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,purchase_protection_until=$3 WHERE id=$4", new_price, buyer_id, now + timedelta(hours=2), target_id)
@@ -512,16 +610,22 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
 async def send_to_work(req: SendWorkReq, user: dict = Depends(get_current_user)):
     s = await db.fetchrow("SELECT * FROM users WHERE id=$1", req.slave_id)
     if not s or s['owner_id'] != user['id']: raise HTTPException(403, "Это не ваш раб")
-    if s['job_assigned_at'] and (datetime.utcnow() - s['job_assigned_at']).total_seconds() < 7200: raise HTTPException(400, f"Раб занят еще {int((7200 - (datetime.utcnow() - s['job_assigned_at']).total_seconds()) / 60)} мин.")
+    if s['job_assigned_at'] and (datetime.utcnow() - s['job_assigned_at']).total_seconds() < 7200: raise HTTPException(400, "Раб уже занят")
     new_job = pick_job(user['vip_level'], await get_jobs_list())
     await db.execute("UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3", new_job['id'], datetime.utcnow(), req.slave_id)
-    asyncio.create_task(push(req.slave_id, f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b>!"))
+    asyncio.create_task(push(req.slave_id, f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b> на 2 часа!"))
     
     await add_task_progress(user['id'], 'send_work')
     return {"ok": True, "job": dict(new_job)}
 
 @app.get("/api/jobs")
-async def get_jobs(_: dict = Depends(get_current_user)): return await get_jobs_list()
+async def get_jobs(_: dict = Depends(get_current_user)): 
+    jobs = await get_jobs_list()
+    # Конвертируем yield для фронтенда (3% вместо 0.03)
+    for j in jobs:
+        j['min_yield'] = float(j['min_yield']) * 100
+        j['max_yield'] = float(j['max_yield']) * 100
+    return jobs
 
 @app.post("/api/selfbuy")
 async def self_buy(user: dict = Depends(get_current_user)):
@@ -537,12 +641,14 @@ async def self_buy(user: dict = Depends(get_current_user)):
                 await conn.execute("SELECT 1 FROM users WHERE id=$1 FOR UPDATE", locked_id)
                 
             u = dict(await conn.fetchrow("SELECT * FROM users WHERE id=$1", uid))
-            price = float(u['current_price'])
+            
+            # 3. Выкуп х1.5. 50% сгорает, 50% уходит владельцу
+            price = float(u['current_price']) * 1.5
             if float(u['balance']) < price: raise HTTPException(400, f"Нужно {price:.0f} RC")
-            payout = round(price * 0.90, 2)
+            payout = round(price * 0.50, 2)
             
             await conn.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", price, uid)
-            await conn.execute("UPDATE users SET current_price=$1,owner_id=NULL,custom_name=NULL,job_id=NULL,job_assigned_at=NULL WHERE id=$2", round(price * (1 + random.uniform(0.10, 0.20)), 2), uid)
+            await conn.execute("UPDATE users SET owner_id=NULL,custom_name=NULL,job_id=NULL,job_assigned_at=NULL WHERE id=$1", uid) # current_price не меняем
             await conn.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", payout, owner_id)
     asyncio.create_task(push(owner_id, f"💸 @{u['username'] or uid} выкупил себя! Вы получили <b>{payout:.0f} RC</b>."))
     return {"ok": True}
@@ -599,13 +705,10 @@ async def stories_claim(u: dict = Depends(get_current_user)):
     asyncio.create_task(notify_admins(f"📸 <b>Новая заявка на Story!</b>\nОт пользователя @{u['username'] or u['id']}\nЖдет проверки в админ-панели."))
     return {"ok": True, "msg": "Заявка отправлена модераторам!"}
 
-# ── ЕЖЕДНЕВНЫЕ ЗАДАНИЯ И СПОНСОРЫ ──
-
 @app.get("/api/tasks/status")
 async def get_tasks_status(x_init_data: str = Header(...)):
     uid = await _resolve_uid(x_init_data)
     
-    # 1. Получаем спонсоров
     sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_active=TRUE ORDER BY is_main DESC, id ASC")
     missing_main_sponsors = []
     tasks_sponsors = []
@@ -615,8 +718,7 @@ async def get_tasks_status(x_init_data: str = Header(...)):
         try:
             member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
             is_subbed = member.status in ['member', 'administrator', 'creator']
-        except Exception:
-            pass # Бот не в канале или юзер не подписан
+        except Exception: pass
 
         if s['is_main'] and not is_subbed:
             missing_main_sponsors.append(dict(s))
@@ -625,7 +727,6 @@ async def get_tasks_status(x_init_data: str = Header(...)):
             claimed = bool(await db.fetchrow("SELECT 1 FROM user_sponsors WHERE user_id=$1 AND sponsor_id=$2", uid, s['id']))
             tasks_sponsors.append({**dict(s), 'claimed': claimed, 'is_subbed': is_subbed})
 
-    # 2. Получаем ежедневные задания
     date_str, daily_tasks_data = get_daily_tasks()
     user_progress = await db.fetch("SELECT task_id, progress, claimed FROM daily_progress WHERE user_id=$1 AND date_str=$2", uid, date_str)
     prog_map = {r['task_id']: dict(r) for r in user_progress}
@@ -640,7 +741,6 @@ async def get_tasks_status(x_init_data: str = Header(...)):
             "is_claimed": p['claimed']
         })
         
-    # 3. Ежедневный вход (7 дней)
     u = await db.fetchrow("SELECT login_streak, last_login_date FROM users WHERE id=$1", uid)
     today = (datetime.utcnow() + timedelta(hours=3)).strftime("%Y-%m-%d")
     yesterday = (datetime.utcnow() + timedelta(hours=3) - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -651,8 +751,7 @@ async def get_tasks_status(x_init_data: str = Header(...)):
     can_claim_login = False
     display_streak = streak
 
-    if last_date == today:
-        can_claim_login = False
+    if last_date == today: can_claim_login = False
     elif last_date == yesterday:
         can_claim_login = True
         display_streak = (streak % 7) + 1
@@ -687,10 +786,8 @@ async def claim_login_bonus(u: dict = Depends(get_current_user)):
     if last_date == today:
         raise HTTPException(400, "Награда за сегодня уже получена")
         
-    if last_date == yesterday:
-        new_streak = (streak % 7) + 1
-    else:
-        new_streak = 1
+    if last_date == yesterday: new_streak = (streak % 7) + 1
+    else: new_streak = 1
         
     reward = LOGIN_REWARDS[new_streak - 1]
     
@@ -704,15 +801,11 @@ async def claim_daily_task(req: ClaimTaskReq, u: dict = Depends(get_current_user
     if not task: raise HTTPException(404, "Задание не найдено или истекло")
 
     prog = await db.fetchrow("SELECT progress, claimed FROM daily_progress WHERE user_id=$1 AND task_id=$2 AND date_str=$3", u['id'], req.task_id, date_str)
-    
-    if not prog or prog['progress'] < task['target']:
-        raise HTTPException(400, "Задание еще не выполнено")
-            
+    if not prog or prog['progress'] < task['target']: raise HTTPException(400, "Задание еще не выполнено")
     if prog.get('claimed'): raise HTTPException(400, "Награда уже получена")
 
     await db.execute("UPDATE daily_progress SET claimed=TRUE WHERE user_id=$1 AND task_id=$2 AND date_str=$3", u['id'], req.task_id, date_str)
     await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", task['reward'], u['id'])
-    
     return {"ok": True, "reward": task['reward']}
 
 @app.post("/api/sponsors/check")
@@ -726,10 +819,8 @@ async def check_sponsor(req: CheckSponsorReq, u: dict = Depends(get_current_user
         member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=u['id'])
         if member.status not in ['member', 'administrator', 'creator']:
             raise HTTPException(400, "Вы не подписаны на канал. Вступите и повторите попытку.")
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(400, "Не удалось проверить подписку. Убедитесь, что бот является администратором канала.")
+    except HTTPException: raise
+    except Exception: raise HTTPException(400, "Не удалось проверить подписку. Убедитесь, что бот является администратором канала.")
 
     await db.execute("INSERT INTO user_sponsors(user_id, sponsor_id) VALUES($1,$2)", u['id'], s['id'])
     await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", s['reward_rc'], u['id'])
