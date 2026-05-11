@@ -14,19 +14,20 @@
 :root {
   --bg:        #050505;
   --bg2:       #0a0a0a;
-  --bg3:       #141414;
-  --bg4:       #1e1e1e;
+  --bg3:       #121212;
+  --bg4:       #1a1a1a;
   --border:    rgba(255,255,255,0.06);
-  --border2:   rgba(255,255,255,0.10);
+  --border2:   rgba(255,255,255,0.12);
   --gold:      #E8C547;
+  --gold-glow: rgba(232,197,71,0.15);
   --red:       #E84040;
   --green:     #27C264;
   --blue:      #1A7FE8;
   --text:      #F0EDE8;
   --text2:     rgba(240,237,232,0.68);
   --text3:     rgba(240,237,232,0.36);
-  --r:         16px;
-  --r2:        12px;
+  --r:         20px;
+  --r2:        14px;
   --font:      'Inter', sans-serif;
 }
 
@@ -56,14 +57,21 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .menu-btn.active { background: rgba(232,197,71,0.1); color: var(--gold); }
 .menu-ico { font-size: 20px; }
 
+/* ── PREMIUM TABS ── */
+.tabs-wrap { padding: 12px 16px; background: var(--bg); position: sticky; top: 0; z-index: 5; }
+.tabs { display: flex; background: rgba(255,255,255,0.06); border-radius: 14px; padding: 4px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { flex: 1; padding: 10px 16px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text3); border: none; background: transparent; border-radius: 10px; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); white-space: nowrap; outline: none; -webkit-tap-highlight-color: transparent; }
+.tab.active { background: rgba(255,255,255,0.12); color: var(--gold); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
 /* ── CARDS & HERO ── */
-.card { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 16px; }
+.card { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); transition: transform 0.2s; }
 .hero { margin: 16px 16px 0; background: linear-gradient(145deg, #141414 0%, #1a1a1a 100%); border: 1px solid rgba(232,197,71,0.15); border-radius: 20px; padding: 22px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 .hero-row { display: flex; align-items: center; gap: 16px; }
 .avatar-wrap { position: relative; flex-shrink: 0; }
-.avatar { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #1e1e1e, #141414); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: var(--gold); overflow: hidden; border: 2px solid rgba(232,197,71,0.35); }
+.avatar { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #1e1e1e, #141414); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: var(--gold); overflow: hidden; border: 2px solid rgba(232,197,71,0.35); box-shadow: 0 0 15px rgba(232,197,71,0.1); }
 .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-.avatar-sm { width: 44px; height: 44px; border-radius: 50%; background: var(--bg4); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--text3); overflow: hidden; flex-shrink: 0; border: 1px solid var(--border2); }
+.avatar-sm { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #222, #111); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--text3); overflow: hidden; flex-shrink: 0; border: 1px solid var(--border2); }
 .avatar-sm img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
 
 /* ── AVATAR FRAMES ── */
@@ -76,16 +84,16 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 
 .vip-badge { position: absolute; bottom: -2px; right: -2px; background: var(--bg); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 1px solid rgba(232,197,71,0.2); z-index: 2; }
 .hero-name { font-size: 19px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.3px; }
-.hero-handle { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.hero-handle { font-size: 13px; color: var(--text3); margin-top: 2px; }
 .hero-status { font-size: 13px; margin-top: 6px; font-weight: 600; }
 .hero-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 18px; }
-.stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--r2); padding: 13px 8px; text-align: center; }
-.stat-val { font-size: 19px; font-weight: 800; color: var(--text); }
-.stat-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--r2); padding: 12px 8px; text-align: center; }
+.stat-val { font-size: 18px; font-weight: 800; color: var(--text); }
+.stat-lbl { font-size: 10px; color: var(--text3); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* ── EFFECTS ── */
 .effects-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.effect-chip { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.06); border: 1px solid var(--border2); color: var(--text2); display: flex; align-items: center; gap: 4px; font-weight: 600; }
+.effect-chip { font-size: 12px; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.06); border: 1px solid var(--border2); color: var(--text2); display: flex; align-items: center; gap: 4px; font-weight: 600; }
 .effect-chip.gold { background: rgba(255,214,10,0.1); border-color: rgba(255,214,10,0.3); color: var(--gold); }
 .effect-chip.green { background: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.3); color: var(--green); }
 .effect-chip.red { background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.3); color: var(--red); }
@@ -93,8 +101,8 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 /* ── BUTTONS ── */
 .btn { display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: var(--r2); cursor: pointer; font-family: var(--font); font-weight: 600; transition: opacity .15s, transform .15s; padding: 14px 20px; width: 100%; font-size: 15px; }
 .btn:active { opacity: 0.75; transform: scale(0.97); }
-.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-.btn-primary { background: var(--gold); color: #000; box-shadow: 0 4px 15px rgba(232,197,71,0.2); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; filter: grayscale(1); }
+.btn-primary { background: linear-gradient(135deg, #F3D250 0%, #E8C547 100%); color: #000; box-shadow: 0 4px 15px rgba(232,197,71,0.2); }
 .btn-danger { background: var(--red); color: #fff; }
 .btn-ghost { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--border2); }
 .btn-green { background: var(--green); color: #000; }
@@ -102,31 +110,39 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 
 /* ── UI ELEMENTS ── */
 .section { padding: 0 16px; margin-top: 20px; }
-.section-title { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
-.list-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.section-title { font-size: 13px; font-weight: 700; color: var(--text3); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; padding-left: 4px; }
+.list-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
 .list-item:last-child { border-bottom: none; }
-.input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r2); color: var(--text); font-family: var(--font); font-size: 15px; padding: 13px 16px; outline: none; transition: 0.2s; }
+.input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r2); color: var(--text); font-family: var(--font); font-size: 15px; padding: 14px 16px; outline: none; transition: 0.2s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
 .input:focus { border-color: var(--gold); }
 
+/* ── PREMIUM SHOP ── */
+.shop-item { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: transform 0.2s; }
+.si-ico { font-size: 36px; line-height: 1; }
+.si-name { font-weight: 800; font-size: 16px; }
+.si-desc { font-size: 13px; color: var(--text3); line-height: 1.5; }
+.si-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--border); }
+.si-price { font-size: 15px; font-weight: 800; color: var(--gold); }
+
 /* ── PLAYER CARD ── */
-.player-card { display: flex; align-items: center; gap: 12px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 14px; cursor: pointer; transition: all .12s; }
+.player-card { display: flex; align-items: center; gap: 12px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r); padding: 16px; cursor: pointer; transition: all .15s; }
 .player-card:active { opacity: 0.7; transform: scale(0.98); }
 .pc-meta { flex: 1; min-width: 0; }
 .pc-name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
-.pc-price { font-size: 15px; font-weight: 800; color: var(--gold); }
+.pc-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+.pc-price { font-size: 16px; font-weight: 800; color: var(--gold); }
 
 /* ── PREMIUM TOASTS ── */
 .toast-container { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 9999; pointer-events: none; }
-.toast { background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 14px 24px; font-size: 14px; font-weight: 600; color: #fff; box-shadow: 0 12px 40px rgba(0,0,0,0.6); animation: slideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; gap: 8px; }
+.toast { background: rgba(30, 30, 30, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 14px 24px; font-size: 14px; font-weight: 600; color: #fff; box-shadow: 0 12px 40px rgba(0,0,0,0.6); animation: slideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; gap: 8px; }
 @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* ── MODALS ── */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: flex-end; backdrop-filter: blur(8px); }
-.modal { background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(24px, env(safe-area-inset-bottom)); width: 100%; max-height: 88vh; overflow-y: auto; animation: slideUp .3s cubic-bezier(.32,0,.15,1); }
+.modal { background: var(--bg2); border-top-left-radius: 28px; border-top-right-radius: 28px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(24px, env(safe-area-inset-bottom)); width: 100%; max-height: 88vh; overflow-y: auto; animation: slideUp .3s cubic-bezier(.32,0,.15,1); }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.modal-handle { width:40px; height:4px; border-radius:2px; background:var(--bg4); margin:0 auto 20px; opacity:0.6; }
-.modal-title { font-size:20px; font-weight:800; margin-bottom:16px; letter-spacing: -0.5px; }
+.modal-handle { width:40px; height:4px; border-radius:2px; background:var(--border2); margin:0 auto 20px; }
+.modal-title { font-size:22px; font-weight:800; margin-bottom:16px; letter-spacing: -0.5px; }
 
 /* ── UTILS ── */
 .row { display:flex; align-items:center; gap:8px; } .row-sb { display:flex; align-items:center; justify-content:space-between; }
@@ -143,23 +159,23 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .msg-wrap { display: flex; flex-direction: column; cursor: pointer; transition: 0.2s; }
 .msg-wrap:active { opacity: 0.7; }
 .msg-wrap.me { align-items: flex-end; } .msg-wrap.them { align-items: flex-start; }
-.msg-bubble { max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 14.5px; line-height: 1.4; position: relative; word-wrap: break-word; }
+.msg-bubble { max-width: 82%; padding: 12px 16px; border-radius: 20px; font-size: 14.5px; line-height: 1.4; position: relative; word-wrap: break-word; }
 .msg-bubble.me { background: var(--gold); color: #000; border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(232,197,71,0.15); }
 .msg-bubble.them { background: var(--bg3); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
 .msg-reply-box { font-size: 12px; background: rgba(0,0,0,0.1); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid rgba(255,255,255,0.4); color: inherit; opacity: 0.85; font-weight: 500; }
 .msg-img { max-width: 100%; border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.1); }
-.msg-time { font-size: 10px; opacity: 0.5; margin-top: 4px; font-weight: 500; }
-.msg-sender { font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--gold); }
-.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.9); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.msg-time { font-size: 10px; opacity: 0.5; margin-top: 4px; font-weight: 500; padding: 0 4px; }
+.msg-sender { font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--gold); padding: 0 4px; }
+.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
 .reply-preview-bar { display: flex; justify-content: space-between; align-items: center; background: var(--bg4); padding: 10px 14px; border-radius: 12px; border-left: 3px solid var(--gold); font-size: 13px; font-weight: 500; }
-.file-btn { background: none; border: none; color: var(--text3); font-size: 22px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+.file-btn { background: none; border: none; color: var(--text3); font-size: 24px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
 .chat-input { flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; color: var(--text); padding: 12px 16px; outline: none; resize: none; max-height: 100px; font-family: var(--font); font-size: 15px; }
 
 /* ── STORIES CTA ── */
-.stories-card { margin: 16px; background: linear-gradient(135deg, #111111, #181818); border: 1px solid rgba(232,197,71,0.2); border-radius: 22px; padding: 22px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.stories-card { margin: 16px; background: linear-gradient(135deg, #111111, #1a1a1a); border: 1px solid rgba(232,197,71,0.2); border-radius: 22px; padding: 24px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 .stories-card::before { content:''; position:absolute; bottom:-40px; right:-40px; width:150px; height:150px; background: radial-gradient(circle, rgba(232,197,71,0.1) 0%, transparent 70%); border-radius:50%; }
 .stories-ico { font-size:36px; margin-bottom:12px; }
-.stories-title { font-size:18px; font-weight:800; letter-spacing: -0.3px; }
+.stories-title { font-size:19px; font-weight:800; letter-spacing: -0.3px; }
 .stories-sub { font-size:13px; color:var(--text3); margin-top:6px; line-height:1.5; font-weight: 500; }
 .stories-timer { font-size:24px; font-weight:800; color:var(--gold); margin-top:8px; }
 
@@ -178,26 +194,20 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .sponsor-sub { font-size: 15px; color: var(--text2); margin-bottom: 40px; line-height: 1.6; max-width: 300px; }
 .ban-reason-box { background: rgba(232,64,64,0.08); border: 1px solid rgba(232,64,64,0.25); border-radius: 14px; padding: 14px 18px; margin-bottom: 32px; font-size: 13px; color: var(--text2); line-height: 1.5; max-width: 280px; }
 
-/* ── TABS (FOR TOP & ADMIN) ── */
-.tabs { display: flex; background: var(--bg); border-bottom: 1px solid rgba(232,197,71,0.1); flex-shrink: 0; padding: 0 4px; overflow-x: auto; }
-.tabs::-webkit-scrollbar { display: none; }
-.tab { flex: 1; padding: 14px 12px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--text3); border-bottom: 2px solid transparent; background: none; text-transform: uppercase; white-space: nowrap; transition: 0.2s; }
-.tab.active { color: var(--gold); border-bottom-color: var(--gold); }
-
 /* ── PROTECTION BADGE ── */
 .protection-badge { font-size: 10px; font-weight: 600; color: var(--blue); background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.3); border-radius: 6px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px; }
 
 /* ── BACK BTN ── */
-.back-btn { display:flex; align-items:center; gap:6px; background:none; border:none; color:var(--gold); font-size:15px; font-weight:600; cursor:pointer; padding:0; }
+.back-btn { display:flex; align-items:center; gap:6px; background:none; border:none; color:var(--text3); font-size:15px; font-weight:600; cursor:pointer; padding:8px; border-radius:12px; background: rgba(255,255,255,0.05); }
 .back-btn:active { opacity:0.6; }
 
 /* ── RANK ITEM ── */
-.rank-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
-.rank-num { font-size: 14px; font-weight: 800; width: 28px; text-align: center; flex-shrink: 0; color: var(--text3); }
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.rank-num { font-size: 15px; font-weight: 800; width: 28px; text-align: center; flex-shrink: 0; color: var(--text3); }
 .rank-meta { flex: 1; min-width: 0; }
 .rank-name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank-sub { font-size: 12px; color: var(--text3); }
-.rank-val { font-size: 15px; font-weight: 800; color: var(--gold); }
+.rank-sub { font-size: 12px; color: var(--text3); margin-top:2px; }
+.rank-val { font-size: 16px; font-weight: 800; color: var(--gold); }
 </style>
 </head>
 <body>
@@ -405,7 +415,7 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
         </div>
         <div className="hero-stats">
           <div className="stat"><div className="stat-val">{user.balance.toFixed(0)}</div><div className="stat-lbl">💰 Баланс RC</div></div>
-          <div className="stat"><div className="stat-val">{user.price.toFixed(0)}</div><div className="stat-lbl">🏷 Цена</div></div>
+          <div className="stat"><div className="stat-val">{user.price.toFixed(0)}</div><div className="stat-lbl">🏷 Моя цена</div></div>
           <div className="stat"><div className="stat-val">{user.slaves_count}</div><div className="stat-lbl">⛓ Рабов</div></div>
           {user.total_income_per_hour > 0 && <div className="stat" style={{gridColumn:'1/-1'}}><div className="stat-val text-green">+{user.total_income_per_hour.toFixed(1)}</div><div className="stat-lbl">📈 RC/ч от рабов</div></div>}
         </div>
@@ -440,7 +450,7 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
         {user.story_cooldown_until && storiesCountdown > 0 ? (
           <><div className="stories-timer">{fmtCountdown(storiesCountdown)}</div><div className="f12 text-muted mt4">до следующей возможности</div></>
         ) : (
-          <button className="btn btn-primary mt12" onClick={() => generateAndShareStory(user, showToast, setStoryPendingModal)}>✨ Выложить Story</button>
+          <button className="btn btn-primary mt16" onClick={() => generateAndShareStory(user, showToast, setStoryPendingModal)}>✨ Выложить Story</button>
         )}
       </div>
 
@@ -461,20 +471,20 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
       {user.slaves.length > 0 && (
         <div className="section">
           <div className="section-title">Мои рабы ({user.slaves_count})</div>
-          <div className="card">
-            {user.slaves.map(s => {
+          <div className="card" style={{padding:0}}>
+            {user.slaves.map((s, index) => {
               const isProtected = s.purchase_protection_until && new Date(s.purchase_protection_until) > new Date();
               return (
-                <div className="list-item" key={s.id}>
-                  <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div>
+                <div className="list-item" key={s.id} style={{padding:'16px', borderBottom: index === user.slaves.length-1 ? 'none' : '1px solid var(--border)'}}>
+                  <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={48}/></div>
                   <div className="li-info" onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
                     <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f12">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.id}`)}</div>
-                    <div className="li-sub">{s.working ? <><span className="text-green">{s.job_emoji} В работе</span><span className="text-green"> · +{s.income_per_hour_effective.toFixed(1)} RC/ч</span></> : <span>😴 Отдыхает</span>}</div>
-                    <div className="row mt4" style={{gap:6}}><span className="f11 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
+                    <div className="li-sub mt4">{s.working ? <><span className="text-green">{s.job_emoji} В работе</span><span className="text-green fw6"> · +{s.income_per_hour_effective.toFixed(1)} RC/ч</span></> : <span>😴 Отдыхает</span>}</div>
+                    <div className="row mt8" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
                   </div>
-                  <div className="gap6">
-                    <button className="btn btn-primary btn-sm" onClick={() => setSendWorkSlave(s.id)}>💼</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button>
+                  <div className="gap8">
+                    <button className="btn btn-primary btn-sm" style={{padding:'10px 14px'}} onClick={() => setSendWorkSlave(s.id)}>💼</button>
+                    <button className="btn btn-ghost btn-sm" style={{padding:'10px 14px'}} onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button>
                   </div>
                 </div>
               );
@@ -488,7 +498,7 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">💼 Работа для {workingSlave.custom_name||workingSlave.first_name}</div>
-            <div className="f13 text-muted mb16">Раб будет занят ровно 2 часа. Во время работы отправить его на другое задание нельзя. Выбор работы происходит случайно по шансам.</div>
+            <div className="f13 text-muted mb16" style={{lineHeight:1.5}}>Раб будет занят ровно 2 часа. Во время работы отправить его на другое задание нельзя. Выбор работы происходит случайно по шансам.</div>
             <button className="btn btn-primary" onClick={() => doSendWork(sendWorkSlave)}>🎲 Отправить на случайную работу</button>
             <button className="btn btn-ghost mt8" onClick={() => setSendWorkSlave(null)}>Отмена</button>
           </div>
@@ -500,7 +510,7 @@ function ProfileScreen({ user, sponsors, onRefresh, onViewProfile, showToast }) 
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">📸 Вы опубликовали Story?</div>
-            <div className="f13 text-muted mb16">Если вы поделились историей, нажмите кнопку ниже для отправки заявки модераторам. После проверки вам начислят бонус +250 RC!</div>
+            <div className="f13 text-muted mb16" style={{lineHeight:1.5}}>Если вы поделились историей, нажмите кнопку ниже для отправки заявки модераторам. После проверки вам начислят бонус +250 RC!</div>
             <button className="btn btn-primary" onClick={claimStory}>✅ Да, я выложил</button>
             <button className="btn btn-ghost mt8" onClick={()=>setStoryPendingModal(false)}>Отмена</button>
           </div>
@@ -541,7 +551,7 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast }) {
 
   return (
     <div className="screen">
-      <div className="hdr"><button className="btn btn-ghost btn-sm" style={{width:'auto'}} onClick={onBack}>‹ Назад</button></div>
+      <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button></div>
       <div className="content">
         <div className="hero">
           <div className="hero-row">
@@ -568,9 +578,9 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast }) {
         {profile.slaves.length > 0 && (
           <div className="section">
             <div className="section-title">Рабы ({profile.slaves_count})</div>
-            <div className="card">
-              {profile.slaves.map(s => (
-                <div className="list-item" key={s.id} style={{cursor:'pointer'}} onClick={() => setViewingSlaveId(s.id)}>
+            <div className="card" style={{padding:0}}>
+              {profile.slaves.map((s, idx) => (
+                <div className="list-item" key={s.id} style={{padding:'16px', borderBottom: idx===profile.slaves.length-1?'none':'1px solid var(--border)', cursor:'pointer'}} onClick={() => setViewingSlaveId(s.id)}>
                   <Avatar user={s} size={44}/>
                   <div className="li-info"><div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.id}`}</div><div className="li-sub">{s.job_emoji} {s.job_title || 'Нет работы'}</div></div>
                   <div className="li-price">{s.price.toFixed(0)} RC</div>
@@ -611,28 +621,28 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
     <div className="content">
       <div className="section">
         <input className="input" placeholder="Поиск по имени или @username" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key==='Enter' && doSearch()}/>
-        <div className="row mt8"><input className="input" placeholder="Мин RC" type="number" style={{flex:1}} value={minP} onChange={e => setMinP(e.target.value)}/><input className="input" placeholder="Макс RC" type="number" style={{flex:1}} value={maxP} onChange={e => setMaxP(e.target.value)}/></div>
-        <div className="row mt8"><button className="btn btn-primary" style={{flex:1}} onClick={() => doSearch()}>{loading ? <div className="spinner" style={{width:18,height:18,borderWidth:2}}/> : '🔍 Найти'}</button><button className="btn btn-ghost" style={{flex:1}} onClick={() => doSearch(true)}>🎲 Случайная</button></div>
-        <button className="btn btn-ghost mt8" onClick={() => doSearch(false,true)}>🆕 Новые игроки</button>
+        <div className="row mt12"><input className="input" placeholder="Мин RC" type="number" style={{flex:1}} value={minP} onChange={e => setMinP(e.target.value)}/><input className="input" placeholder="Макс RC" type="number" style={{flex:1}} value={maxP} onChange={e => setMaxP(e.target.value)}/></div>
+        <div className="row mt12"><button className="btn btn-primary" style={{flex:1}} onClick={() => doSearch()}>{loading ? <div className="spinner" style={{width:18,height:18,borderWidth:2}}/> : '🔍 Найти'}</button><button className="btn btn-ghost" style={{flex:1}} onClick={() => doSearch(true)}>🎲 Случайная</button></div>
+        <button className="btn btn-ghost mt12" onClick={() => doSearch(false,true)}>🆕 Новые игроки</button>
       </div>
 
-      <div className="section mt16">
+      <div className="section mt20">
         <div className="section-title">Результаты ({results.length})</div>
-        <div className="gap8">
+        <div className="gap12">
           {results.map(p => (
             <div className="player-card" key={p.id}>
-              <div onClick={() => onViewProfile(p.id)} style={{cursor:'pointer'}}><Avatar user={p} size={44}/></div>
+              <div onClick={() => onViewProfile(p.id)} style={{cursor:'pointer'}}><Avatar user={p} size={48}/></div>
               <div className="pc-meta" onClick={() => p.owner_id !== user.id && setSelected(p)} style={{cursor:'pointer'}}>
                 <div className="pc-name"><PlayerName user={p}/></div>
                 <div className="pc-sub">@{p.username||p.id}</div>
               </div>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
                 <div className="pc-price">{parseFloat(p.current_price).toFixed(0)} RC</div>
-                {p.owner_id === user.id ? <span className="f11 fw7" style={{padding:'5px 10px',background:'var(--bg4)',borderRadius:8,color:'var(--text3)'}}>⛓ Ваш</span> : <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>}
+                {p.owner_id === user.id ? <span className="f11 fw7" style={{padding:'6px 12px',background:'var(--bg4)',borderRadius:8,color:'var(--text3)'}}>⛓ Ваш</span> : <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>}
               </div>
             </div>
           ))}
-          {results.length===0 && !loading && <div className="text-center text-muted" style={{padding:'32px 0'}}>Никого нет. Попробуй другой запрос.</div>}
+          {results.length===0 && !loading && <div className="text-center text-muted" style={{padding:'40px 0'}}>Никого не найдено. Попробуй другой запрос.</div>}
         </div>
       </div>
 
@@ -641,11 +651,11 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">⛓ Купить игрока</div>
-            <div className="row mb16"><Avatar user={selected} size={52}/><div><div className="fw8 f13">{selected.first_name || selected.username || `#${selected.id}`}</div><div className="text-muted f12">@{selected.username || selected.id}</div></div></div>
-            <div className="card mb16">
+            <div className="row mb16"><Avatar user={selected} size={56}/><div><div className="fw8 f13">{selected.first_name || selected.username || `#${selected.id}`}</div><div className="text-muted f12">@{selected.username || selected.id}</div></div></div>
+            <div className="card mb20">
               <div className="row-sb"><span className="text-muted f13">Стоимость</span><span className="fw8 text-gold">{parseFloat(selected.current_price).toFixed(0)} RC</span></div>
-              <div className="row-sb mt8"><span className="text-muted f13">Ваш баланс</span><span className={`fw8 f13 ${user.balance >= parseFloat(selected.current_price) ? 'text-green' : 'text-red'}`}>{user.balance.toFixed(0)} RC</span></div>
-              <div className="row-sb mt8"><span className="text-muted f13">Комиссия системы</span><span className="text-muted f13">10%</span></div>
+              <div className="row-sb mt12"><span className="text-muted f13">Ваш баланс</span><span className={`fw8 f13 ${user.balance >= parseFloat(selected.current_price) ? 'text-green' : 'text-red'}`}>{user.balance.toFixed(0)} RC</span></div>
+              <div className="row-sb mt12"><span className="text-muted f13">Комиссия системы</span><span className="text-muted f13">10%</span></div>
             </div>
             {user.balance < parseFloat(selected.current_price) ? <button className="btn btn-ghost" disabled>❌ Недостаточно RC</button> : <button className="btn btn-primary" onClick={doBuy}>⛓ Купить за {parseFloat(selected.current_price).toFixed(0)} RC</button>}
           </div>
@@ -669,8 +679,11 @@ function TopScreen({ onViewProfile }) {
 
   return (
     <div className="content" style={{padding:0}}>
-      <div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div>
-      <div style={{padding:'12px 16px', fontSize:12, color:'var(--text3)', background:'var(--bg)'}}>{tabInfo[tab].desc}</div>
+      <div className="tabs-wrap">
+        <div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div>
+      </div>
+      <div style={{padding:'4px 16px 12px', fontSize:12, color:'var(--text3)'}}>{tabInfo[tab].desc}</div>
+      
       {loading ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : (
         <div style={{paddingBottom:16}}>
           {rows.map((r, i) => {
@@ -678,9 +691,9 @@ function TopScreen({ onViewProfile }) {
             return (
               <div className="rank-item" key={r.id} style={{cursor:'pointer'}} onClick={() => onViewProfile(r.id)}>
                 <div className="rank-num" style={{color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div>
-                <Avatar user={r} size={40}/>
+                <Avatar user={r} size={44}/>
                 <div className="rank-meta"><div className="rank-name"><PlayerName user={r}/></div><div className="rank-sub">@{r.username||r.id}</div></div>
-                <div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f12">{tabInfo[tab].valSuffix}</span></div>
+                <div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f12" style={{marginLeft:4}}>{tabInfo[tab].valSuffix}</span></div>
               </div>
             );
           })}
@@ -734,18 +747,20 @@ function ShopScreen({ user, onRefresh, showToast }) {
 
   return (
     <div className="content" style={{padding:0}}>
-      <div className="tabs">{['items','cosmetics','promo'].map(t => <button key={t} className={`tab${tab===t?' active':''}`} onClick={() => setTab(t)}>{t==='items'?'ПРЕДМЕТЫ':t==='cosmetics'?'КОСМЕТИКА (⭐)':'ПРОМОКОД'}</button>)}</div>
+      <div className="tabs-wrap">
+        <div className="tabs">{['items','cosmetics','promo'].map(t => <button key={t} className={`tab${tab===t?' active':''}`} onClick={() => setTab(t)}>{t==='items'?'ПРЕДМЕТЫ':t==='cosmetics'?'КОСМЕТИКА (⭐)':'ПРОМОКОД'}</button>)}</div>
+      </div>
       <div style={{padding:'16px'}}>
         {!shop ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : tab==='items' ? (
           <div>
             <div className="section-title">Для вас</div>
-            <div className="gap8">
+            <div className="gap12">
               {selfItems.map(item => (
                 <div className="shop-item" key={item.id}>
-                  <div className="row-sb"><div><div className="fw8" style={{fontSize:15}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:12, lineHeight:1.4}}>{item.desc}</div></div><div style={{fontSize:32}}>{item.name.split(' ')[0]}</div></div>
+                  <div className="row-sb"><div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div><div style={{fontSize:36}}>{item.name.split(' ')[0]}</div></div>
                   <div className="si-foot mt8">
-                    <div><div className="fw8 text-gold">{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f11 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
-                    <div style={{display:'flex',gap:6}}>{item.price_rc > 0 && <button className="btn btn-ghost btn-sm" disabled={loading['rc_'+item.id]} onClick={() => buyItemRC(item.id)}>{loading['rc_'+item.id] ? '...' : `RC`}</button>}<button className="btn btn-primary btn-sm" disabled={loading[item.id]} onClick={() => buyItemStars(item.id)}>{loading[item.id] ? '...' : '⭐ Купить'}</button></div>
+                    <div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
+                    <div style={{display:'flex',gap:8}}>{item.price_rc > 0 && <button className="btn btn-ghost" disabled={loading['rc_'+item.id]} onClick={() => buyItemRC(item.id)}>{loading['rc_'+item.id] ? '...' : `За RC`}</button>}<button className="btn btn-primary" disabled={loading[item.id]} onClick={() => buyItemStars(item.id)}>{loading[item.id] ? '...' : '⭐ Купить'}</button></div>
                   </div>
                 </div>
               ))}
@@ -754,13 +769,13 @@ function ShopScreen({ user, onRefresh, showToast }) {
               <div className="mt20">
                 <div className="section-title">Для рабов</div>
                 <select className="input mb16" value={selectedSlave} onChange={e => setSelectedSlave(e.target.value)}><option value="">— Выберите раба —</option>{user.slaves.map(s => <option key={s.id} value={s.id}>{s.custom_name||s.first_name||s.username||s.id}</option>)}</select>
-                <div className="gap8">
+                <div className="gap12">
                   {slaveItems.map(item => (
                     <div className="shop-item" key={item.id}>
-                      <div className="row-sb"><div><div className="fw8" style={{fontSize:15}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:12, lineHeight:1.4}}>{item.desc}</div></div><div style={{fontSize:32}}>{item.name.split(' ')[0]}</div></div>
+                      <div className="row-sb"><div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div><div style={{fontSize:36}}>{item.name.split(' ')[0]}</div></div>
                       <div className="si-foot mt8">
-                        <div><div className="fw8 text-gold">{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f11 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
-                        <div style={{display:'flex',gap:6}}>{item.price_rc > 0 && <button className="btn btn-ghost btn-sm" disabled={loading['rc_chains']} onClick={() => buyItemRC('chains')}>{loading['rc_chains'] ? '...' : 'RC'}</button>}<button className="btn btn-primary btn-sm" disabled={loading['chains']} onClick={() => buyItemStars('chains')}>{loading['chains'] ? '...' : '⭐ Купить'}</button></div>
+                        <div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
+                        <div style={{display:'flex',gap:8}}>{item.price_rc > 0 && <button className="btn btn-ghost" disabled={loading['rc_chains']} onClick={() => buyItemRC('chains')}>{loading['rc_chains'] ? '...' : 'За RC'}</button>}<button className="btn btn-primary" disabled={loading['chains']} onClick={() => buyItemStars('chains')}>{loading['chains'] ? '...' : '⭐ Купить'}</button></div>
                       </div>
                     </div>
                   ))}
@@ -770,13 +785,13 @@ function ShopScreen({ user, onRefresh, showToast }) {
           </div>
         ) : tab==='cosmetics' ? (
           <div>
-            <div className="f12 text-muted mb16" style={{lineHeight:1.5, padding:12, background:'rgba(232,197,71,0.05)', borderRadius:12, border:'1px solid rgba(232,197,71,0.2)'}}>🎨 Косметика навсегда сохраняется между сезонами. Покупка только за Telegram Stars ⭐.</div>
+            <div className="f13 text-muted mb16" style={{lineHeight:1.5, padding:16, background:'rgba(232,197,71,0.05)', borderRadius:16, border:'1px solid rgba(232,197,71,0.2)'}}>🎨 Косметика навсегда сохраняется между сезонами. Покупка только за Telegram Stars ⭐.</div>
             <div className="section-title">🎨 Цвет имени</div>
-            <div className="gap8 mb16">{cosmByType.colors?.map(c => <div className="card row-sb" style={{padding:'12px 16px'}} key={c.id}><div className={`fw7 ${c.css_class}`} style={{fontSize:15}}>Aa — {c.name}</div>{c.owned ? <span className="f12 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+            <div className="gap8 mb20">{cosmByType.colors?.map(c => <div className="card row-sb" style={{padding:'14px 16px'}} key={c.id}><div className={`fw7 ${c.css_class}`} style={{fontSize:16}}>Aa — {c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
             <div className="section-title">🖼 Рамка аватара</div>
-            <div className="gap8 mb16">{cosmByType.frames?.map(c => <div className="card row-sb" style={{padding:'12px 16px'}} key={c.id}><div className="fw7" style={{fontSize:15}}>{c.name}</div>{c.owned ? <span className="f12 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+            <div className="gap8 mb20">{cosmByType.frames?.map(c => <div className="card row-sb" style={{padding:'14px 16px'}} key={c.id}><div className="fw7" style={{fontSize:16}}>{c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
             <div className="section-title">😀 Эмодзи-статус</div>
-            <div className="gap8">{cosmByType.emojis?.map(c => <div className="card row-sb" style={{padding:'12px 16px'}} key={c.id}><div className="row"><span style={{fontSize:24}}>{c.value}</span><div className="fw7" style={{fontSize:15}}>{c.name}</div></div>{c.owned ? <span className="f12 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+            <div className="gap8">{cosmByType.emojis?.map(c => <div className="card row-sb" style={{padding:'14px 16px'}} key={c.id}><div className="row"><span style={{fontSize:26}}>{c.value}</span><div className="fw7" style={{fontSize:16}}>{c.name}</div></div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
           </div>
         ) : (
           <div>
@@ -956,7 +971,7 @@ function App() {
   if (!user || !sponsorsData) return <div className="loading-screen"><div className="loading-logo">⛓</div><div className="spinner"/><div className="text-muted f13">Загружаем...</div></div>;
 
   if (user.is_banned) {
-    if (banSupportMode) return <div className="app"><SupportScreen user={user} showToast={showToast}/><nav className="nav"><button className="nav-btn active" style={{color:'var(--red)'}}><span className="ico">💬</span>Поддержка</button></nav></div>;
+    if (banSupportMode) return <div className="app"><SupportScreen user={user} showToast={showToast}/><div className="tabs-wrap" style={{padding:8}}><button className="btn btn-ghost" onClick={()=>setBanSupportMode(false)}>Вернуться</button></div></div>;
     return <div className="ban-screen"><div className="ban-icon">🚫</div><div className="ban-title">Доступ ограничен</div><div className="ban-sub">Ваш аккаунт заблокирован администрацией.</div><button className="ban-support-btn" onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button></div>;
   }
 
@@ -966,11 +981,11 @@ function App() {
       <div className="sponsor-block">
         <div className="sponsor-icon">📢</div>
         <div className="sponsor-title">Доступ ограничен</div>
-        <div className="sponsor-sub">Для участия в игре необходимо быть подписанным на канал нашего спонсора.</div>
-        <button className="btn btn-primary" style={{marginBottom:12, width:'200px'}} onClick={() => window.Telegram.WebApp.openTelegramLink(sponsorsData.main_sponsor.channel_url)}>
+        <div className="sponsor-sub">Для участия в игре необходимо подписаться на канал нашего главного спонсора.</div>
+        <button className="btn btn-primary" style={{marginBottom:12, width:'100%', maxWidth:'300px'}} onClick={() => window.Telegram.WebApp.openTelegramLink(sponsorsData.main_sponsor.channel_url)}>
           Подписаться
         </button>
-        <button className="btn btn-ghost" style={{width:'200px'}} onClick={() => init()}>Проверить подписку</button>
+        <button className="btn btn-ghost" style={{width:'100%', maxWidth:'300px'}} onClick={() => init()}>Проверить подписку</button>
       </div>
     );
   }
@@ -1029,8 +1044,8 @@ function App() {
       {/* ── ADMIN ROUTING ── */}
       {tab==='admin' && user.is_admin && !openConv && (
         <div className="content">
-          <div className="tabs" style={{marginBottom:16}}>
-            <select className="input" style={{border:'none', borderRadius:0, fontWeight:700, fontSize:15, padding:'16px', background:'var(--bg2)'}} value={adminTab} onChange={e=>{setAdminTab(e.target.value); loadAdminTab(e.target.value);}}>
+          <div className="tabs-wrap" style={{marginBottom:16}}>
+            <select className="input" style={{border:'none', borderRadius:16, fontWeight:700, fontSize:15, padding:'16px', background:'var(--bg3)', boxShadow:'0 4px 15px rgba(0,0,0,0.3)'}} value={adminTab} onChange={e=>{setAdminTab(e.target.value); loadAdminTab(e.target.value);}}>
               {Object.entries(adminTitles).map(([k,v]) => { if(k==='admins' && !user.is_super_admin) return null; return <option key={k} value={k}>{v}</option>; })}
             </select>
           </div>
@@ -1038,23 +1053,23 @@ function App() {
           <div style={{padding:'0 16px'}}>
             {adminTab==='dash' && dash && (
               <div className="gap8">
-                <div className="stat-grid">{[['👥','Всего игроков', dash.total_users],['🆕','Новых сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Новых тикетов', dash.tickets],['📸','Сторис ждут', dash.stories_pending]].map(([ico,lbl,val]) => <div className="card text-center" key={lbl}><div style={{fontSize:24}}>{ico}</div><div className="fw8" style={{fontSize:22}}>{val}</div><div className="f12 text-muted">{lbl}</div></div>)}</div>
-                <button className="btn btn-ghost mt8" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button>
+                <div className="stat-grid">{[['👥','Всего игроков', dash.total_users],['🆕','Новых сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Новых тикетов', dash.tickets],['📸','Сторис ждут', dash.stories_pending]].map(([ico,lbl,val]) => <div className="card text-center" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}</div>
+                <button className="btn btn-ghost mt12" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button>
               </div>
             )}
 
             {adminTab==='users' && (
               <div className="gap12">
-                <div className="card gap8" style={{borderColor:'var(--gold)'}}>
-                  <div className="fw7 text-gold">🎨 Выдать косметику</div>
+                <div className="card gap12" style={{borderColor:'var(--gold)'}}>
+                  <div className="fw8 text-gold" style={{fontSize:16}}>🎨 Выдать косметику</div>
                   <input className="input" placeholder="ID / @username" value={cIdent} onChange={e=>setCIdent(e.target.value)}/>
                   <select className="input" value={cField} onChange={e=>{setCField(e.target.value); setCVal('');}}><option value="name_color">Цвет ника</option><option value="avatar_frame">Рамка аватара</option><option value="emoji_status">Эмодзи</option></select>
                   {cField==='name_color' && <div className="row" style={{flexWrap:'wrap'}}>{[['default','Стандарт'],['ruby','Рубин'],['gold','Золото'],['neon','Неон'],['blue','Синий'],['purple','Фиолет']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}
                   {cField==='avatar_frame' && <div className="row" style={{flexWrap:'wrap'}}>{[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}
                   {cField==='emoji_status' && <div className="row" style={{flexWrap:'wrap'}}>{['','💎','👑','🔥','⚡','🌟','💀','🏆'].map((e,i)=><button key={i} className="btn btn-ghost btn-sm" style={{borderColor:cVal===e?'var(--gold)':''}} onClick={()=>setCVal(e)}>{e||'✕'}</button>)}</div>}
-                  <button className="btn btn-primary" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>Выдать</button>
+                  <button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button>
                 </div>
-                <div className="row"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div>
+                <div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div>
                 <div className="gap8">{users.map(u => <div className="card row-sb" key={u.id}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id}</div></div><button className={`btn btn-sm ${u.is_banned?'btn-green':'btn-danger'}`} onClick={async ()=>{ try{ await post('/api/admin/users/edit',{user_id:u.id, is_banned:!u.is_banned}); loadAdminTab('users'); }catch(e){showToast('❌ '+e.message);} }}>{u.is_banned?'Разбан':'Бан'}</button></div>)}</div>
               </div>
             )}
@@ -1064,8 +1079,8 @@ function App() {
                 {tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}
                 {tickets.map(t => (
                   <div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer'}}>
-                    <div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted">{t.last_msg?.substring(0,30)||'Фото...'}</div></div>
-                    <div className="fw7 text-muted">›</div>
+                    <div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div>
+                    <div className="fw7 text-muted" style={{fontSize:20}}>›</div>
                   </div>
                 ))}
               </div>
@@ -1076,7 +1091,7 @@ function App() {
                 {stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}
                 {stories.map(s => (
                   <div className="card row-sb" key={s.id}>
-                    <div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted">{new Date(s.created_at).toLocaleString('ru')}</div></div>
+                    <div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div>
                     <button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅ Одобрить</button>
                   </div>
                 ))}
@@ -1084,19 +1099,19 @@ function App() {
             )}
 
             {adminTab==='sponsors' && (
-              <div className="gap12">
+              <div className="gap16">
                 <div className="card gap8">
-                  <div className="fw7">Добавить Спонсора</div>
-                  <div className="f12 text-muted">Бот должен быть админом в канале!</div>
+                  <div className="fw8" style={{fontSize:16}}>Добавить Спонсора</div>
+                  <div className="f12 text-muted mb8">Бот должен быть админом в канале!</div>
                   <input className="input" placeholder="ID Канала (-100123...)" value={spId} onChange={e=>setSpId(e.target.value)}/>
                   <input className="input" placeholder="Название (Для кнопки)" value={spTitle} onChange={e=>setSpTitle(e.target.value)}/>
                   <input className="input" placeholder="Ссылка (https://t.me/...)" value={spUrl} onChange={e=>setSpUrl(e.target.value)}/>
                   <input className="input" type="number" placeholder="Награда RC" value={spRc} onChange={e=>setSpRc(e.target.value)}/>
-                  <div className="row mt8"><button className="btn btn-ghost" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Обычный</button><button className="btn btn-primary" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:true}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Главный (Обяз.)</button></div>
+                  <div className="row mt12"><button className="btn btn-ghost" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Обычный</button><button className="btn btn-primary" style={{flex:1}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:true}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Главный (Обяз.)</button></div>
                 </div>
                 {sponsors.map(s => (
                   <div className="card row-sb" key={s.id}>
-                    <div><div className="fw7">{s.is_main && '👑 '} {s.channel_title}</div><div className="f12 text-muted">{s.channel_id} • {s.reward_rc} RC</div></div>
+                    <div><div className="fw7">{s.is_main && '👑 '} {s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div>
                     <button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑</button>
                   </div>
                 ))}
@@ -1104,16 +1119,16 @@ function App() {
             )}
 
             {adminTab==='admins' && adminsData && (
-              <div className="gap12">
+              <div className="gap16">
                 <div className="card gap8">
-                  <div className="fw7">Добавить Админа</div>
+                  <div className="fw8" style={{fontSize:16}}>Добавить Админа</div>
                   <input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/>
-                  <button className="btn btn-primary" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button>
+                  <button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button>
                 </div>
                 <div className="gap8">
                   {adminsData.db_admins.map(a => (
                     <div className="card row-sb" key={a.user_id}>
-                      <div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted">ID: {a.user_id}</div></div>
+                      <div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div>
                       <button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button>
                     </div>
                   ))}
@@ -1122,11 +1137,11 @@ function App() {
             )}
 
             {adminTab==='system' && (
-              <div className="gap12">
-                <div className="card gap8"><div className="fw7">📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div>
-                <div className="card gap8"><div className="fw7">🎫 Создать промокод</div><input className="input" placeholder="КОД" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/><input className="input" type="number" placeholder="Награда RC" value={promoRc} onChange={e=>setPromoRc(e.target.value)}/><input className="input" type="number" placeholder="Кол-во использований" value={promoMax} onChange={e=>setPromoMax(e.target.value)}/><button className="btn btn-primary" onClick={async ()=>{ if(!promoCode||!promoRc)return; try{ await post('/api/admin/promo/create',{code:promoCode,reward_rc:parseFloat(promoRc),max_uses:parseInt(promoMax)}); showToast('✅ Создан'); setPromoCode(''); setPromoRc(''); }catch(e){showToast('❌ '+e.message);} }}>Создать код</button></div>
-                <div className="card gap8"><div className="fw7 text-red">💀 Новый сезон</div><div className="f12 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются.</div><input className="input" type="password" placeholder="Пароль" value={seasonPass} onChange={e=>setSeasonPass(e.target.value)}/><button className="btn btn-danger" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:seasonPass}); showToast('🔥 Сезон начат'); setSeasonPass(''); }catch(e){showToast('❌ '+e.message);} }}>Начать</button></div>
-                <div className="card gap8"><div className="fw7 text-red">💀 Полный Wipe</div><button className="btn btn-danger" onClick={async ()=>{ if(!confirm('УДАЛИТЬ ВСЮ БАЗУ ДАННЫХ? Безвозвратно.'))return; try{ await post('/api/admin/db/clear'); showToast('💀 Очищено'); }catch(e){showToast('❌ '+e.message);} }}>Очистить базу</button></div>
+              <div className="gap16">
+                <div className="card gap8"><div className="fw8" style={{fontSize:16}}>📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div>
+                <div className="card gap8"><div className="fw8" style={{fontSize:16}}>🎫 Создать промокод</div><input className="input" placeholder="КОД" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/><input className="input" type="number" placeholder="Награда RC" value={promoRc} onChange={e=>setPromoRc(e.target.value)}/><input className="input" type="number" placeholder="Кол-во использований" value={promoMax} onChange={e=>setPromoMax(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ if(!promoCode||!promoRc)return; try{ await post('/api/admin/promo/create',{code:promoCode,reward_rc:parseFloat(promoRc),max_uses:parseInt(promoMax)}); showToast('✅ Создан'); setPromoCode(''); setPromoRc(''); }catch(e){showToast('❌ '+e.message);} }}>Создать код</button></div>
+                <div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Новый сезон</div><div className="f13 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются.</div><input className="input" type="password" placeholder="Пароль" value={seasonPass} onChange={e=>setSeasonPass(e.target.value)}/><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:seasonPass}); showToast('🔥 Сезон начат'); setSeasonPass(''); }catch(e){showToast('❌ '+e.message);} }}>Начать сезон</button></div>
+                <div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Полный Wipe</div><div className="f13 text-muted">Полное удаление базы данных.</div><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('УДАЛИТЬ ВСЮ БАЗУ ДАННЫХ? Безвозвратно.'))return; try{ await post('/api/admin/db/clear'); showToast('💀 Очищено'); }catch(e){showToast('❌ '+e.message);} }}>Очистить базу</button></div>
               </div>
             )}
           </div>
