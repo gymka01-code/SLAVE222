@@ -180,6 +180,12 @@ CREATE TABLE IF NOT EXISTS user_sponsors (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
 -- FIX #10: track read status in tickets
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+-- #5: purchase protection — cannot be re-bought for 2h after purchase
+ALTER TABLE users ADD COLUMN IF NOT EXISTS purchase_protection_until TIMESTAMP;
+-- #8: admin can permanently hide themselves from rankings/search
+ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT FALSE;
+-- #9: cached is_admin flag for fast queries
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin_flag BOOLEAN DEFAULT FALSE;
 
 -- Deduplicate jobs rows before creating unique index (keeps lowest id per title)
 DELETE FROM jobs WHERE id NOT IN (
@@ -188,13 +194,13 @@ DELETE FROM jobs WHERE id NOT IN (
 CREATE UNIQUE INDEX IF NOT EXISTS jobs_title_idx ON jobs(title);
 
 INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
-  ('Подметать полы',    2.5,  70, '🧹'),
-  ('Раздавать листовки',3.0,  70, '📄'),
-  ('Майнить крипту',    8.0,  25, '⛏'),
-  ('Петь на улице',     7.5,  25, '🎤'),
-  ('Тапать хомяка',    20.0,   5, '🐹'),
-  ('Просить милостыню',18.0,   5, '🙏')
-ON CONFLICT (title) DO NOTHING;
+  ('Подметать полы',     15.0,  70, '🧹'),
+  ('Раздавать листовки', 20.0,  70, '📄'),
+  ('Майнить крипту',     85.0,  25, '⛏'),
+  ('Петь на улице',      70.0,  25, '🎤'),
+  ('Тапать хомяка',     250.0,   5, '🐹'),
+  ('Просить милостыню', 220.0,   5, '🙏')
+ON CONFLICT (title) DO UPDATE SET income_per_hour=EXCLUDED.income_per_hour;
 
 -- Deduplicate cosmetics rows before creating unique index (keeps lowest id per name)
 DELETE FROM cosmetics WHERE id NOT IN (
@@ -203,16 +209,16 @@ DELETE FROM cosmetics WHERE id NOT IN (
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
 
 -- FIX #8: fewer, non-overlapping cosmetics
-INSERT INTO cosmetics (type, name, value, price_stars, css_class) VALUES
-  ('color', 'Рубиновый',  'ruby',    30, 'clr-ruby'),
-  ('color', 'Золотой',    'gold',    50, 'clr-gold'),
-  ('color', 'Неоновый',   'neon',    80, 'clr-neon'),
-  ('frame', 'Пламя',      'fire',    70, 'frame-fire'),
-  ('frame', 'Алмаз',      'diamond', 100,'frame-diamond'),
-  ('emoji', 'Корона',     '👑',     100, ''),
-  ('emoji', 'Бриллиант',  '💎',      60, ''),
-  ('emoji', 'Молния',     '⚡',      40, '')
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO cosmetics (type, name, value, price_stars, css_class, price_rc) VALUES
+  ('color', 'Рубиновый',  'ruby',    30, 'clr-ruby',    2000),
+  ('color', 'Золотой',    'gold',    50, 'clr-gold',    3500),
+  ('color', 'Неоновый',   'neon',    80, 'clr-neon',    5500),
+  ('frame', 'Пламя',      'fire',    70, 'frame-fire',  4500),
+  ('frame', 'Алмаз',      'diamond', 100,'frame-diamond',7000),
+  ('emoji', 'Корона',     '👑',     100, '',            7000),
+  ('emoji', 'Бриллиант',  '💎',      60, '',            4000),
+  ('emoji', 'Молния',     '⚡',      40, '',            2800)
+ON CONFLICT (name) DO UPDATE SET price_rc=EXCLUDED.price_rc, price_stars=EXCLUDED.price_stars;
 """
 
 # ─── SHOP ITEMS CATALOGUE ─────────────────────────────────────────────────────
@@ -396,6 +402,12 @@ async def lifespan(app: FastAPI):
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
     async with db.acquire() as c:
         await c.execute(SCHEMA)
+    # Sync is_admin_flag for env-configured admins
+    for aid in ADMIN_IDS:
+        try:
+            await db.execute("UPDATE users SET is_admin_flag=TRUE WHERE id=$1", aid)
+        except Exception:
+            pass
     bot = Bot(token=BOT_TOKEN)
     dp  = Dispatcher()
     _register_bot_handlers()
@@ -493,6 +505,11 @@ class StoryRejectReq(BaseModel):
     claim_id: int
     reason:   Optional[str] = None
 
+class AdminGrantCosmeticReq(BaseModel):
+    identifier: str          # ID, @username, or first_name
+    field: str               # 'name_color', 'avatar_frame', 'emoji_status'
+    value: str
+
 # ─── PROFILE HELPER ───────────────────────────────────────────────────────────
 
 async def _full_profile(uid: int) -> dict:
@@ -564,9 +581,12 @@ async def _full_profile(uid: int) -> dict:
         "avatar_frame": u['avatar_frame'],
         "emoji_status": u['emoji_status'],
         "is_admin":   await is_admin_user(u['id']),
+        "is_admin_flag": bool(u.get('is_admin_flag')),
         "is_super_admin": u['id'] == SUPER_ADMIN_ID,
+        "admin_hidden": bool(u.get('admin_hidden')),
         "story_cooldown_until": story_cooldown_until,
         "bot_username": BOT_USERNAME,
+        "purchase_protection_until": u['purchase_protection_until'].isoformat() if u.get('purchase_protection_until') and u['purchase_protection_until'] > now else None,
     }
 
 # ─── ROUTES ───────────────────────────────────────────────────────────────────
@@ -637,9 +657,18 @@ async def buy_player(req: BuyReq, bg: BackgroundTasks, user: dict = Depends(get_
         raise HTTPException(404, "Игрок не найден")
     target = dict(target)
 
+    # #4: cannot buy slave that is already yours
+    if target['owner_id'] == buyer_id:
+        raise HTTPException(400, "Этот игрок уже ваш раб ⛓")
+
     now = datetime.utcnow()
     if target['shield_until'] and target['shield_until'] > now:
         raise HTTPException(400, "Цель защищена Щитом 🛡")
+
+    # #5: purchase protection — cannot steal for 2h after last purchase
+    if target.get('purchase_protection_until') and target['purchase_protection_until'] > now:
+        remaining_mins = int((target['purchase_protection_until'] - now).total_seconds() / 60)
+        raise HTTPException(400, f"⛓ Недавно куплен. Защита истекает через {remaining_mins} мин.")
 
     price = float(target['current_price'])
     if target['chains_until'] and target['chains_until'] > now:
@@ -652,6 +681,7 @@ async def buy_player(req: BuyReq, bg: BackgroundTasks, user: dict = Depends(get_
     payout    = round(price - fee, 2)
     seller_id = target['owner_id']
     new_price = round(float(target['current_price']) * (1 + random.uniform(0.10, 0.20)), 2)
+    protection_until = now + timedelta(hours=2)
 
     async with db.acquire() as conn:
         async with conn.transaction():
@@ -659,8 +689,8 @@ async def buy_player(req: BuyReq, bg: BackgroundTasks, user: dict = Depends(get_
             # FIX #2: no auto job assignment — owner manually sends to work
             await conn.execute(
                 """UPDATE users SET current_price=$1,owner_id=$2,custom_name=NULL,
-                   job_id=NULL,job_assigned_at=NULL WHERE id=$3""",
-                new_price, buyer_id, target_id
+                   job_id=NULL,job_assigned_at=NULL,purchase_protection_until=$3 WHERE id=$4""",
+                new_price, buyer_id, protection_until, target_id
             )
             if seller_id:
                 await conn.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", payout, seller_id)
@@ -750,8 +780,9 @@ async def search_players(
 ):
     now  = datetime.utcnow()
     base = """SELECT id,username,first_name,current_price,custom_name,vip_level,
-                     avatar_frame,name_color,emoji_status,photo_url
-              FROM users WHERE is_banned=FALSE"""
+                     avatar_frame,name_color,emoji_status,photo_url,owner_id,is_admin_flag,
+                     purchase_protection_until
+              FROM users WHERE is_banned=FALSE AND (admin_hidden=FALSE OR admin_hidden IS NULL)"""
     stealth = " AND (stealth_until IS NULL OR stealth_until<$1)"
 
     if newcomers:
@@ -783,24 +814,25 @@ async def get_top(cat: str = "forbes"):
     if cached := await rdb.get(ck):
         return json.loads(cached)
     now = datetime.utcnow()
+    hidden_filter = "AND (admin_hidden=FALSE OR admin_hidden IS NULL)"
     if cat == "forbes":
         rows = await db.fetch(
-            """SELECT id,username,first_name,balance as value,vip_level,name_color,
-                      avatar_frame,emoji_status,photo_url
-               FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE
+            f"""SELECT id,username,first_name,balance as value,vip_level,name_color,
+                      avatar_frame,emoji_status,photo_url,is_admin_flag
+               FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE {hidden_filter}
                ORDER BY balance DESC LIMIT 100""", now)
     elif cat == "owners":
         rows = await db.fetch(
-            """SELECT u.id,u.username,u.first_name,u.vip_level,u.name_color,
-                      u.avatar_frame,u.emoji_status,u.photo_url,COUNT(s.id) as value
+            f"""SELECT u.id,u.username,u.first_name,u.vip_level,u.name_color,
+                      u.avatar_frame,u.emoji_status,u.photo_url,u.is_admin_flag,COUNT(s.id) as value
                FROM users u LEFT JOIN users s ON s.owner_id=u.id
-               WHERE (u.stealth_until IS NULL OR u.stealth_until<$1) AND u.is_banned=FALSE
+               WHERE (u.stealth_until IS NULL OR u.stealth_until<$1) AND u.is_banned=FALSE {hidden_filter}
                GROUP BY u.id ORDER BY value DESC LIMIT 100""", now)
     else:  # legends = highest price
         rows = await db.fetch(
-            """SELECT id,username,first_name,current_price as value,vip_level,name_color,
-                      avatar_frame,emoji_status,photo_url
-               FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE
+            f"""SELECT id,username,first_name,current_price as value,vip_level,name_color,
+                      avatar_frame,emoji_status,photo_url,is_admin_flag
+               FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE {hidden_filter}
                ORDER BY current_price DESC LIMIT 100""", now)
     result = [dict(r) for r in rows]
     await rdb.setex(ck, 900, json.dumps(result, default=str))
@@ -1182,6 +1214,7 @@ async def add_admin(req: AdminManageReq, admin: dict = Depends(get_super_admin))
         "INSERT INTO admin_users(user_id,added_by) VALUES($1,$2) ON CONFLICT DO NOTHING",
         req.user_id, admin['id']
     )
+    await db.execute("UPDATE users SET is_admin_flag=TRUE WHERE id=$1", req.user_id)
     await push(req.user_id, "👮 Вам выданы права администратора в игре РАБСТВО!")
     name = f"@{target['username']}" if target['username'] else target['first_name']
     return {"ok": True, "msg": f"Администратор {name} добавлен"}
@@ -1192,6 +1225,7 @@ async def remove_admin(req: AdminManageReq, _: dict = Depends(get_super_admin)):
     if req.user_id in ADMIN_IDS:
         raise HTTPException(400, "Нельзя удалить администратора из env-списка")
     await db.execute("DELETE FROM admin_users WHERE user_id=$1", req.user_id)
+    await db.execute("UPDATE users SET is_admin_flag=FALSE WHERE id=$1", req.user_id)
     return {"ok": True}
 
 
@@ -1266,6 +1300,45 @@ async def buy_shop_rc(req: ShopRcBuyReq, user: dict = Depends(get_current_user))
     await db.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", price_rc, uid)
     await _grant_shop_item(uid, req.item_type, req.cosmetic_id, req.target_slave_id)
     return {"ok": True, "spent_rc": price_rc, "item": item_name}
+
+
+# ─── ADMIN COSMETIC GRANT (#7) ────────────────────────────────────────────────
+
+@app.post("/api/admin/users/cosmetic")
+async def admin_grant_cosmetic(req: AdminGrantCosmeticReq, _: dict = Depends(get_admin_user)):
+    """Grant a cosmetic (name_color / avatar_frame / emoji_status) to any user by ID/@username/name."""
+    user_row = None
+    try:
+        uid = int(req.identifier)
+        user_row = await db.fetchrow("SELECT id,username,first_name FROM users WHERE id=$1", uid)
+    except ValueError:
+        pass
+    if not user_row:
+        slug = req.identifier.lstrip('@')
+        user_row = await db.fetchrow(
+            "SELECT id,username,first_name FROM users WHERE username ILIKE $1 OR first_name ILIKE $1 LIMIT 1",
+            slug
+        )
+    if not user_row:
+        raise HTTPException(404, "Пользователь не найден")
+    allowed = {'name_color', 'avatar_frame', 'emoji_status'}
+    if req.field not in allowed:
+        raise HTTPException(400, "Неверное поле. Допустимо: name_color, avatar_frame, emoji_status")
+    await db.execute(f"UPDATE users SET {req.field}=$1 WHERE id=$2", req.value, user_row['id'])
+    name = f"@{user_row['username']}" if user_row['username'] else user_row['first_name']
+    return {"ok": True, "user": name, "field": req.field, "value": req.value}
+
+
+# ─── ADMIN TOGGLE HIDDEN (#8) ─────────────────────────────────────────────────
+
+@app.post("/api/admin/toggle_hidden")
+async def admin_toggle_hidden(admin: dict = Depends(get_admin_user)):
+    """Admin can hide/show themselves in rankings, search, etc."""
+    uid = admin['id']
+    current = await db.fetchval("SELECT admin_hidden FROM users WHERE id=$1", uid)
+    new_val = not bool(current)
+    await db.execute("UPDATE users SET admin_hidden=$1 WHERE id=$2", new_val, uid)
+    return {"ok": True, "hidden": new_val}
 
 
 # ─── STORY SHARE DATA + REJECT ────────────────────────────────────────────────
