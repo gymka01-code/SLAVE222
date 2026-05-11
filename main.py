@@ -172,7 +172,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
 -- FIX #10: track read status in tickets
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
 
--- Ensure unique index exists on jobs(title) so ON CONFLICT DO NOTHING is unambiguous
+-- Deduplicate jobs rows before creating unique index (keeps lowest id per title)
+DELETE FROM jobs WHERE id NOT IN (
+    SELECT MIN(id) FROM jobs GROUP BY title
+);
 CREATE UNIQUE INDEX IF NOT EXISTS jobs_title_idx ON jobs(title);
 
 INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
@@ -184,8 +187,10 @@ INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
   ('Просить милостыню',18.0,   5, '🙏')
 ON CONFLICT (title) DO NOTHING;
 
--- FIX: ensure unique index on cosmetics(name) exists even if table was created
--- by an older schema version that lacked the UNIQUE constraint.
+-- Deduplicate cosmetics rows before creating unique index (keeps lowest id per name)
+DELETE FROM cosmetics WHERE id NOT IN (
+    SELECT MIN(id) FROM cosmetics GROUP BY name
+);
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
 
 -- FIX #8: fewer, non-overlapping cosmetics
