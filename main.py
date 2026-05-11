@@ -152,10 +152,28 @@ CREATE TABLE IF NOT EXISTS pending_purchases (
     created_at  TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS sponsors (
+    id            SERIAL PRIMARY KEY,
+    channel_id    BIGINT  UNIQUE NOT NULL,
+    channel_title TEXT,
+    reward_rc     DECIMAL DEFAULT 0,
+    is_active     BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS user_sponsors (
+    user_id    BIGINT,
+    sponsor_id INT,
+    claimed_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (user_id, sponsor_id)
+);
+
 -- FIX #3: store photo_url for avatars
 ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
 -- FIX #10: track read status in tickets
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+
+-- Ensure unique index exists on jobs(title) so ON CONFLICT DO NOTHING is unambiguous
+CREATE UNIQUE INDEX IF NOT EXISTS jobs_title_idx ON jobs(title);
 
 INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
   ('Подметать полы',    2.5,  70, '🧹'),
@@ -164,7 +182,11 @@ INSERT INTO jobs (title, income_per_hour, drop_chance, emoji) VALUES
   ('Петь на улице',     7.5,  25, '🎤'),
   ('Тапать хомяка',    20.0,   5, '🐹'),
   ('Просить милостыню',18.0,   5, '🙏')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (title) DO NOTHING;
+
+-- FIX: ensure unique index on cosmetics(name) exists even if table was created
+-- by an older schema version that lacked the UNIQUE constraint.
+CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
 
 -- FIX #8: fewer, non-overlapping cosmetics
 INSERT INTO cosmetics (type, name, value, price_stars, css_class) VALUES
