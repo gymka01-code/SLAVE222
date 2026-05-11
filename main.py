@@ -264,15 +264,22 @@ async def get_admin_user(x_init_data: str = Header(...)) -> dict:
 async def lifespan(app: FastAPI):
     global bot, dp, db, rdb
 
-    # Retry-loop: ждём PostgreSQL до 30 секунд (6 попыток × 5 сек)
-    for attempt in range(1, 7):
+    # Диагностика: показываем хост подключения (пароль скрыт)
+    import urllib.parse as _up
+    _parsed = _up.urlparse(DATABASE_URL)
+    print(f"[db] connecting → host={_parsed.hostname} port={_parsed.port} db={_parsed.path}")
+    _ssl = "require" if _parsed.hostname and "railway" in _parsed.hostname else False
+
+    # Retry-loop: 12 попыток × 5 сек = до 60 секунд
+    for attempt in range(1, 13):
         try:
-            db = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=15)
+            _pool_kwargs = {"ssl": _ssl} if _ssl else {}
+            db = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=15, **_pool_kwargs)
             print(f"[db] connected on attempt {attempt}")
             break
         except Exception as e:
-            print(f"[db] attempt {attempt}/6 failed: {e}")
-            if attempt == 6:
+            print(f"[db] attempt {attempt}/12 failed: {e}")
+            if attempt == 12:
                 raise
             await asyncio.sleep(5)
 
