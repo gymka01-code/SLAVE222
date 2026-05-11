@@ -19,12 +19,13 @@ from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice, PreCheckoutQuery
 from pydantic import BaseModel
 
-# ─── CONFIG ───
+# ─── CONFIG ───────────────────────────────────────────────────────────────────
+
 BOT_TOKEN    = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/db")
 REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379")
 WEBAPP_URL   = os.getenv("WEBAPP_URL", "https://yourdomain.com")
-ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "123456789").split(",")))
+ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "000000000").split(",")))
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Rabstvo_Slave_bot")
 SEASON_PASS  = "Niva01102007"
 SUPER_ADMIN_ID = ADMIN_IDS[0] if ADMIN_IDS else 0
@@ -33,9 +34,10 @@ bot: Bot = None
 dp: Dispatcher = None
 db: asyncpg.Pool = None
 rdb: aioredis.Redis = None
-story_cache = {}
+story_cache: dict = {}
 
-# ─── DB SCHEMA ───
+# ─── DB SCHEMA ────────────────────────────────────────────────────────────────
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY, username TEXT, first_name TEXT, photo_url TEXT,
@@ -47,6 +49,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_banned BOOLEAN DEFAULT FALSE, is_admin_flag BOOLEAN DEFAULT FALSE, admin_hidden BOOLEAN DEFAULT FALSE,
     purchase_protection_until TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), slaves_count INT DEFAULT 0
 );
+
 CREATE TABLE IF NOT EXISTS jobs (id SERIAL PRIMARY KEY, title TEXT UNIQUE, income_per_hour DECIMAL, drop_chance INT, emoji TEXT);
 CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, buyer_id BIGINT, slave_id BIGINT, seller_id BIGINT, amount DECIMAL, fee DECIMAL, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, user_id BIGINT, message TEXT, photo_b64 TEXT, reply_to_id INT, is_from_admin BOOLEAN DEFAULT FALSE, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW());
@@ -59,6 +62,7 @@ CREATE TABLE IF NOT EXISTS pending_purchases (id SERIAL PRIMARY KEY, user_id BIG
 CREATE TABLE IF NOT EXISTS admin_users (user_id BIGINT PRIMARY KEY, added_by BIGINT, added_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS sponsors (id SERIAL PRIMARY KEY, channel_id TEXT UNIQUE NOT NULL, channel_title TEXT, channel_url TEXT, reward_rc DECIMAL DEFAULT 0, is_main BOOLEAN DEFAULT FALSE, is_active BOOLEAN DEFAULT TRUE);
 CREATE TABLE IF NOT EXISTS user_sponsors (user_id BIGINT, sponsor_id INT, claimed_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (user_id, sponsor_id));
+CREATE TABLE IF NOT EXISTS season_snapshots (id SERIAL PRIMARY KEY, snapshot_data JSONB, created_at TIMESTAMP DEFAULT NOW());
 
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS photo_b64 TEXT;
 ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS reply_to_id INT;
@@ -96,7 +100,8 @@ SHOP_ITEMS = [
     {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":14000, "desc":"Налог 8%, редкие работы, на 30 дней"},
 ]
 
-# ─── HELPERS ───
+# ─── HELPERS ──────────────────────────────────────────────────────────────────
+
 def verify_webapp(init_data: str) -> Optional[dict]:
     from urllib.parse import unquote
     try:
@@ -115,12 +120,9 @@ async def get_jobs_list() -> list:
 
 def pick_job(vip_level: int, jobs: list) -> dict:
     roll = random.random() * 100
-    if roll < 70: 
-        pool = [j for j in jobs if j['drop_chance'] == 70]
-    elif roll < 95: 
-        pool = [j for j in jobs if j['drop_chance'] == 25]
-    else: 
-        pool = [j for j in jobs if j['drop_chance'] == 5] if vip_level >= 3 else [j for j in jobs if j['drop_chance'] == 25]
+    if roll < 70: pool = [j for j in jobs if j['drop_chance'] == 70]
+    elif roll < 95: pool = [j for j in jobs if j['drop_chance'] == 25]
+    else: pool = [j for j in jobs if j['drop_chance'] == 5] if vip_level >= 3 else [j for j in jobs if j['drop_chance'] == 25]
     return random.choice(pool) if pool else jobs[0]
 
 async def push(uid: int, text: str):
@@ -151,16 +153,11 @@ async def collect_income(owner_id: int) -> float:
 
 async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
     now = datetime.utcnow()
-    if item_type == "shield_24": 
-        await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif item_type == "shield_48": 
-        await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=48), uid)
-    elif item_type == "boost_15": 
-        await db.execute("UPDATE users SET booster_mult=1.5,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif item_type == "boost_20": 
-        await db.execute("UPDATE users SET booster_mult=2.0,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif item_type == "stealth": 
-        await db.execute("UPDATE users SET stealth_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    if item_type == "shield_24": await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    elif item_type == "shield_48": await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=48), uid)
+    elif item_type == "boost_15": await db.execute("UPDATE users SET booster_mult=1.5,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    elif item_type == "boost_20": await db.execute("UPDATE users SET booster_mult=2.0,booster_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
+    elif item_type == "stealth": await db.execute("UPDATE users SET stealth_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
     elif item_type == "chains":
         if slave_id:
             s = await db.fetchrow("SELECT owner_id FROM users WHERE id=$1", slave_id)
@@ -178,7 +175,8 @@ async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int],
             elif c['type'] == 'frame': await db.execute("UPDATE users SET avatar_frame=$1 WHERE id=$2", c['value'], uid)
             elif c['type'] == 'emoji': await db.execute("UPDATE users SET emoji_status=$1 WHERE id=$2", c['value'], uid)
 
-# ─── AUTH DEPS ───
+# ─── AUTH DEPS ────────────────────────────────────────────────────────────────
+
 async def get_current_user(x_init_data: str = Header(...)) -> dict:
     tg = verify_webapp(x_init_data)
     if not tg: raise HTTPException(401)
@@ -197,7 +195,8 @@ async def get_super_admin(x_init_data: str = Header(...)) -> dict:
     if user['id'] != SUPER_ADMIN_ID: raise HTTPException(403, "Super admin only")
     return user
 
-# ─── LIFESPAN ───
+# ─── LIFESPAN ─────────────────────────────────────────────────────────────────
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global bot, dp, db, rdb
@@ -276,7 +275,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, title="Рабство API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# ─── SCHEMAS ───
+# ─── SCHEMAS ──────────────────────────────────────────────────────────────────
+
 class InitReq(BaseModel): init_data: str; ref_id: Optional[int] = None; photo_url: Optional[str] = None
 class BuyReq(BaseModel): target_id: int
 class RenameReq(BaseModel): slave_id: int; new_name: str
@@ -285,7 +285,7 @@ class SupportReq(BaseModel): message: str = ""; photo_b64: Optional[str] = None;
 class ShopInvoiceReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class ShopRcBuyReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class PromoUseReq(BaseModel): code: str
-class AdminEditReq(BaseModel): user_id: int; balance: Optional[float] = None; price: Optional[float] = None; is_banned: Optional[bool] = None; free_slave: Optional[bool] = None
+class AdminEditReq(BaseModel): user_id: int; balance: Optional[float] = None; price: Optional[float] = None; custom_name: Optional[str] = None; is_banned: Optional[bool] = None; free_slave: Optional[bool] = None
 class BroadcastReq(BaseModel): text: str
 class TicketReplyReq(BaseModel): ticket_user_id: int; message: str; reply_to_id: Optional[int] = None
 class TicketDeleteReq(BaseModel): user_id: int
@@ -297,8 +297,10 @@ class SponsorAddReq(BaseModel): channel_id: str; channel_title: str; channel_url
 class SponsorDelReq(BaseModel): sponsor_id: int
 class CheckSponsorReq(BaseModel): sponsor_id: int
 class SeasonReq(BaseModel): password: str
+class AdminHiddenReq(BaseModel): hidden: bool
 
-# ─── PROFILE HELPER ───
+# ─── PROFILE HELPER ───────────────────────────────────────────────────────────
+
 async def _full_profile(uid: int) -> dict:
     u = await db.fetchrow("SELECT * FROM users WHERE id=$1", uid)
     if not u: raise HTTPException(404)
@@ -328,6 +330,12 @@ async def _full_profile(uid: int) -> dict:
 
     await db.execute("UPDATE users SET slaves_count=$1 WHERE id=$2", len(slaves), uid)
 
+    last_story = await db.fetchrow("SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", uid)
+    story_cooldown_until = None
+    if last_story:
+        next_avail = last_story['created_at'] + timedelta(hours=24)
+        if next_avail > now: story_cooldown_until = next_avail.isoformat()
+
     return {
         "id": u['id'], "username": u['username'], "first_name": u['first_name'], "photo_url": u['photo_url'],
         "balance": round(float(u['balance']), 2), "price": round(float(u['current_price']), 2),
@@ -340,10 +348,11 @@ async def _full_profile(uid: int) -> dict:
         "vip_level": u['vip_level'], "name_color": u['name_color'], "avatar_frame": u['avatar_frame'],
         "emoji_status": u['emoji_status'], "is_admin": await is_admin_user(u['id']),
         "is_admin_flag": bool(u.get('is_admin_flag')), "is_super_admin": u['id'] == SUPER_ADMIN_ID,
-        "admin_hidden": bool(u.get('admin_hidden')), "bot_username": BOT_USERNAME,
+        "admin_hidden": bool(u.get('admin_hidden')), "bot_username": BOT_USERNAME, "story_cooldown_until": story_cooldown_until
     }
 
-# ─── API ENDPOINTS ───
+# ─── API ENDPOINTS ────────────────────────────────────────────────────────────
+
 @app.get("/api/config")
 async def get_config(): 
     return {"bot_username": BOT_USERNAME, "webapp_url": WEBAPP_URL}
@@ -442,6 +451,7 @@ async def send_to_work(req: SendWorkReq, bg: BackgroundTasks, u: dict = Depends(
     s = await db.fetchrow("SELECT owner_id, job_assigned_at FROM users WHERE id=$1", req.slave_id)
     if not s or s['owner_id'] != u['id']: raise HTTPException(403, "Это не ваш раб")
     
+    # 2 HOUR CHECK
     if s['job_assigned_at']:
         elapsed = (datetime.utcnow() - s['job_assigned_at']).total_seconds()
         if elapsed < 7200:
@@ -503,7 +513,8 @@ async def rename_slave(req: RenameReq, user: dict = Depends(get_current_user)):
     await db.execute("UPDATE users SET custom_name=$1 WHERE id=$2", req.new_name.strip()[:32], req.slave_id)
     return {"ok": True}
 
-# ─── NATIVE STORIES API ───
+# ─── NATIVE STORIES API ───────────────────────────────────────────────────────
+
 @app.post("/api/stories/upload")
 async def stories_upload(req: StoryUploadReq):
     img_id = str(uuid.uuid4())
@@ -524,7 +535,8 @@ async def stories_claim(u: dict = Depends(get_current_user)):
     await db.execute("INSERT INTO stories_claims(user_id, status) VALUES($1, 'pending')", u['id'])
     return {"ok": True, "msg": "Заявка отправлена модераторам!"}
 
-# ─── SPONSORS API ───
+# ─── SPONSORS API ─────────────────────────────────────────────────────────────
+
 @app.get("/api/sponsors/status")
 async def get_sponsors_status(u: dict = Depends(get_current_user)):
     sponsors = await db.fetch("SELECT * FROM sponsors")
@@ -533,7 +545,8 @@ async def get_sponsors_status(u: dict = Depends(get_current_user)):
         try:
             member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=u['id'])
             is_subbed = member.status in ['member', 'administrator', 'creator']
-        except Exception: is_subbed = False
+        except Exception:
+            is_subbed = False
             
         if s['is_main']:
             main_sponsor = dict(s)
@@ -553,13 +566,14 @@ async def check_sponsor(req: CheckSponsorReq, u: dict = Depends(get_current_user
     try:
         member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=u['id'])
         if member.status not in ['member', 'administrator', 'creator']: raise HTTPException(400, "Вы не подписаны!")
-    except Exception: raise HTTPException(400, "Ошибка проверки. Бот должен быть админом канала.")
+    except Exception: raise HTTPException(400, "Ошибка проверки. Убедитесь, что бот - админ канала.")
     
     await db.execute("INSERT INTO user_sponsors(user_id, sponsor_id) VALUES($1,$2)", u['id'], s['id'])
     await db.execute("UPDATE users SET balance=balance+$1 WHERE id=$2", s['reward_rc'], u['id'])
     return {"ok": True, "reward": float(s['reward_rc'])}
 
-# ─── SUPPORT CHAT (FILES & REPLIES) ───
+# ─── SUPPORT CHAT (FILES & REPLIES) ───────────────────────────────────────────
+
 @app.post("/api/support")
 async def send_support(req: SupportReq, user: dict = Depends(get_current_user)):
     await db.execute("INSERT INTO support_tickets(user_id,message,photo_b64,reply_to_id,is_read) VALUES($1,$2,$3,$4,FALSE)", user['id'], req.message, req.photo_b64, req.reply_to_id)
@@ -576,7 +590,8 @@ async def support_history(user: dict = Depends(get_current_user)):
     await db.execute("UPDATE support_tickets SET is_read=TRUE WHERE user_id=$1 AND is_from_admin=TRUE", user['id'])
     return [dict(r) for r in rows]
 
-# ─── SHOP ───
+# ─── SHOP ─────────────────────────────────────────────────────────────────────
+
 @app.get("/api/shop")
 async def get_shop(user: dict = Depends(get_current_user)):
     cosmetics = await db.fetch("SELECT * FROM cosmetics ORDER BY type,id")
@@ -623,7 +638,8 @@ async def buy_shop_rc(req: ShopRcBuyReq, user: dict = Depends(get_current_user))
     await _grant_shop_item(uid, req.item_type, None, req.target_slave_id)
     return {"ok": True, "spent_rc": item['price_rc']}
 
-# ─── PROMO ───
+# ─── PROMO ────────────────────────────────────────────────────────────────────
+
 @app.post("/api/promo")
 async def use_promo(req: PromoUseReq, user: dict = Depends(get_current_user)):
     uid = user['id']
@@ -640,7 +656,8 @@ async def use_promo(req: PromoUseReq, user: dict = Depends(get_current_user)):
             await conn.execute("INSERT INTO promo_uses(user_id,promo_id) VALUES($1,$2)", uid, promo['id'])
     return {"ok": True, "reward": float(promo['reward_rc'])}
 
-# ─── ADMIN ENDPOINTS ───
+# ─── ADMIN ENDPOINTS ──────────────────────────────────────────────────────────
+
 @app.get("/api/admin/dashboard")
 async def admin_dashboard(_: dict = Depends(get_admin_user)):
     stats = await db.fetchrow(
@@ -663,6 +680,7 @@ async def admin_edit(req: AdminEditReq, _: dict = Depends(get_admin_user)):
     if req.price is not None: add("current_price", req.price)
     if req.is_banned is not None: add("is_banned", req.is_banned)
     if req.free_slave: parts += ["owner_id=NULL","custom_name=NULL","job_id=NULL","job_assigned_at=NULL"]
+    if req.custom_name is not None: add("custom_name", req.custom_name or None)
     if parts: vals.append(req.user_id); await db.execute(f"UPDATE users SET {','.join(parts)} WHERE id=${len(vals)}", *vals)
     return {"ok": True}
 
@@ -676,6 +694,11 @@ async def admin_grant_cosmetic(req: AdminGrantCosmeticReq, _: dict = Depends(get
     c = await db.fetchrow("SELECT id FROM cosmetics WHERE type=$1 AND value=$2", mapping.get(req.field), req.value)
     if c: await db.execute("INSERT INTO user_cosmetics(user_id, cosmetic_id) VALUES($1,$2) ON CONFLICT DO NOTHING", uid, c['id'])
     await db.execute(f"UPDATE users SET {req.field}=$1 WHERE id=$2", req.value, uid)
+    return {"ok": True}
+
+@app.post("/api/admin/toggle_hidden")
+async def admin_toggle_hidden(req: AdminHiddenReq, admin: dict = Depends(get_admin_user)):
+    await db.execute("UPDATE users SET admin_hidden=$1 WHERE id=$2", req.hidden, admin['id'])
     return {"ok": True}
 
 @app.get("/api/admin/tickets")
@@ -764,7 +787,8 @@ async def admin_del_sponsor(req: SponsorDelReq, _: dict = Depends(get_admin_user
 
 @app.get("/api/admin/admins_list")
 async def get_admins_list(_: dict = Depends(get_super_admin)):
-    return {"db_admins": [dict(r) for r in await db.fetch("SELECT au.user_id, u.username, u.first_name FROM admin_users au LEFT JOIN users u ON au.user_id = u.id")]}
+    rows = await db.fetch("SELECT au.user_id, u.username, u.first_name FROM admin_users au LEFT JOIN users u ON au.user_id = u.id")
+    return {"db_admins": [dict(r) for r in rows]}
 
 @app.post("/api/admin/admins_list/add")
 async def add_admin(req: AdminManageReq, u: dict = Depends(get_super_admin)):
