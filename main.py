@@ -262,8 +262,9 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(5)
 
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
-    async with db.acquire() as c:
+    async with db.acquire() as c: 
         await c.execute(SCHEMA)
+        
     for aid in ADMIN_IDS:
         try: await db.execute("UPDATE users SET is_admin_flag=TRUE WHERE id=$1", aid)
         except Exception: pass
@@ -296,11 +297,13 @@ async def lifespan(app: FastAPI):
             parts = payload.split(":")
             purchase_id, uid, item_type = int(parts[1]), int(parts[2]), parts[3]
             purchase = await db.fetchrow("SELECT * FROM pending_purchases WHERE id=$1 AND user_id=$2 AND status='pending'", purchase_id, uid)
-            if not purchase: return await msg.answer("⚠️ Покупка уже обработана.")
+            if not purchase: 
+                return await msg.answer("⚠️ Покупка уже обработана.")
             await db.execute("UPDATE pending_purchases SET status='completed' WHERE id=$1", purchase_id)
             await _grant_shop_item(uid, item_type, purchase['cosmetic_id'], purchase['slave_id'])
-            await msg.answer("✅ Покупка успешна! Предмет активирован.")
-        except Exception as e: print(f"[payment] error: {e}")
+            await msg.answer("✅ Покупка успешна! Предмет активирован. Обновите приложение.")
+        except Exception as e: 
+            print(f"[payment] error: {e}")
 
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(dp.start_polling(bot, skip_updates=True))
@@ -328,6 +331,7 @@ class InitReq(BaseModel): init_data: str; ref_id: Optional[int] = None; photo_ur
 class BuyReq(BaseModel): target_id: int
 class RenameReq(BaseModel): slave_id: int; new_name: str
 class SendWorkReq(BaseModel): slave_id: int
+class SupportReq(BaseModel): message: str = ""; photo_b64: Optional[str] = None; reply_to_id: Optional[int] = None
 class ShopInvoiceReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class ShopRcBuyReq(BaseModel): item_type: str; cosmetic_id: Optional[int] = None; target_slave_id: Optional[int] = None
 class PromoUseReq(BaseModel): code: str
