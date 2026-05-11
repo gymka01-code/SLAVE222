@@ -1,5 +1,3 @@
---- START OF FILE text/x-python ---
-
 import asyncio
 import os
 import random
@@ -858,4 +856,3 @@ async def remove_admin(req: AdminManageReq, _: dict = Depends(get_super_admin)):
 async def serve(): return FileResponse("index.html")
 
 if __name__ == "__main__": uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), workers=1)
---- END OF FILE text/x-python ---
