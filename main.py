@@ -30,8 +30,9 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://rabstvo:rabstvo@localhost
 REDIS_URL    = os.getenv("REDIS_URL",    "redis://localhost:6379")
 WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://yourdomain.com")
 ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "000000000").split(",")))
-BOT_USERNAME = os.getenv("BOT_USERNAME", "YourBot")   # FIX #12: set real bot username
+BOT_USERNAME = os.getenv("BOT_USERNAME", "Rabstvo_Slave_bot")
 SEASON_PASS  = "Niva01102007"
+SUPER_ADMIN_ID = ADMIN_IDS[0] if ADMIN_IDS else 0
 
 # ─── GLOBALS ──────────────────────────────────────────────────────────────────
 
@@ -152,6 +153,14 @@ CREATE TABLE IF NOT EXISTS pending_purchases (
     created_at  TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS admin_users (
+    user_id    BIGINT PRIMARY KEY,
+    added_by   BIGINT,
+    added_at   TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE cosmetics ADD COLUMN IF NOT EXISTS price_rc INT DEFAULT 0;
+
 CREATE TABLE IF NOT EXISTS sponsors (
     id            SERIAL PRIMARY KEY,
     channel_id    BIGINT  UNIQUE NOT NULL,
@@ -209,15 +218,15 @@ ON CONFLICT (name) DO NOTHING;
 # ─── SHOP ITEMS CATALOGUE ─────────────────────────────────────────────────────
 
 SHOP_ITEMS = [
-    {"id":"shield_24", "name":"🛡 Щит 24ч",   "price_stars":50,  "desc":"Защищает вас от покупки другими игроками на 24 часа"},
-    {"id":"shield_48", "name":"🛡 Щит 48ч",   "price_stars":90,  "desc":"Защищает вас от покупки другими игроками на 48 часов"},
-    {"id":"chains",    "name":"⛓ Оковы",      "price_stars":30,  "desc":"Вешаются на вашего раба — его выкуп для других дорожает на 50%"},
-    {"id":"boost_15",  "name":"🚀 Буст ×1.5", "price_stars":40,  "desc":"Увеличивает пассивный доход от рабов на +50% на 24 часа"},
-    {"id":"boost_20",  "name":"🚀 Буст ×2.0", "price_stars":70,  "desc":"Удваивает пассивный доход от рабов на 24 часа"},
-    {"id":"stealth",   "name":"👻 Стелс",      "price_stars":35,  "desc":"Скрывает вас из рейтингов и поиска на 24 часа"},
-    {"id":"vip_1",     "name":"🥉 Богач",      "price_stars":150, "desc":"Бронзовый статус: рамка + +2% к доходу. Действует 30 дней"},
-    {"id":"vip_2",     "name":"🥈 Элита",      "price_stars":300, "desc":"Серебряный статус: рамка + +5% к доходу. Действует 30 дней"},
-    {"id":"vip_3",     "name":"👑 Король",     "price_stars":500, "desc":"Золотая корона: налог 8%, доступ к редким работам. 30 дней"},
+    {"id":"shield_24", "name":"🛡 Щит 24ч",   "price_stars":50,  "price_rc":1200,  "desc":"Защищает вас от покупки другими игроками на 24 часа"},
+    {"id":"shield_48", "name":"🛡 Щит 48ч",   "price_stars":90,  "price_rc":2200,  "desc":"Защищает вас от покупки другими игроками на 48 часов"},
+    {"id":"chains",    "name":"⛓ Оковы",      "price_stars":30,  "price_rc":800,   "desc":"Вешаются на вашего раба — его выкуп для других дорожает на 50%"},
+    {"id":"boost_15",  "name":"🚀 Буст ×1.5", "price_stars":40,  "price_rc":1000,  "desc":"Увеличивает пассивный доход от рабов на +50% на 24 часа"},
+    {"id":"boost_20",  "name":"🚀 Буст ×2.0", "price_stars":70,  "price_rc":1800,  "desc":"Удваивает пассивный доход от рабов на 24 часа"},
+    {"id":"stealth",   "name":"👻 Стелс",      "price_stars":35,  "price_rc":900,   "desc":"Скрывает вас из рейтингов и поиска на 24 часа"},
+    {"id":"vip_1",     "name":"🥉 Богач",      "price_stars":150, "price_rc":4000,  "desc":"Бронзовый статус: рамка + +2% к доходу. Действует 30 дней"},
+    {"id":"vip_2",     "name":"🥈 Элита",      "price_stars":300, "price_rc":8000,  "desc":"Серебряный статус: рамка + +5% к доходу. Действует 30 дней"},
+    {"id":"vip_3",     "name":"👑 Король",     "price_stars":500, "price_rc":14000, "desc":"Золотая корона: налог 8%, доступ к редким работам. 30 дней"},
 ]
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -251,6 +260,28 @@ async def push(uid: int, text: str):
     if bot:
         try: await bot.send_message(uid, text, parse_mode="HTML")
         except Exception: pass
+
+async def is_admin_user(uid: int) -> bool:
+    """Check env list + DB admin_users table."""
+    if uid in ADMIN_IDS:
+        return True
+    try:
+        row = await db.fetchrow("SELECT 1 FROM admin_users WHERE user_id=$1", uid)
+        return row is not None
+    except Exception:
+        return False
+
+async def notify_admins(text: str):
+    """Push a message to ALL admins (env + DB)."""
+    notified: set = set(ADMIN_IDS)
+    try:
+        rows = await db.fetch("SELECT user_id FROM admin_users")
+        for r in rows:
+            notified.add(r['user_id'])
+    except Exception:
+        pass
+    for uid in notified:
+        asyncio.create_task(push(uid, text))
 
 async def collect_income(owner_id: int) -> float:
     now = datetime.utcnow()
@@ -329,8 +360,15 @@ async def get_current_user(x_init_data: str = Header(...)) -> dict:
 
 async def get_admin_user(x_init_data: str = Header(...)) -> dict:
     user = await get_current_user(x_init_data)
-    if user['id'] not in ADMIN_IDS:
+    if not await is_admin_user(user['id']):
         raise HTTPException(403, "Admins only")
+    return user
+
+async def get_super_admin(x_init_data: str = Header(...)) -> dict:
+    """Only the main (super) admin can manage other admins."""
+    user = await get_current_user(x_init_data)
+    if user['id'] != SUPER_ADMIN_ID:
+        raise HTTPException(403, "Только главный администратор")
     return user
 
 # ─── LIFESPAN ─────────────────────────────────────────────────────────────────
@@ -438,6 +476,23 @@ class SponsorReq(BaseModel):
     channel_title: str
     reward_rc:     float = 250.0
 
+class AdminManageReq(BaseModel):
+    user_id: int
+
+class VipGrantReq(BaseModel):
+    identifier: str        # ID, @username, or first_name
+    vip_level:  int        # 0 = revoke, 1-3 = grant
+    days:       int = 30
+
+class ShopRcBuyReq(BaseModel):
+    item_type:       str
+    cosmetic_id:     Optional[int] = None
+    target_slave_id: Optional[int] = None
+
+class StoryRejectReq(BaseModel):
+    claim_id: int
+    reason:   Optional[str] = None
+
 # ─── PROFILE HELPER ───────────────────────────────────────────────────────────
 
 async def _full_profile(uid: int) -> dict:
@@ -459,6 +514,7 @@ async def _full_profile(uid: int) -> dict:
            FROM users u LEFT JOIN jobs j ON u.job_id=j.id
            WHERE u.owner_id=$1""", uid
     )
+    owner_mult = float(u['booster_mult']) if u['booster_until'] and u['booster_until'] > now else 1.0
     slaves = [{
         "id":            s['id'],
         "username":      s['username'],
@@ -470,8 +526,10 @@ async def _full_profile(uid: int) -> dict:
         "job_title":     s['job_title'],
         "job_emoji":     s['job_emoji'],
         "income_per_hour": float(s['income_per_hour']) if s['income_per_hour'] else 0,
+        "income_per_hour_effective": round(float(s['income_per_hour'] or 0) * owner_mult, 2),
         "working":       bool(s['job_id'] and s['job_assigned_at']),
     } for s in slaves_raw]
+    total_income_ph = round(sum(s['income_per_hour_effective'] for s in slaves if s['working']), 2)
 
     # Stories cooldown
     last_story = await db.fetchrow(
@@ -487,13 +545,14 @@ async def _full_profile(uid: int) -> dict:
         "id":           u['id'],
         "username":     u['username'],
         "first_name":   u['first_name'],
-        "photo_url":    u['photo_url'],          # FIX #3
+        "photo_url":    u['photo_url'],
         "balance":      round(float(u['balance']), 2),
         "price":        round(float(u['current_price']), 2),
         "owner":        owner,
         "custom_name":  u['custom_name'],
         "slaves":       slaves,
         "slaves_count": len(slaves),
+        "total_income_per_hour": total_income_ph,
         "shield_active": bool(u['shield_until'] and u['shield_until'] > now),
         "shield_until": u['shield_until'].isoformat() if u['shield_until'] else None,
         "stealth_active": bool(u['stealth_until'] and u['stealth_until'] > now),
@@ -504,9 +563,10 @@ async def _full_profile(uid: int) -> dict:
         "name_color": u['name_color'],
         "avatar_frame": u['avatar_frame'],
         "emoji_status": u['emoji_status'],
-        "is_admin":   u['id'] in ADMIN_IDS,
-        "story_cooldown_until": story_cooldown_until,  # FIX #11
-        "bot_username": BOT_USERNAME,                   # FIX #12
+        "is_admin":   await is_admin_user(u['id']),
+        "is_super_admin": u['id'] == SUPER_ADMIN_ID,
+        "story_cooldown_until": story_cooldown_until,
+        "bot_username": BOT_USERNAME,
     }
 
 # ─── ROUTES ───────────────────────────────────────────────────────────────────
@@ -775,6 +835,13 @@ async def stories_claim(user: dict = Depends(get_current_user)):
     if pending:
         raise HTTPException(400, "Заявка уже на рассмотрении")
     await db.execute("INSERT INTO stories_claims(user_id) VALUES($1)", uid)
+    uname = f"@{user['username']}" if user.get('username') else str(uid)
+    asyncio.create_task(notify_admins(
+        f"📸 <b>Новая заявка на Story!</b>\n"
+        f"От: {uname} (id: {uid})\n"
+        f"Стоимость: {float(user['current_price']):.0f} RC\n"
+        f"Ждёт одобрения в /api/admin/stories"
+    ))
     return {"ok": True, "msg": "Заявка отправлена на проверку. После одобрения получите +250 RC и предмет!"}
 
 
@@ -784,6 +851,12 @@ async def send_support(req: SupportReq, user: dict = Depends(get_current_user)):
         "INSERT INTO support_tickets(user_id,message,photo_file_id,is_read) VALUES($1,$2,$3,FALSE)",
         user['id'], req.message, req.photo_file_id
     )
+    uname = f"@{user['username']}" if user.get('username') else str(user['id'])
+    asyncio.create_task(notify_admins(
+        f"📩 <b>Новый тикет поддержки!</b>\n"
+        f"От: {uname} (id: {user['id']})\n"
+        f"Сообщение: {req.message[:200]}"
+    ))
     return {"ok": True}
 
 
@@ -977,13 +1050,24 @@ async def admin_stories(_: dict = Depends(get_admin_user)):
 async def admin_approve_story(claim_id: int, bg: BackgroundTasks, _: dict = Depends(get_admin_user)):
     claim = await db.fetchrow("SELECT * FROM stories_claims WHERE id=$1", claim_id)
     if not claim: raise HTTPException(404)
-    item = random.choice(["🛡 Щит", "⛓ Оковы", "🚀 Бустер", "👻 Стелс"])
+    if claim['status'] != 'pending':
+        raise HTTPException(400, "Заявка уже обработана")
+
+    # Pick and actually grant a real item
+    item_type, item_label = random.choice([
+        ("shield_24", "🛡 Щит 24ч"),
+        ("boost_15",  "🚀 Буст ×1.5"),
+        ("stealth",   "👻 Стелс"),
+    ])
     async with db.acquire() as conn:
         async with conn.transaction():
             await conn.execute("UPDATE stories_claims SET status='approved' WHERE id=$1", claim_id)
             await conn.execute("UPDATE users SET balance=balance+250 WHERE id=$1", claim['user_id'])
-    bg.add_task(push, claim['user_id'], f"🎁 Ваша Story одобрена! +250 RC и предмет: {item}.")
-    return {"ok": True, "item": item}
+    # Grant item outside transaction (it's fine if it fails independently)
+    await _grant_shop_item(claim['user_id'], item_type, None)
+    bg.add_task(push, claim['user_id'],
+        f"🎁 Ваша Story одобрена!\n+250 RC зачислено на баланс.\nПредмет: <b>{item_label}</b> активирован.")
+    return {"ok": True, "item": item_label}
 
 
 @app.post("/api/admin/broadcast")
@@ -1074,6 +1158,146 @@ async def admin_add_sponsor(req: SponsorReq, _: dict = Depends(get_admin_user)):
         "INSERT INTO sponsors(channel_id,channel_title,reward_rc) VALUES($1,$2,$3) ON CONFLICT(channel_id) DO UPDATE SET channel_title=$2,reward_rc=$3,is_active=TRUE",
         req.channel_id, req.channel_title, req.reward_rc
     )
+    return {"ok": True}
+
+
+# ─── ADMIN MANAGEMENT (super-admin only) ──────────────────────────────────────
+
+@app.get("/api/admin/admins")
+async def list_admins(_: dict = Depends(get_super_admin)):
+    rows = await db.fetch(
+        """SELECT au.user_id, u.username, u.first_name, au.added_at
+           FROM admin_users au LEFT JOIN users u ON u.id=au.user_id
+           ORDER BY au.added_at"""
+    )
+    return {"super_admin": SUPER_ADMIN_ID, "env_admins": ADMIN_IDS, "db_admins": [dict(r) for r in rows]}
+
+
+@app.post("/api/admin/admins/add")
+async def add_admin(req: AdminManageReq, admin: dict = Depends(get_super_admin)):
+    target = await db.fetchrow("SELECT id,username,first_name FROM users WHERE id=$1", req.user_id)
+    if not target:
+        raise HTTPException(404, "Пользователь не найден")
+    await db.execute(
+        "INSERT INTO admin_users(user_id,added_by) VALUES($1,$2) ON CONFLICT DO NOTHING",
+        req.user_id, admin['id']
+    )
+    await push(req.user_id, "👮 Вам выданы права администратора в игре РАБСТВО!")
+    name = f"@{target['username']}" if target['username'] else target['first_name']
+    return {"ok": True, "msg": f"Администратор {name} добавлен"}
+
+
+@app.post("/api/admin/admins/remove")
+async def remove_admin(req: AdminManageReq, _: dict = Depends(get_super_admin)):
+    if req.user_id in ADMIN_IDS:
+        raise HTTPException(400, "Нельзя удалить администратора из env-списка")
+    await db.execute("DELETE FROM admin_users WHERE user_id=$1", req.user_id)
+    return {"ok": True}
+
+
+# ─── VIP GRANT ────────────────────────────────────────────────────────────────
+
+@app.post("/api/admin/users/vip")
+async def admin_grant_vip(req: VipGrantReq, _: dict = Depends(get_admin_user)):
+    """Grant or revoke VIP by Telegram ID, @username, or first_name."""
+    user = None
+    try:
+        uid = int(req.identifier)
+        user = await db.fetchrow("SELECT id,username,first_name FROM users WHERE id=$1", uid)
+    except ValueError:
+        pass
+    if not user:
+        slug = req.identifier.lstrip('@')
+        user = await db.fetchrow(
+            "SELECT id,username,first_name FROM users WHERE username ILIKE $1 OR first_name ILIKE $1 LIMIT 1",
+            slug
+        )
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+
+    now = datetime.utcnow()
+    vip_until = (now + timedelta(days=req.days)) if req.vip_level > 0 else None
+    await db.execute(
+        "UPDATE users SET vip_level=$1, vip_until=$2 WHERE id=$3",
+        req.vip_level, vip_until, user['id']
+    )
+    name = f"@{user['username']}" if user['username'] else user['first_name']
+    labels = {0:"снят", 1:"🥉 Богач", 2:"🥈 Элита", 3:"👑 Король"}
+    if req.vip_level > 0:
+        await push(user['id'],
+            f"🎖 Вам выдан статус <b>{labels[req.vip_level]}</b> на {req.days} дней! Приятной игры.")
+    else:
+        await push(user['id'], "ℹ️ Ваш VIP-статус был сброшен администратором.")
+    return {"ok": True, "user": name, "vip_level": req.vip_level, "until": vip_until.isoformat() if vip_until else None}
+
+
+# ─── SHOP BUY WITH RC ─────────────────────────────────────────────────────────
+
+@app.post("/api/shop/buy_rc")
+async def buy_shop_rc(req: ShopRcBuyReq, user: dict = Depends(get_current_user)):
+    uid = user['id']
+
+    if req.item_type == "cosmetic":
+        c = await db.fetchrow("SELECT * FROM cosmetics WHERE id=$1", req.cosmetic_id)
+        if not c: raise HTTPException(404, "Косметика не найдена")
+        price_rc  = c['price_rc'] or 0
+        item_name = c['name']
+    else:
+        item = next((i for i in SHOP_ITEMS if i['id'] == req.item_type), None)
+        if not item: raise HTTPException(400, "Неизвестный товар")
+        price_rc  = item.get('price_rc', 0)
+        item_name = item['name']
+
+    if not price_rc:
+        raise HTTPException(400, "Этот товар нельзя купить за RC")
+
+    if req.item_type == "chains":
+        if not req.target_slave_id:
+            raise HTTPException(400, "Укажите раба для оков")
+        s = await db.fetchrow("SELECT owner_id FROM users WHERE id=$1", req.target_slave_id)
+        if not s or s['owner_id'] != uid:
+            raise HTTPException(403, "Это не ваш раб")
+
+    await collect_income(uid)
+    bal = float((await db.fetchrow("SELECT balance FROM users WHERE id=$1", uid))['balance'])
+    if bal < price_rc:
+        raise HTTPException(400, f"Недостаточно RC. Нужно {price_rc}, у вас {bal:.0f}")
+
+    await db.execute("UPDATE users SET balance=balance-$1 WHERE id=$2", price_rc, uid)
+    await _grant_shop_item(uid, req.item_type, req.cosmetic_id, req.target_slave_id)
+    return {"ok": True, "spent_rc": price_rc, "item": item_name}
+
+
+# ─── STORY SHARE DATA + REJECT ────────────────────────────────────────────────
+
+@app.get("/api/stories/share_data")
+async def stories_share_data(user: dict = Depends(get_current_user)):
+    """Data for composing a Telegram story about the user."""
+    u = await db.fetchrow(
+        "SELECT id,username,first_name,photo_url,current_price FROM users WHERE id=$1", user['id']
+    )
+    name = u['first_name'] or u['username'] or str(u['id'])
+    price = float(u['current_price'])
+    ref_link = f"https://t.me/{BOT_USERNAME}?start=ref_{u['id']}"
+    return {
+        "photo_url":  u['photo_url'],
+        "price":      price,
+        "name":       name,
+        "ref_link":   ref_link,
+        "share_text": f"💰 Моя цена в РАБСТВО: {price:.0f} RC!\nКупи меня: {ref_link}",
+    }
+
+
+@app.post("/api/admin/stories/reject")
+async def admin_reject_story(req: StoryRejectReq, bg: BackgroundTasks, _: dict = Depends(get_admin_user)):
+    claim = await db.fetchrow("SELECT * FROM stories_claims WHERE id=$1", req.claim_id)
+    if not claim: raise HTTPException(404)
+    if claim['status'] != 'pending':
+        raise HTTPException(400, "Заявка уже обработана")
+    await db.execute("UPDATE stories_claims SET status='rejected' WHERE id=$1", req.claim_id)
+    reason_text = f"\nПричина: {req.reason}" if req.reason else ""
+    bg.add_task(push, claim['user_id'],
+        f"❌ Ваша заявка на Story отклонена.{reason_text}\nПопробуйте снова через 24 часа.")
     return {"ok": True}
 
 # ─── BOT HANDLERS ─────────────────────────────────────────────────────────────
