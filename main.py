@@ -670,10 +670,19 @@ async def search_players(q: Optional[str] = None, min_price: Optional[float] = N
 async def get_top(cat: str = "forbes"):
     ck = f"top:{cat}"
     if cached := await rdb.get(ck): return json.loads(cached)
-    now, hf = datetime.utcnow(), "AND (admin_hidden=FALSE OR admin_hidden IS NULL)"
-    if cat == "forbes": rows = await db.fetch(f"SELECT id,username,first_name,balance as value,vip_level,name_color,avatar_frame,emoji_status,photo_url,is_admin_flag FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE {hf} ORDER BY balance DESC LIMIT 100", now)
-    elif cat == "owners": rows = await db.fetch(f"SELECT u.id, u.username, u.first_name, u.vip_level, u.name_color, u.avatar_frame, u.emoji_status, u.photo_url, u.is_admin_flag, COUNT(s.id) as value FROM users u INNER JOIN users s ON s.owner_id = u.id WHERE (u.stealth_until IS NULL OR u.stealth_until < $1) AND u.is_banned = FALSE {hf} GROUP BY u.id ORDER BY value DESC LIMIT 100", now)
-    else: rows = await db.fetch(f"SELECT id,username,first_name,current_price as value,vip_level,name_color,avatar_frame,emoji_status,photo_url,is_admin_flag FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE {hf} ORDER BY current_price DESC LIMIT 100", now)
+    now = datetime.utcnow()
+    
+    # ✅ ИСПРАВЛЕНИЕ: Явно указываем u.admin_hidden для JOIN запросов
+    hf = "AND (u.admin_hidden=FALSE OR u.admin_hidden IS NULL)" 
+    
+    if cat == "forbes": 
+        # В остальных запросах переименовываем таблицу в "u", чтобы фильтр работал везде
+        rows = await db.fetch(f"SELECT u.id, u.username, u.first_name, u.balance as value, u.vip_level, u.name_color, u.avatar_frame, u.emoji_status, u.photo_url, u.is_admin_flag FROM users u WHERE (u.stealth_until IS NULL OR u.stealth_until<$1) AND u.is_banned=FALSE {hf} ORDER BY u.balance DESC LIMIT 100", now)
+    elif cat == "owners": 
+        rows = await db.fetch(f"SELECT u.id, u.username, u.first_name, u.vip_level, u.name_color, u.avatar_frame, u.emoji_status, u.photo_url, u.is_admin_flag, COUNT(s.id) as value FROM users u INNER JOIN users s ON s.owner_id = u.id WHERE (u.stealth_until IS NULL OR u.stealth_until < $1) AND u.is_banned = FALSE {hf} GROUP BY u.id ORDER BY value DESC LIMIT 100", now)
+    else: 
+        rows = await db.fetch(f"SELECT u.id, u.username, u.first_name, u.current_price as value, u.vip_level, u.name_color, u.avatar_frame, u.emoji_status, u.photo_url, u.is_admin_flag FROM users u WHERE (u.stealth_until IS NULL OR u.stealth_until<$1) AND u.is_banned=FALSE {hf} ORDER BY u.current_price DESC LIMIT 100", now)
+        
     result = [dict(r) for r in rows]
     await rdb.setex(ck, 300, json.dumps(result, default=str))
     return result
