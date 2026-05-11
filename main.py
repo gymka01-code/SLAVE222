@@ -1,3 +1,5 @@
+--- START OF FILE text/x-python ---
+
 import asyncio
 import os
 import random
@@ -80,9 +82,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_hidden BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS purchase_protection_until TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT;
+
+-- ✅ ЖЕСТКАЯ КОНВЕРТАЦИЯ КОЛОНОК СПОНСОРОВ ДЛЯ ИЗБЕЖАНИЯ ОШИБОК БАЗЫ ДАННЫХ
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_main BOOLEAN DEFAULT FALSE;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS channel_url TEXT;
 ALTER TABLE sponsors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE sponsors ALTER COLUMN channel_id TYPE TEXT USING channel_id::text;
 
 INSERT INTO global_settings (key, value) VALUES ('maintenance', '0') ON CONFLICT DO NOTHING;
 
@@ -126,7 +131,6 @@ def verify_webapp(init_data: str) -> Optional[dict]:
             uid = int(init_data.split(":")[1])
             return {"id": uid, "first_name": "DevUser", "username": f"dev_{uid}"}
 
-        # ✅ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ОШИБКИ Bad initData
         parsed = {}
         for item in init_data.split("&"):
             if "=" in item:
@@ -818,12 +822,10 @@ async def admin_get_sponsors(_: dict = Depends(get_admin_user)):
 
 @app.post("/api/admin/sponsors/add")
 async def admin_add_sponsor(req: SponsorAddReq, _: dict = Depends(get_admin_user)):
-    # Явно приводим channel_id к строке, чтобы избежать ошибки типов в БД
     channel_id_str = str(req.channel_id)
-    
     await db.execute(
         "INSERT INTO sponsors(channel_id, channel_title, channel_url, reward_rc, is_main, is_active) "
-        "VALUES($1,$2,$3,$4,$5,TRUE) ON CONFLICT(channel_id) DO UPDATE SET "
+        "VALUES($1::text, $2, $3, $4, $5, TRUE) ON CONFLICT(channel_id) DO UPDATE SET "
         "channel_title=EXCLUDED.channel_title, channel_url=EXCLUDED.channel_url, "
         "reward_rc=EXCLUDED.reward_rc, is_main=EXCLUDED.is_main",
         channel_id_str, req.channel_title, req.channel_url, req.reward_rc, req.is_main
@@ -856,3 +858,4 @@ async def remove_admin(req: AdminManageReq, _: dict = Depends(get_super_admin)):
 async def serve(): return FileResponse("index.html")
 
 if __name__ == "__main__": uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), workers=1)
+--- END OF FILE text/x-python ---
