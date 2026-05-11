@@ -254,16 +254,16 @@ async def lifespan(app: FastAPI):
 
     for attempt in range(1, 13):
         try:
-            db = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=15, **({"ssl": _ssl} if _ssl else {}))
+            _pool_kwargs = {"ssl": _ssl} if _ssl else {}
+            db = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=15, **_pool_kwargs)
             break
-        except Exception:
+        except Exception as e:
             if attempt == 12: raise
             await asyncio.sleep(5)
 
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
-    async with db.acquire() as c: 
+    async with db.acquire() as c:
         await c.execute(SCHEMA)
-        
     for aid in ADMIN_IDS:
         try: await db.execute("UPDATE users SET is_admin_flag=TRUE WHERE id=$1", aid)
         except Exception: pass
@@ -296,13 +296,11 @@ async def lifespan(app: FastAPI):
             parts = payload.split(":")
             purchase_id, uid, item_type = int(parts[1]), int(parts[2]), parts[3]
             purchase = await db.fetchrow("SELECT * FROM pending_purchases WHERE id=$1 AND user_id=$2 AND status='pending'", purchase_id, uid)
-            if not purchase: 
-                return await msg.answer("⚠️ Покупка уже обработана.")
+            if not purchase: return await msg.answer("⚠️ Покупка уже обработана.")
             await db.execute("UPDATE pending_purchases SET status='completed' WHERE id=$1", purchase_id)
             await _grant_shop_item(uid, item_type, purchase['cosmetic_id'], purchase['slave_id'])
-            await msg.answer("✅ Покупка успешна! Предмет активирован. Обновите приложение.")
-        except Exception as e: 
-            print(f"[payment] error: {e}")
+            await msg.answer("✅ Покупка успешна! Предмет активирован.")
+        except Exception as e: print(f"[payment] error: {e}")
 
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(dp.start_polling(bot, skip_updates=True))
@@ -336,6 +334,8 @@ class PromoUseReq(BaseModel): code: str
 class AdminEditReq(BaseModel): user_id: int; balance: Optional[float] = None; price: Optional[float] = None; custom_name: Optional[str] = None; is_banned: Optional[bool] = None; free_slave: Optional[bool] = None
 class SeasonReq(BaseModel): password: str
 class BroadcastReq(BaseModel): text: str
+class TicketReplyReq(BaseModel): ticket_user_id: int; message: str; reply_to_id: Optional[int] = None
+class TicketDeleteReq(BaseModel): user_id: int
 class PromoCreateReq(BaseModel): code: str; reward_rc: float; max_uses: int = 1
 class AdminManageReq(BaseModel): user_id: int
 class StoryUploadReq(BaseModel): b64_data: str
@@ -572,8 +572,7 @@ async def search_players(q: Optional[str] = None, min_price: Optional[float] = N
     if newcomers: 
         rows = await db.fetch(base + stealth + " ORDER BY created_at DESC LIMIT 50", now)
     elif random_pick:
-        bal = float((await db.fetchrow("SELECT balance FROM users WHERE id=$1", user['id']))['balance'])
-        rows = await db.fetch(base + stealth + " AND id!=$2 AND current_price<=$3 ORDER BY RANDOM() LIMIT 1", now, user['id'], bal)
+        rows = await db.fetch(base + stealth + " AND id!=$2 ORDER BY RANDOM() LIMIT 10", now, user['id'])
     elif q: 
         rows = await db.fetch(base + stealth + " AND (username ILIKE $2 OR first_name ILIKE $2) LIMIT 20", now, f"%{q}%")
     else:
@@ -593,7 +592,6 @@ async def get_top(cat: str = "forbes"):
     if cat == "forbes": 
         rows = await db.fetch(f"SELECT id,username,first_name,balance as value,vip_level,name_color,avatar_frame,emoji_status,photo_url,is_admin_flag FROM users WHERE (stealth_until IS NULL OR stealth_until<$1) AND is_banned=FALSE {hf} ORDER BY balance DESC LIMIT 100", now)
     elif cat == "owners": 
-        # INNER JOIN correctly computes only users that DO have slaves, ordering by count.
         query = f"""
             SELECT u.id, u.username, u.first_name, u.vip_level, u.name_color, 
                    u.avatar_frame, u.emoji_status, u.photo_url, u.is_admin_flag, 
@@ -639,6 +637,10 @@ async def stories_claim(u: dict = Depends(get_current_user)):
     last = await db.fetchrow("SELECT created_at FROM stories_claims WHERE user_id=$1 AND status='approved' ORDER BY created_at DESC LIMIT 1", u['id'])
     if last and (datetime.utcnow() - last['created_at']).total_seconds() < 86400: raise HTTPException(400, "Доступно раз в 24 часа")
     await db.execute("INSERT INTO stories_claims(user_id, status) VALUES($1, 'pending')", u['id'])
+    
+    uname = f"@{u['username']}" if u.get('username') else f"ID {u['id']}"
+    await notify_admins(f"📸 <b>Новая заявка на Story!</b>\nОт пользователя {uname}\nЖдет проверки в админ-панели.")
+    
     return {"ok": True, "msg": "Заявка отправлена модераторам!"}
 
 # ─── SPONSORS API ─────────────────────────────────────────────────────────────
@@ -708,7 +710,11 @@ async def send_support(
     p = await get_player(uid)
     uname = f"@{p['username']}" if p and p.get('username') else f"ID {uid}"
     target_ids = [cb] if cb else await get_admin_ids()
-    txt_alert = f"💬 <b>Новое сообщение</b> от {uname}\n\n{message.strip()}"
+    
+    msg_preview = message.strip()[:50] + "..." if len(message.strip()) > 50 else message.strip()
+    if photo_b64: msg_preview = "[Фото] " + msg_preview
+    txt_alert = f"💬 <b>Новое сообщение</b> от {uname}\n\n{msg_preview}"
+    
     for aid in target_ids: asyncio.create_task(push(aid, txt_alert))
     return {"ok": True}
 
@@ -716,7 +722,7 @@ async def send_support(
 async def support_history(x_init_data: str = Header(...)):
     uid = await _resolve_uid(x_init_data)
     query = """
-    SELECT st.id, st.message as text, st.photo_b64, st.is_from_admin, st.created_at, rt.text as reply_text 
+    SELECT st.id, st.text as message, st.photo_b64, st.is_from_admin, st.created_at, rt.text as reply_text 
     FROM support_messages st LEFT JOIN support_messages rt ON st.reply_to_id = rt.id 
     WHERE st.user_id=$1 ORDER BY st.created_at ASC
     """
@@ -844,11 +850,11 @@ async def admin_toggle_hidden(req: AdminHiddenReq, admin: dict = Depends(get_adm
 @app.get("/api/admin/tickets")
 async def admin_tickets(_: dict = Depends(get_admin_user)):
     rows = await db.fetch("""
-        SELECT t.user_id, u.username, u.first_name, COUNT(CASE WHEN sm.is_from_admin=FALSE AND sm.is_read=FALSE THEN 1 END) AS unread, 
+        SELECT t.user_id, u.username, u.first_name, u.photo_url, COUNT(CASE WHEN sm.is_from_admin=FALSE AND sm.is_read=FALSE THEN 1 END) AS unread, 
         MAX(sm.created_at) AS last_at, (array_agg(sm.text ORDER BY sm.created_at DESC))[1] AS last_msg 
         FROM tickets t JOIN users u ON u.id=t.user_id LEFT JOIN support_messages sm ON sm.ticket_id=t.id 
         WHERE t.status != 'closed'
-        GROUP BY t.user_id, u.username, u.first_name ORDER BY MAX(sm.created_at) DESC
+        GROUP BY t.user_id, u.username, u.first_name, u.photo_url ORDER BY MAX(sm.created_at) DESC
     """)
     return [dict(r) for r in rows]
 
@@ -954,7 +960,15 @@ async def admin_get_sponsors(_: dict = Depends(get_admin_user)):
 
 @app.post("/api/admin/sponsors/add")
 async def admin_add_sponsor(req: SponsorAddReq, _: dict = Depends(get_admin_user)):
-    await db.execute("INSERT INTO sponsors(channel_id, channel_title, channel_url, reward_rc, is_main) VALUES($1,$2,$3,$4,$5) ON CONFLICT(channel_id) DO UPDATE SET channel_title=$2, channel_url=$3, reward_rc=$4, is_main=$5", req.channel_id, req.channel_title, req.channel_url, req.reward_rc, req.is_main)
+    await db.execute("""
+        INSERT INTO sponsors(channel_id, channel_title, channel_url, reward_rc, is_main)
+        VALUES($1,$2,$3,$4,$5)
+        ON CONFLICT(channel_id) DO UPDATE SET
+        channel_title=EXCLUDED.channel_title,
+        channel_url=EXCLUDED.channel_url,
+        reward_rc=EXCLUDED.reward_rc,
+        is_main=EXCLUDED.is_main
+    """, req.channel_id, req.channel_title, req.channel_url, req.reward_rc, req.is_main)
     return {"ok": True}
 
 @app.post("/api/admin/sponsors/delete")
