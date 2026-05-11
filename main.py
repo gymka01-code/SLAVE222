@@ -818,12 +818,15 @@ async def admin_get_sponsors(_: dict = Depends(get_admin_user)):
 
 @app.post("/api/admin/sponsors/add")
 async def admin_add_sponsor(req: SponsorAddReq, _: dict = Depends(get_admin_user)):
+    # Явно приводим channel_id к строке, чтобы избежать ошибки типов в БД
+    channel_id_str = str(req.channel_id)
+    
     await db.execute(
         "INSERT INTO sponsors(channel_id, channel_title, channel_url, reward_rc, is_main, is_active) "
         "VALUES($1,$2,$3,$4,$5,TRUE) ON CONFLICT(channel_id) DO UPDATE SET "
         "channel_title=EXCLUDED.channel_title, channel_url=EXCLUDED.channel_url, "
         "reward_rc=EXCLUDED.reward_rc, is_main=EXCLUDED.is_main",
-        req.channel_id, req.channel_title, req.channel_url, req.reward_rc, req.is_main
+        channel_id_str, req.channel_title, req.channel_url, req.reward_rc, req.is_main
     )
     return {"ok": True}
 
