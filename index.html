@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>⛓ Рабство</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg:      #0a0a0f;
+    --bg2:     #111118;
+    --bg3:     #1a1a24;
+    --border:  #2a2a3a;
+    --acc:     #e8c84a;
+    --acc2:    #ff4d6d;
+    --acc3:    #4dffb0;
+    --text:    #f0f0f8;
+    --muted:   #666688;
+    --card:    #14141e;
+    --r:       14px;
+    --font:    'Inter', sans-serif;
+    --display: 'Unbounded', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    overscroll-behavior: none;
+  }
+
+  /* SCROLLABLE */
+  .scroll { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  .scroll::-webkit-scrollbar { width: 0; }
+
+  /* LAYOUT */
+  .app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+  .screen { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+  .content { flex:1; overflow-y:auto; padding:0 0 12px; }
+  .content::-webkit-scrollbar { width:0; }
+
+  /* NAV */
+  .nav {
+    display:flex; align-items:center; justify-content:space-around;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    flex-shrink:0;
+  }
+  .nav-btn {
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    padding:6px 16px; border-radius:10px; transition:.15s;
+    font-family:var(--font); font-size:10px; font-weight:500;
+  }
+  .nav-btn .ico { font-size:20px; line-height:1; }
+  .nav-btn.active { color:var(--acc); }
+  .nav-btn:active { transform:scale(.92); }
+
+  /* HEADER */
+  .hdr {
+    padding:16px 16px 8px;
+    background: linear-gradient(180deg,var(--bg2) 0%,transparent 100%);
+    flex-shrink:0;
+  }
+  .hdr-title {
+    font-family:var(--display); font-size:18px; font-weight:700;
+    letter-spacing:-.5px; color:var(--acc);
+  }
+  .hdr-sub { font-size:11px; color:var(--muted); margin-top:1px; }
+
+  /* CARDS */
+  .card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:var(--r); padding:14px;
+    transition:.15s;
+  }
+  .card:active { transform:scale(.98); }
+
+  /* PROFILE HERO */
+  .hero {
+    margin:12px 16px;
+    background: linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+    border:1px solid #2244aa44;
+    border-radius:18px; padding:20px;
+    position:relative; overflow:hidden;
+  }
+  .hero::before {
+    content:''; position:absolute; top:-40px; right:-40px;
+    width:120px; height:120px;
+    background: radial-gradient(circle,#e8c84a22 0%,transparent 70%);
+    border-radius:50%;
+  }
+  .hero-row { display:flex; align-items:center; gap:14px; }
+  .avatar-wrap { position:relative; flex-shrink:0; }
+  .avatar {
+    width:64px; height:64px; border-radius:50%;
+    background: linear-gradient(135deg,var(--bg3),var(--border));
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px; font-weight:700; color:var(--acc);
+    font-family:var(--display);
+    border:2px solid var(--border);
+    position:relative; overflow:hidden;
+  }
+  .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .vip-badge {
+    position:absolute; bottom:-2px; right:-2px;
+    background:var(--bg); border-radius:50%; width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; border:1px solid var(--border);
+  }
+  .hero-name {
+    font-family:var(--display); font-size:16px; font-weight:700;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .hero-status { font-size:11px; color:var(--muted); margin-top:2px; }
+  .hero-stats {
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    gap:8px; margin-top:16px;
+  }
+  .stat {
+    background:#ffffff08; border-radius:10px; padding:10px 8px;
+    text-align:center;
+  }
+  .stat-val { font-family:var(--display); font-size:14px; font-weight:700; color:var(--acc); }
+  .stat-lbl { font-size:10px; color:var(--muted); margin-top:2px; }
+  .active-effects { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .effect-tag {
+    font-size:11px; padding:3px 10px; border-radius:20px;
+    background:#ffffff0f; border:1px solid var(--border);
+    display:flex; align-items:center; gap:4px;
+  }
+
+  /* BTN */
+  .btn {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:12px; cursor:pointer;
+    font-family:var(--font); font-weight:600; letter-spacing:.2px;
+    transition:.15s; padding:12px 20px; width:100%; font-size:14px;
+  }
+  .btn:active { transform:scale(.96); opacity:.9; }
+  .btn-primary { background:var(--acc); color:#000; }
+  .btn-danger  { background:var(--acc2); color:#fff; }
+  .btn-ghost   {
+    background:transparent; color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn-success { background:var(--acc3); color:#000; }
+  .btn-sm { padding:8px 14px; font-size:12px; border-radius:9px; width:auto; }
+
+  /* SLAVES LIST */
+  .slave-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 0; border-bottom:1px solid var(--border);
+  }
+  .slave-item:last-child { border-bottom:none; }
+  .slave-ava {
+    width:42px; height:42px; border-radius:50%;
+    background:var(--bg3); display:flex; align-items:center;
+    justify-content:center; font-size:18px; flex-shrink:0;
+    font-family:var(--display); color:var(--muted);
+    font-weight:700;
+  }
+  .slave-info { flex:1; min-width:0; }
+  .slave-name { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .slave-job  { font-size:11px; color:var(--muted); margin-top:1px; }
+  .slave-price { font-family:var(--display); font-size:13px; font-weight:700; color:var(--acc); white-space:nowrap; }
+
+  /* SEARCH */
+  .search-input {
+    width:100%; background:var(--bg3); border:1px solid var(--border);
+    border-radius:12px; color:var(--text); font-family:var(--font);
+    font-size:14px; padding:12px 16px; outline:none;
+    transition:.15s;
+  }
+  .search-input:focus { border-color:var(--acc); }
+  .search-input::placeholder { color:var(--muted); }
+  .filter-row { display:flex; gap:8px; }
+  .filter-row .search-input { flex:1; }
+
+  /* PLAYER CARD */
+  .player-card {
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:1px solid var(--border);
+    border-radius:var(--r); padding:12px 14px;
+    cursor:pointer; transition:.15s;
+  }
+  .player-card:active { transform:scale(.97); border-color:var(--acc); }
+  .player-meta { flex:1; min-width:0; }
+  .player-name { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .player-sub  { font-size:11px; color:var(--muted); margin-top:1px; }
+  .player-price { font-family:var(--display); font-size:14px; font-weight:700; color:var(--acc); white-space:nowrap; }
+
+  /* TOP LIST */
+  .rank-item {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 16px;
+    border-bottom:1px solid var(--border);
+  }
+  .rank-num {
+    font-family:var(--display); font-size:13px; font-weight:700;
+    width:28px; text-align:center; flex-shrink:0;
+    color:var(--muted);
+  }
+  .rank-num.gold   { color:#ffd700; }
+  .rank-num.silver { color:#c0c0c0; }
+  .rank-num.bronze { color:#cd7f32; }
+  .rank-meta { flex:1; min-width:0; }
+  .rank-name { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rank-sub  { font-size:11px; color:var(--muted); }
+  .rank-val  { font-family:var(--display); font-size:14px; font-weight:700; color:var(--acc); }
+
+  /* TABS */
+  .tabs {
+    display:flex; background:var(--bg2);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .tab {
+    flex:1; padding:12px 8px; text-align:center; cursor:pointer;
+    font-family:var(--display); font-size:10px; font-weight:600;
+    color:var(--muted); border-bottom:2px solid transparent;
+    transition:.15s; letter-spacing:.5px;
+    background:none; border-top:none; border-left:none; border-right:none;
+  }
+  .tab.active { color:var(--acc); border-bottom-color:var(--acc); }
+
+  /* SHOP */
+  .shop-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .shop-item {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:var(--r); padding:14px; display:flex;
+    flex-direction:column; gap:8px; transition:.15s;
+  }
+  .shop-item:active { border-color:var(--acc); }
+  .shop-ico { font-size:28px; }
+  .shop-name { font-weight:600; font-size:12px; }
+  .shop-desc { font-size:11px; color:var(--muted); flex:1; }
+  .shop-price { font-family:var(--display); font-size:12px; font-weight:700; color:var(--acc); }
+
+  /* SUPPORT */
+  .msg-bubble {
+    max-width:78%; padding:10px 14px; border-radius:14px;
+    font-size:13px; line-height:1.5; margin-bottom:8px;
+  }
+  .msg-user  { background:var(--acc); color:#000; align-self:flex-end; border-bottom-right-radius:4px; }
+  .msg-admin { background:var(--bg3); color:var(--text); align-self:flex-start; border-bottom-left-radius:4px; }
+  .msg-time  { font-size:10px; opacity:.6; margin-top:4px; }
+  .chat-area { display:flex; flex-direction:column; padding:12px 16px; }
+  .chat-input-wrap {
+    padding:10px 16px max(10px, env(safe-area-inset-bottom));
+    background:var(--bg2); border-top:1px solid var(--border);
+    display:flex; gap:8px; align-items:center;
+  }
+  .chat-input {
+    flex:1; background:var(--bg3); border:1px solid var(--border);
+    border-radius:20px; color:var(--text); font-family:var(--font);
+    font-size:13px; padding:10px 16px; outline:none; resize:none;
+    max-height:80px; transition:.15s;
+  }
+  .chat-input:focus { border-color:var(--acc); }
+
+  /* MODAL */
+  .overlay {
+    position:fixed; inset:0; background:#000a; z-index:100;
+    display:flex; align-items:flex-end; padding:0;
+  }
+  .modal {
+    background:var(--bg2); border-top-left-radius:24px; border-top-right-radius:24px;
+    padding:20px 20px max(20px, env(safe-area-inset-bottom));
+    width:100%; max-height:85vh; overflow-y:auto;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-handle {
+    width:40px; height:4px; border-radius:2px;
+    background:var(--border); margin:0 auto 16px;
+  }
+  .modal-title { font-family:var(--display); font-size:16px; font-weight:700; margin-bottom:16px; }
+
+  /* ADMIN */
+  .admin-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .admin-stat {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:var(--r); padding:14px;
+  }
+  .admin-stat-val { font-family:var(--display); font-size:20px; font-weight:700; color:var(--acc); }
+  .admin-stat-lbl { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* UTILS */
+  .section { padding:0 16px; margin-top:16px; }
+  .section-title {
+    font-family:var(--display); font-size:11px; font-weight:700;
+    color:var(--muted); letter-spacing:1.5px; text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .gap { gap:8px; display:flex; flex-direction:column; }
+  .row { display:flex; align-items:center; gap:8px; }
+  .badge {
+    padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600;
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .badge-gold   { background:#e8c84a22; color:var(--acc); border:1px solid #e8c84a44; }
+  .badge-green  { background:#4dffb022; color:var(--acc3); border:1px solid #4dffb044; }
+  .badge-red    { background:#ff4d6d22; color:var(--acc2); border:1px solid #ff4d6d44; }
+  .toast {
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+    background:var(--bg3); border:1px solid var(--border); border-radius:12px;
+    padding:10px 20px; font-size:13px; font-weight:600;
+    z-index:200; white-space:nowrap; max-width:90vw;
+    animation:fadeIn .2s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+  .divider { height:1px; background:var(--border); margin:12px 0; }
+  .text-acc  { color:var(--acc); }
+  .text-red  { color:var(--acc2); }
+  .text-green{ color:var(--acc3); }
+  .text-muted{ color:var(--muted); }
+  .fw7  { font-weight:700; }
+  .f12  { font-size:12px; }
+  .f11  { font-size:11px; }
+  .mt8  { margin-top:8px; }
+  .mt12 { margin-top:12px; }
+  .mt16 { margin-top:16px; }
+
+  /* VIP colors */
+  .clr-neon     { color:#39ff14; }
+  .clr-red      { color:#ff4d6d; }
+  .clr-gold     { color:#e8c84a; }
+  .clr-gradient { background:linear-gradient(90deg,#e8c84a,#ff4d6d,#4dffb0); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+  /* LOADING */
+  .spinner {
+    width:36px; height:36px; border:3px solid var(--border);
+    border-top-color:var(--acc); border-radius:50%;
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .loading-screen {
+    height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px;
+  }
+  .loading-logo { font-family:var(--display); font-size:32px; font-weight:900; color:var(--acc); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const BASE = '';  // Same origin
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+let _initData = '';
+
+function getHeaders() {
+  return { 'Content-Type': 'application/json', 'x-init-data': _initData };
+}
+
+async function api(method, path, body) {
+  const opts = { method, headers: getHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(BASE + path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || `Error ${r.status}`);
+  return data;
+}
+
+const get  = (path)        => api('GET',  path);
+const post = (path, body)  => api('POST', path, body);
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function useToast() {
+  const [toast, setToast] = useState(null);
+  const show = useCallback((msg, ms=2500) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), ms);
+  }, []);
+  return [toast, show];
+}
+
+// ─── NAME RENDER ──────────────────────────────────────────────────────────────
+function PlayerName({ user, style }) {
+  const clr = user.name_color && user.name_color !== 'default' ? `clr-${user.name_color}` : '';
+  const emoji = user.emoji_status ? user.emoji_status + ' ' : '';
+  const name = user.first_name || user.username || `#${user.id}`;
+  return (
+    <span className={clr} style={style}>
+      {emoji}{user.custom_name ? `${user.custom_name} (${name})` : name}
+      {user.vip_level === 3 && <span> 👑</span>}
+      {user.vip_level === 2 && <span> 🥈</span>}
+      {user.vip_level === 1 && <span> 🥉</span>}
+    </span>
+  );
+}
+
+function initials(u) {
+  const n = u.first_name || u.username || '?';
+  return n[0].toUpperCase();
+}
+
+// ─── SCREENS ──────────────────────────────────────────────────────────────────
+
+/* ── PROFILE ── */
+function ProfileScreen({ user, onBuy, onRefresh }) {
+  const [toast, showToast] = useToast();
+  const [renaming, setRenaming] = useState(null);
+  const [newName, setNewName] = useState('');
+  const [selfbuying, setSelfbuying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const refLink = `https://t.me/${window._botUsername || 'YourBot'}?start=ref_${user.id}`;
+
+  async function doSelfbuy() {
+    if (!confirm(`Выкупить себя за ${user.price.toFixed(0)} RC?`)) return;
+    setLoading(true);
+    try {
+      await post('/api/selfbuy');
+      showToast('🎉 Вы на свободе!');
+      onRefresh();
+    } catch(e) { showToast('❌ ' + e.message); }
+    setLoading(false);
+  }
+
+  async function doRename() {
+    if (!newName.trim()) return;
+    try {
+      await post('/api/rename', { slave_id: renaming, new_name: newName.trim() });
+      showToast('✅ Кличка установлена');
+      setRenaming(null); setNewName('');
+      onRefresh();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
+  async function claimStories() {
+    try {
+      const r = await post('/api/stories/claim');
+      showToast('📸 ' + r.msg);
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
+  return (
+    <div className="screen">
+      {toast && <div className="toast">{toast}</div>}
+      <div className="hdr">
+        <div className="hdr-title">⛓ РАБСТВО</div>
+        <div className="hdr-sub">Сезон · Социальная стратегия</div>
+      </div>
+      <div className="content">
+        {/* Hero */}
+        <div className="hero">
+          <div className="hero-row">
+            <div className="avatar-wrap">
+              <div className="avatar">{initials(user)}</div>
+              {user.vip_level > 0 && (
+                <div className="vip-badge">
+                  {user.vip_level===3?'👑':user.vip_level===2?'🥈':'🥉'}
+                </div>
+              )}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="hero-name"><PlayerName user={user}/></div>
+              <div className="hero-status">
+                {user.owner
+                  ? <span className="text-red">⛓ Раб @{user.owner.username || user.owner.id}</span>
+                  : <span className="text-green">✅ Свободен</span>
+                }
+              </div>
+              <div style={{marginTop:4}}>
+                <button className="btn btn-ghost btn-sm"
+                  onClick={() => { navigator.clipboard?.writeText(refLink); showToast('🔗 Ссылка скопирована!'); }}>
+                  🔗 Реф.ссылка
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="hero-stats">
+            <div className="stat">
+              <div className="stat-val">{user.balance.toFixed(0)}</div>
+              <div className="stat-lbl">RC Баланс</div>
+            </div>
+            <div className="stat">
+              <div className="stat-val">{user.price.toFixed(0)}</div>
+              <div className="stat-lbl">Моя цена</div>
+            </div>
+            <div className="stat">
+              <div className="stat-val">{user.slaves_count}</div>
+              <div className="stat-lbl">Рабов</div>
+            </div>
+          </div>
+          {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (
+            <div className="active-effects">
+              {user.shield_active  && <div className="effect-tag">🛡 Щит</div>}
+              {user.stealth_active && <div className="effect-tag">👻 Стелс</div>}
+              {user.booster_active && <div className="effect-tag">🚀 Буст x{user.booster_mult}</div>}
+              {user.chains_active  && <div className="effect-tag">⛓ Оковы</div>}
+            </div>
+          )}
+        </div>
+
+        {/* Self-buy */}
+        {user.owner && (
+          <div className="section">
+            <button className="btn btn-danger" onClick={doSelfbuy} disabled={loading}>
+              {loading ? '...' : `🔓 Выкупить себя (${user.price.toFixed(0)} RC)`}
+            </button>
+          </div>
+        )}
+
+        {/* Stories */}
+        <div className="section">
+          <button className="btn btn-ghost" onClick={claimStories}>
+            📸 Stories бонус (+250 RC + предмет)
+          </button>
+        </div>
+
+        {/* Slaves */}
+        {user.slaves.length > 0 && (
+          <div className="section">
+            <div className="section-title">Мои рабы ({user.slaves_count})</div>
+            <div className="card">
+              {user.slaves.map(s => (
+                <div className="slave-item" key={s.id}>
+                  <div className="slave-ava">{initials(s)}</div>
+                  <div className="slave-info">
+                    <div className="slave-name">
+                      {s.custom_name ? <><span className="text-acc">{s.custom_name}</span> <span className="text-muted f11">({s.first_name||s.username})</span></> : (s.first_name || s.username || `#${s.id}`)}
+                    </div>
+                    <div className="slave-job">{s.job_emoji} {s.job_title || 'Нет работы'}</div>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
+                    <div className="slave-price">{s.price.toFixed(0)} RC</div>
+                    <button className="btn btn-ghost btn-sm"
+                      onClick={() => { setRenaming(s.id); setNewName(s.custom_name||''); }}>
+                      ✏️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Rename modal */}
+      {renaming && (
+        <div className="overlay" onClick={()=>setRenaming(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">✏️ Дать кличку</div>
+            <input className="search-input" placeholder="Кличка (до 32 символов)"
+              value={newName} maxLength={32}
+              onChange={e=>setNewName(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&doRename()}
+              autoFocus/>
+            <div style={{marginTop:12,display:'flex',gap:8}}>
+              <button className="btn btn-primary" onClick={doRename}>Сохранить</button>
+              <button className="btn btn-ghost" onClick={()=>setRenaming(null)}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── SEARCH ── */
+function SearchScreen({ user, onBuy }) {
+  const [q, setQ] = useState('');
+  const [minP, setMinP] = useState('');
+  const [maxP, setMaxP] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [toast, showToast] = useToast();
+
+  async function doSearch(random=false, newcomers=false) {
+    setLoading(true);
+    try {
+      let url = '/api/search?';
+      if (random)    url += 'random_pick=true';
+      else if (newcomers) url += 'newcomers=true';
+      else {
+        if (q)    url += `q=${encodeURIComponent(q)}&`;
+        if (minP) url += `min_price=${minP}&`;
+        if (maxP) url += `max_price=${maxP}&`;
+      }
+      const data = await get(url);
+      setResults(Array.isArray(data) ? data : [data]);
+    } catch(e) { showToast('❌ ' + e.message); }
+    setLoading(false);
+  }
+
+  async function doBuy() {
+    if (!selected) return;
+    try {
+      const r = await post('/api/buy', { target_id: selected.id });
+      showToast(`✅ Куплен! Работа: ${r.job}`);
+      setSelected(null);
+      doSearch();
+      onBuy();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
+  useEffect(() => { doSearch(false, true); }, []);
+
+  return (
+    <div className="screen">
+      {toast && <div className="toast">{toast}</div>}
+      <div className="hdr">
+        <div className="hdr-title">🔍 Поиск</div>
+      </div>
+      <div className="content">
+        <div className="section">
+          <input className="search-input" placeholder="Поиск по имени или @username"
+            value={q} onChange={e=>setQ(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&doSearch()}/>
+          <div className="filter-row mt8">
+            <input className="search-input" placeholder="Мин. RC" type="number"
+              value={minP} onChange={e=>setMinP(e.target.value)}/>
+            <input className="search-input" placeholder="Макс. RC" type="number"
+              value={maxP} onChange={e=>setMaxP(e.target.value)}/>
+          </div>
+          <div className="row mt8">
+            <button className="btn btn-primary" style={{flex:1}} onClick={()=>doSearch()}>
+              {loading ? '...' : '🔍 Найти'}
+            </button>
+            <button className="btn btn-ghost" style={{flex:1}} onClick={()=>doSearch(true)}>
+              🎲 Случайная жертва
+            </button>
+          </div>
+          <button className="btn btn-ghost mt8" onClick={()=>doSearch(false,true)}>
+            🆕 Новички (последние 50)
+          </button>
+        </div>
+
+        <div className="section mt12">
+          <div className="section-title">Результаты ({results.length})</div>
+          <div className="gap">
+            {results.map(p => (
+              <div className="player-card" key={p.id} onClick={()=>setSelected(p)}>
+                <div className="slave-ava">{initials(p)}</div>
+                <div className="player-meta">
+                  <div className="player-name">
+                    {p.custom_name
+                      ? <><span className="text-acc">{p.custom_name}</span> <span className="text-muted f11">({p.first_name||p.username})</span></>
+                      : (p.first_name || p.username || `#${p.id}`)
+                    }
+                    {p.vip_level>=3&&' 👑'}{p.vip_level===2&&' 🥈'}{p.vip_level===1&&' 🥉'}
+                  </div>
+                  <div className="player-sub">@{p.username||p.id}</div>
+                </div>
+                <div className="player-price">{parseFloat(p.current_price).toFixed(0)} RC</div>
+              </div>
+            ))}
+            {results.length===0 && !loading && (
+              <div style={{textAlign:'center',color:'var(--muted)',padding:'32px 0'}}>
+                Никого нет. Попробуй другой запрос.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Buy modal */}
+      {selected && (
+        <div className="overlay" onClick={()=>setSelected(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">⛓ Купить игрока</div>
+            <div className="card" style={{marginBottom:16}}>
+              <div className="row">
+                <div className="slave-ava" style={{width:52,height:52,fontSize:22}}>{initials(selected)}</div>
+                <div>
+                  <div style={{fontWeight:700}}>{selected.first_name || selected.username || `#${selected.id}`}</div>
+                  <div className="text-muted f11">@{selected.username || selected.id}</div>
+                </div>
+              </div>
+              <div className="divider"/>
+              <div className="row" style={{justifyContent:'space-between'}}>
+                <span className="text-muted">Стоимость</span>
+                <span className="fw7 text-acc">{parseFloat(selected.current_price).toFixed(0)} RC</span>
+              </div>
+              <div className="row mt8" style={{justifyContent:'space-between'}}>
+                <span className="text-muted">Ваш баланс</span>
+                <span className={user.balance >= parseFloat(selected.current_price) ? 'text-green fw7' : 'text-red fw7'}>
+                  {user.balance.toFixed(0)} RC
+                </span>
+              </div>
+              <div className="row mt8" style={{justifyContent:'space-between'}}>
+                <span className="text-muted">Комиссия системы</span>
+                <span className="text-muted">10%</span>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
+              ℹ️ После покупки стоимость раба вырастет на 10–20%. Ему будет назначена случайная работа.
+            </div>
+            {user.balance < parseFloat(selected.current_price)
+              ? <button className="btn btn-ghost" disabled>❌ Недостаточно RC</button>
+              : <button className="btn btn-primary" onClick={doBuy}>⛓ Купить за {parseFloat(selected.current_price).toFixed(0)} RC</button>
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── TOP ── */
+function TopScreen() {
+  const [tab, setTab] = useState('forbes');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  async function load(cat) {
+    setTab(cat); setLoading(true);
+    try { setRows(await get(`/api/top?cat=${cat}`)); }
+    catch { setRows([]); }
+    setLoading(false);
+  }
+
+  useEffect(() => { load('forbes'); }, []);
+
+  const labels = { forbes:'💰 FORBES', owners:'👑 ВЛАДЕЛЬЦЫ', legends:'⚡ ЛЕГЕНДЫ' };
+  const valLabel = { forbes:'RC', owners:'рабов', legends:'RC' };
+
+  return (
+    <div className="screen">
+      <div className="hdr"><div className="hdr-title">🏆 Рейтинги</div><div className="hdr-sub">Обновляется каждые 15 минут</div></div>
+      <div className="tabs">
+        {['forbes','owners','legends'].map(t => (
+          <button key={t} className={`tab${tab===t?' active':''}`} onClick={()=>load(t)}>
+            {t==='forbes'?'FORBES':t==='owners'?'ВЛАДЕЛЬЦЫ':'ЛЕГЕНДЫ'}
+          </button>
+        ))}
+      </div>
+      <div className="content">
+        {loading ? (
+          <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div>
+        ) : (
+          <div style={{paddingBottom:16}}>
+            {rows.map((r,i) => {
+              const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+              return (
+                <div className="rank-item" key={r.id}>
+                  <div className={`rank-num ${rankClass}`}>
+                    {i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}
+                  </div>
+                  <div className="slave-ava">{initials(r)}</div>
+                  <div className="rank-meta">
+                    <div className="rank-name">
+                      {r.emoji_status&&<span>{r.emoji_status} </span>}
+                      <span className={r.name_color&&r.name_color!=='default'?`clr-${r.name_color}`:''}>{r.first_name||r.username||`#${r.id}`}</span>
+                      {r.vip_level>=3&&' 👑'}{r.vip_level===2&&' 🥈'}{r.vip_level===1&&' 🥉'}
+                    </div>
+                    <div className="rank-sub">@{r.username||r.id}</div>
+                  </div>
+                  <div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f11"> {valLabel[tab]}</span></div>
+                </div>
+              );
+            })}
+            {rows.length===0&&<div style={{textAlign:'center',color:'var(--muted)',padding:40}}>Рейтинг пуст</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── SHOP ── */
+function ShopScreen({ user, onRefresh }) {
+  const [shop, setShop] = useState(null);
+  const [tab, setTab] = useState('items');
+  const [selectedSlave, setSelectedSlave] = useState('');
+  const [toast, showToast] = useToast();
+  const [promoCode, setPromoCode] = useState('');
+
+  async function load() {
+    try { setShop(await get('/api/shop')); } catch {}
+  }
+  useEffect(() => { load(); }, []);
+
+  async function buyItem(item_type, cosmetic_id=null) {
+    try {
+      const body = { item_type };
+      if (cosmetic_id) body.cosmetic_id = cosmetic_id;
+      if (item_type==='chains') {
+        if (!selectedSlave) { showToast('Выберите раба для оков'); return; }
+        body.target_slave_id = parseInt(selectedSlave);
+      }
+      await post('/api/shop/buy', body);
+      showToast('✅ Активировано!');
+      onRefresh(); load();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
+  async function usePromo() {
+    if (!promoCode.trim()) return;
+    try {
+      const r = await post('/api/promo', { code: promoCode.trim() });
+      showToast(`🎁 +${r.reward} RC!`);
+      setPromoCode('');
+      onRefresh();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
+  const groups = shop ? {
+    colors:  shop.cosmetics.filter(c=>c.type==='color'),
+    frames:  shop.cosmetics.filter(c=>c.type==='frame'),
+    emojis:  shop.cosmetics.filter(c=>c.type==='emoji'),
+  } : {};
+
+  return (
+    <div className="screen">
+      {toast && <div className="toast">{toast}</div>}
+      <div className="hdr"><div className="hdr-title">🛒 Магазин</div><div className="hdr-sub">Покупка за Telegram Stars ⭐</div></div>
+      <div className="tabs">
+        {['items','cosmetics','promo'].map(t=>(
+          <button key={t} className={`tab${tab===t?' active':''}`} onClick={()=>setTab(t)}>
+            {t==='items'?'ПРЕДМЕТЫ':t==='cosmetics'?'КОСМЕТИКА':'ПРОМО'}
+          </button>
+        ))}
+      </div>
+      <div className="content">
+        {!shop ? (
+          <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div>
+        ) : tab==='items' ? (
+          <div className="section">
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
+              ℹ️ В тестовом режиме предметы активируются бесплатно. В продакшне добавьте верификацию Telegram Stars.
+            </div>
+            {user.slaves.length > 0 && (
+              <div style={{marginBottom:12}}>
+                <div className="section-title">Оковы — выберите раба</div>
+                <select className="search-input" value={selectedSlave} onChange={e=>setSelectedSlave(e.target.value)}>
+                  <option value="">— Выберите раба —</option>
+                  {user.slaves.map(s=>(
+                    <option key={s.id} value={s.id}>{s.custom_name||s.first_name||s.username||s.id} ({s.price.toFixed(0)} RC)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="shop-grid">
+              {shop.items.map(item => (
+                <div className="shop-item" key={item.id}>
+                  <div className="shop-ico">{item.name.split(' ')[0]}</div>
+                  <div className="shop-name">{item.name}</div>
+                  <div className="shop-desc">{item.desc}</div>
+                  <div className="row" style={{justifyContent:'space-between',alignItems:'center'}}>
+                    <div className="shop-price">{item.price_stars}⭐</div>
+                    <button className="btn btn-primary btn-sm" onClick={()=>buyItem(item.id)}>
+                      Купить
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : tab==='cosmetics' ? (
+          <div className="section">
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>
+              🎨 Косметика сохраняется между сезонами!
+            </div>
+            {['colors','frames','emojis'].map(type=>(
+              <div key={type}>
+                <div className="section-title">
+                  {type==='colors'?'🎨 Цвет имени':type==='frames'?'🖼 Рамки аватара':'😀 Эмодзи-статус'}
+                </div>
+                <div className="shop-grid" style={{marginBottom:16}}>
+                  {groups[type]?.map(c=>(
+                    <div className="shop-item" key={c.id} style={{opacity:c.owned?.1:1}}>
+                      <div className={`shop-ico ${c.css_class}`}>{c.type==='color'?'A':c.type==='frame'?'🖼':c.value}</div>
+                      <div className="shop-name">{c.name}</div>
+                      <div className="row" style={{justifyContent:'space-between'}}>
+                        <div className="shop-price">{c.price_stars}⭐</div>
+                        {c.owned
+                          ? <span className="badge badge-green">✓ Есть</span>
+                          : <button className="btn btn-primary btn-sm" onClick={()=>buyItem('cosmetic',c.id)}>Купить</button>
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="section">
+            <div className="section-title">Введи промокод</div>
+            <input className="search-input" placeholder="ПРОМОКОД" value={promoCode}
+              onChange={e=>setPromoCode(e.target.value.toUpperCase())}
+              onKeyDown={e=>e.key==='Enter'&&usePromo()}/>
+            <button className="btn btn-primary mt8" onClick={usePromo}>
+              🎁 Применить
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── SUPPORT ── */
+function SupportScreen({ user }) {
+  const [msgs, setMsgs] = useState([]);
+  const [text, setText] = useState('');
+  const [toast, showToast] = useToast();
+  const bottomRef = useRef(null);
+
+  async function load() {
+    try { setMsgs(await get('/api/support/history')); } catch {}
+  }
+
+  useEffect(() => { load(); }, []);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [msgs]);
+
+  async function send() {
+    if (!text.trim()) return;
+    try {
+      await post('/api/support', { message: text.trim() });
+      setText(''); load();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
+  return (
+    <div className="screen">
+      {toast && <div className="toast">{toast}</div>}
+      <div className="hdr">
+        <div className="hdr-title">💬 Поддержка</div>
+        <div className="hdr-sub">Ответим в ближайшее время</div>
+      </div>
+      <div className="content" style={{padding:0}}>
+        <div className="chat-area">
+          {msgs.length===0 && (
+            <div style={{textAlign:'center',color:'var(--muted)',padding:'32px 0'}}>
+              Напишите нам — мы поможем!
+            </div>
+          )}
+          {msgs.map(m=>(
+            <div key={m.id} style={{display:'flex',flexDirection:'column',
+              alignItems:m.is_from_admin?'flex-start':'flex-end'}}>
+              <div className={`msg-bubble ${m.is_from_admin?'msg-admin':'msg-user'}`}>
+                {m.is_from_admin&&<div style={{fontSize:11,fontWeight:600,marginBottom:4,color:'var(--acc)'}}>Поддержка</div>}
+                {m.message}
+                <div className="msg-time">
+                  {new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div ref={bottomRef}/>
+        </div>
+      </div>
+      <div className="chat-input-wrap">
+        <textarea className="chat-input" placeholder="Сообщение..."
+          value={text} onChange={e=>setText(e.target.value)} rows={1}
+          onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}}/>
+        <button className="btn btn-primary btn-sm" onClick={send} disabled={!text.trim()}>
+          ➤
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── ADMIN ── */
+function AdminScreen() {
+  const [tab, setTab] = useState('dash');
+  const [dash, setDash] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [stories, setStories] = useState([]);
+  const [searchQ, setSearchQ] = useState('');
+  const [editUser, setEditUser] = useState(null);
+  const [editBal, setEditBal] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [broadcast, setBroadcast] = useState('');
+  const [seasonPass, setSeasonPass] = useState('');
+  const [replyText, setReplyText] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoRc, setPromoRc] = useState('');
+  const [promoMax, setPromoMax] = useState('1');
+  const [toast, showToast] = useToast();
+
+  async function loadDash() {
+    try { setDash(await get('/api/admin/dashboard')); } catch {}
+  }
+  async function loadUsers(q='') {
+    try { setUsers(await get(`/api/admin/users${q?`?q=${q}`:''}`)); } catch {}
+  }
+  async function loadTickets() {
+    try { setTickets(await get('/api/admin/tickets')); } catch {}
+  }
+  async function loadStories() {
+    try { setStories(await get('/api/admin/stories')); } catch {}
+  }
+
+  useEffect(()=>{loadDash();},[]);
+
+  function switchTab(t) {
+    setTab(t);
+    if(t==='users') loadUsers();
+    if(t==='tickets') loadTickets();
+    if(t==='stories') loadStories();
+  }
+
+  async function saveUser() {
+    try {
+      await post('/api/admin/users/edit', {
+        user_id: editUser.id,
+        balance: editBal ? parseFloat(editBal) : undefined,
+        price:   editPrice ? parseFloat(editPrice) : undefined,
+      });
+      showToast('✅ Сохранено'); setEditUser(null); loadUsers();
+    } catch(e) { showToast('❌ '+e.message); }
+  }
+  async function banUser(uid, banned) {
+    try { await post('/api/admin/users/edit',{user_id:uid,is_banned:banned}); showToast('✅'); loadUsers(); }
+    catch(e){ showToast('❌ '+e.message); }
+  }
+  async function freeUser(uid) {
+    try { await post('/api/admin/users/edit',{user_id:uid,free_slave:true}); showToast('✅ Освобождён'); loadUsers(); }
+    catch(e){ showToast('❌ '+e.message); }
+  }
+  async function doReply(uid) {
+    if(!replyText.trim()) return;
+    try {
+      await post('/api/admin/tickets/reply',{ticket_user_id:uid,message:replyText});
+      showToast('✅ Отправлено'); setReplyText('');
+    } catch(e){ showToast('❌ '+e.message); }
+  }
+  async function approveStory(id) {
+    try {
+      const r = await post(`/api/admin/stories/approve?claim_id=${id}`,'');
+      showToast(`✅ Одобрено! Предмет: ${r.item}`); loadStories();
+    } catch(e){ showToast('❌ '+e.message); }
+  }
+  async function doBroadcast() {
+    if(!broadcast.trim()) return;
+    try {
+      const r = await post('/api/admin/broadcast',{text:broadcast});
+      showToast(`📤 Отправлено ${r.count} пользователям`); setBroadcast('');
+    } catch(e){ showToast('❌ '+e.message); }
+  }
+  async function doSeasonStart() {
+    if(!seasonPass) return;
+    if(!confirm('Начать новый сезон? Весь прогресс будет сброшен!')) return;
+    try { await post('/api/admin/season/start',{password:seasonPass}); showToast('🔥 Сезон начат!'); }
+    catch(e){ showToast('❌ '+e.message); }
+  }
+  async function doSeasonRollback() {
+    if(!seasonPass) return;
+    if(!confirm('Откатить сезон к последнему снапшоту?')) return;
+    try { await post('/api/admin/season/rollback',{password:seasonPass}); showToast('↩️ Откат выполнен'); }
+    catch(e){ showToast('❌ '+e.message); }
+  }
+  async function createPromo() {
+    if(!promoCode||!promoRc) return;
+    try {
+      await post('/api/admin/promo/create',{code:promoCode.toUpperCase(),reward_rc:parseFloat(promoRc),max_uses:parseInt(promoMax)});
+      showToast('✅ Промокод создан'); setPromoCode(''); setPromoRc(''); setPromoMax('1');
+    } catch(e){ showToast('❌ '+e.message); }
+  }
+
+  // Group tickets by user
+  const ticketsByUser = tickets.reduce((acc,t)=>{
+    if(!acc[t.user_id]) acc[t.user_id]={user_id:t.user_id,username:t.username,first_name:t.first_name,msgs:[]};
+    acc[t.user_id].msgs.push(t);
+    return acc;
+  },{});
+
+  return (
+    <div className="screen">
+      {toast && <div className="toast">{toast}</div>}
+      <div className="hdr">
+        <div className="hdr-title">⚙️ Админ-панель</div>
+      </div>
+      <div className="tabs" style={{overflowX:'auto'}}>
+        {['dash','users','tickets','stories','system'].map(t=>(
+          <button key={t} className={`tab${tab===t?' active':''}`} onClick={()=>switchTab(t)} style={{whiteSpace:'nowrap',minWidth:70}}>
+            {t==='dash'?'📊 ДАШ':t==='users'?'👥 ЮЗЕРЫ':t==='tickets'?'💬 ТИКЕТЫ':t==='stories'?'📸 СТОРИС':'⚙️ СИСТЕМА'}
+          </button>
+        ))}
+      </div>
+
+      <div className="content">
+        {/* DASHBOARD */}
+        {tab==='dash' && dash && (
+          <div className="section">
+            <div className="admin-stat-grid">
+              {[
+                ['Всего игроков', dash.total_users, '👥'],
+                ['Сегодня новых', dash.new_today, '🆕'],
+                ['RC в экономике', parseFloat(dash.total_rc||0).toFixed(0), '💰'],
+                ['Тикетов', dash.tickets, '💬'],
+                ['Сторис на одобрение', dash.stories_pending, '📸'],
+              ].map(([lbl,val,ico])=>(
+                <div className="admin-stat" key={lbl}>
+                  <div style={{fontSize:20}}>{ico}</div>
+                  <div className="admin-stat-val">{val}</div>
+                  <div className="admin-stat-lbl">{lbl}</div>
+                </div>
+              ))}
+            </div>
+            <button className="btn btn-ghost mt16" onClick={loadDash}>🔄 Обновить</button>
+          </div>
+        )}
+
+        {/* USERS */}
+        {tab==='users' && (
+          <div className="section">
+            <div className="row" style={{marginBottom:12}}>
+              <input className="search-input" placeholder="Поиск по нику/ID" value={searchQ}
+                onChange={e=>setSearchQ(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&loadUsers(searchQ)}
+                style={{flex:1}}/>
+              <button className="btn btn-primary btn-sm" onClick={()=>loadUsers(searchQ)}>🔍</button>
+            </div>
+            <div className="gap">
+              {users.map(u=>(
+                <div className="card" key={u.id}>
+                  <div className="row" style={{justifyContent:'space-between'}}>
+                    <div>
+                      <div className="fw7">{u.first_name||u.username||u.id}</div>
+                      <div className="text-muted f11">@{u.username||'—'} · #{u.id}</div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div className="text-acc fw7">{parseFloat(u.balance).toFixed(0)} RC</div>
+                      <div className="text-muted f11">Цена: {parseFloat(u.current_price).toFixed(0)}</div>
+                    </div>
+                  </div>
+                  {u.owner_id && <div className="text-muted f11 mt8">Владелец: #{u.owner_id}</div>}
+                  <div className="row mt8" style={{flexWrap:'wrap',gap:6}}>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>{setEditUser(u);setEditBal(u.balance);setEditPrice(u.current_price);}}>✏️ Ред.</button>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>freeUser(u.id)}>🔓 Освободить</button>
+                    <button className={`btn btn-sm ${u.is_banned?'btn-success':'btn-danger'}`} onClick={()=>banUser(u.id,!u.is_banned)}>
+                      {u.is_banned?'✅ Разбан':'🚫 Бан'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TICKETS */}
+        {tab==='tickets' && (
+          <div className="section">
+            {Object.values(ticketsByUser).map(conv=>(
+              <div className="card" key={conv.user_id} style={{marginBottom:10}}>
+                <div className="fw7 mb8">@{conv.username||conv.first_name||conv.user_id}</div>
+                {conv.msgs.slice(-3).map(m=>(
+                  <div key={m.id} style={{
+                    padding:'8px 10px', borderRadius:8, marginBottom:6,
+                    background:m.is_from_admin?'var(--bg3)':'#e8c84a22',
+                    fontSize:12
+                  }}>
+                    {m.is_from_admin&&<span className="text-acc fw7">Поддержка: </span>}
+                    {m.message}
+                  </div>
+                ))}
+                <div className="row mt8">
+                  <input className="search-input" placeholder="Ответ..." value={replyText}
+                    onChange={e=>setReplyText(e.target.value)} style={{flex:1}}/>
+                  <button className="btn btn-primary btn-sm" onClick={()=>doReply(conv.user_id)}>➤</button>
+                </div>
+              </div>
+            ))}
+            {Object.keys(ticketsByUser).length===0 && (
+              <div className="text-muted" style={{textAlign:'center',padding:32}}>Тикетов нет</div>
+            )}
+          </div>
+        )}
+
+        {/* STORIES */}
+        {tab==='stories' && (
+          <div className="section">
+            {stories.map(s=>(
+              <div className="card" key={s.id} style={{marginBottom:10}}>
+                <div className="fw7">@{s.username||s.first_name||s.user_id}</div>
+                <div className="text-muted f11 mt8">{new Date(s.created_at).toLocaleString('ru')}</div>
+                <button className="btn btn-success mt8" onClick={()=>approveStory(s.id)}>
+                  ✅ Одобрить (+250 RC + предмет)
+                </button>
+              </div>
+            ))}
+            {stories.length===0&&<div className="text-muted" style={{textAlign:'center',padding:32}}>Нет заявок</div>}
+          </div>
+        )}
+
+        {/* SYSTEM */}
+        {tab==='system' && (
+          <div className="section">
+            <div className="section-title">📢 Рассылка</div>
+            <textarea className="search-input" rows={3} placeholder="Текст рассылки..."
+              value={broadcast} onChange={e=>setBroadcast(e.target.value)}
+              style={{resize:'none',marginBottom:8}}/>
+            <button className="btn btn-primary" onClick={doBroadcast}>📤 Разослать всем</button>
+
+            <div className="divider"/>
+            <div className="section-title">🎫 Промокод</div>
+            <div className="gap">
+              <input className="search-input" placeholder="КОД" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/>
+              <input className="search-input" placeholder="Награда RC" type="number" value={promoRc} onChange={e=>setPromoRc(e.target.value)}/>
+              <input className="search-input" placeholder="Кол-во использований" type="number" value={promoMax} onChange={e=>setPromoMax(e.target.value)}/>
+              <button className="btn btn-primary" onClick={createPromo}>✅ Создать промокод</button>
+            </div>
+
+            <div className="divider"/>
+            <div className="section-title">🌟 Управление сезоном</div>
+            <input className="search-input" type="password" placeholder="Пароль сезона"
+              value={seasonPass} onChange={e=>setSeasonPass(e.target.value)}
+              style={{marginBottom:8}}/>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-danger" style={{flex:1}} onClick={doSeasonStart}>
+                🔥 Новый сезон
+              </button>
+              <button className="btn btn-ghost" style={{flex:1}} onClick={doSeasonRollback}>
+                ↩️ Откат
+              </button>
+            </div>
+            <div className="text-muted f11 mt8">
+              Новый сезон сбросит все балансы, рабов и работы. Косметика и VIP сохранятся. Перед запуском будет создан снапшот.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {editUser && (
+        <div className="overlay" onClick={()=>setEditUser(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">✏️ Редактировать: @{editUser.username||editUser.id}</div>
+            <div className="gap">
+              <div>
+                <div className="text-muted f11" style={{marginBottom:4}}>Баланс RC</div>
+                <input className="search-input" type="number" value={editBal} onChange={e=>setEditBal(e.target.value)}/>
+              </div>
+              <div>
+                <div className="text-muted f11" style={{marginBottom:4}}>Цена</div>
+                <input className="search-input" type="number" value={editPrice} onChange={e=>setEditPrice(e.target.value)}/>
+              </div>
+              <button className="btn btn-primary" onClick={saveUser}>💾 Сохранить</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── APP ROOT ── */
+function App() {
+  const [user, setUser] = useState(null);
+  const [tab, setTab] = useState('profile');
+  const [error, setError] = useState(null);
+  const [toast, showToast] = useToast();
+
+  async function init() {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    let initData = tg?.initData || '';
+    let refId    = null;
+
+    // Parse start_param for referral
+    const sp = tg?.initDataUnsafe?.start_param;
+    if (sp && sp.startsWith('ref_')) {
+      try { refId = parseInt(sp.split('_')[1]); } catch {}
+    }
+
+    // DEV MODE: use dev:USERID if no Telegram context
+    if (!initData) {
+      initData = 'dev:' + (Math.floor(Math.random()*100000) + 100000);
+      console.warn('[DEV] Using fake initData:', initData);
+    }
+
+    _initData = initData;
+
+    try {
+      const data = await post('/api/init', { init_data: initData, ref_id: refId });
+      setUser(data);
+    } catch(e) {
+      setError(e.message);
+    }
+  }
+
+  async function refreshUser() {
+    try { setUser(await get('/api/profile')); } catch {}
+  }
+
+  useEffect(() => { init(); }, []);
+
+  if (error) return (
+    <div className="loading-screen">
+      <div style={{fontSize:40}}>❌</div>
+      <div className="text-red fw7">{error}</div>
+      <button className="btn btn-ghost" style={{width:140}} onClick={()=>{setError(null);init();}}>Повтор</button>
+    </div>
+  );
+
+  if (!user) return (
+    <div className="loading-screen">
+      <div className="loading-logo">⛓</div>
+      <div className="spinner"/>
+      <div className="text-muted f12">Загружаем...</div>
+    </div>
+  );
+
+  const tabs = [
+    { id:'profile',  ico:'👤', label:'Профиль' },
+    { id:'search',   ico:'🔍', label:'Поиск'   },
+    { id:'top',      ico:'🏆', label:'Топ'     },
+    { id:'shop',     ico:'🛒', label:'Магазин' },
+    { id:'support',  ico:'💬', label:'Помощь'  },
+    ...(user.is_admin ? [{ id:'admin', ico:'⚙️', label:'Админ' }] : []),
+  ];
+
+  return (
+    <div className="app">
+      {toast && <div className="toast">{toast}</div>}
+
+      {tab==='profile' && <ProfileScreen user={user} onBuy={refreshUser} onRefresh={refreshUser}/>}
+      {tab==='search'  && <SearchScreen  user={user} onBuy={refreshUser}/>}
+      {tab==='top'     && <TopScreen/>}
+      {tab==='shop'    && <ShopScreen    user={user} onRefresh={refreshUser}/>}
+      {tab==='support' && <SupportScreen user={user}/>}
+      {tab==='admin'   && user.is_admin && <AdminScreen/>}
+
+      <nav className="nav">
+        {tabs.map(t => (
+          <button key={t.id} className={`nav-btn${tab===t.id?' active':''}`} onClick={()=>setTab(t.id)}>
+            <span className="ico">{t.ico}</span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

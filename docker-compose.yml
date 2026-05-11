@@ -1,0 +1,80 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════════════
+#  ⛓ РАБСТВО — Docker Compose
+#  Запуск: docker compose up -d --build
+#  Логи:   docker compose logs -f app
+# ══════════════════════════════════════════════════════════════════
+
+services:
+
+  # ─── FastAPI + Aiogram backend ──────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rabstvo_app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BOT_TOKEN: ${BOT_TOKEN}
+      WEBAPP_URL: ${WEBAPP_URL}
+      ADMIN_IDS: ${ADMIN_IDS}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Отдаёт фронтенд напрямую из папки проекта
+      - ./index.html:/app/index.html:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rabstvo_net
+
+  # ─── PostgreSQL ─────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: rabstvo_db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - rabstvo_net
+
+  # ─── Redis ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: rabstvo_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - rabstvo_net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  rabstvo_net:
+    driver: bridge
