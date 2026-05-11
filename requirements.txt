@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-aiogram
-sqlalchemy
-aiosqlite
-pydantic
-asyncpg
