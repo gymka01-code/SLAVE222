@@ -24,6 +24,7 @@ from pydantic import BaseModel
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
 BOT_TOKEN    = os.getenv("BOT_TOKEN",    "8789914334:AAH7zS72v3-LMmIsavViB8W_SrvlQ_7-jFU")
+print(f"[cfg] BOT_TOKEN={BOT_TOKEN[:10]}...{BOT_TOKEN[-4:]} len={len(BOT_TOKEN)}")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://rabstvo:rabstvo@localhost/rabstvo")
 REDIS_URL    = os.getenv("REDIS_URL",    "redis://localhost:6379")
 WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://slave222-production.up.railway.app")
