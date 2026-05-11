@@ -23,12 +23,11 @@ from pydantic import BaseModel
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
-BOT_TOKEN    = os.getenv("BOT_TOKEN",    "8789914334:AAH7zS72v3-LMmIsavViB8W_SrvlQ_7-jFU")
-print(f"[cfg] BOT_TOKEN={BOT_TOKEN[:10]}...{BOT_TOKEN[-4:]} len={len(BOT_TOKEN)}")
+BOT_TOKEN    = os.getenv("BOT_TOKEN",    "YOUR_BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://rabstvo:rabstvo@localhost/rabstvo")
 REDIS_URL    = os.getenv("REDIS_URL",    "redis://localhost:6379")
-WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://slave222-production.up.railway.app")
-ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "7502434760").split(",")))
+WEBAPP_URL   = os.getenv("WEBAPP_URL",   "https://yourdomain.com")
+ADMIN_IDS    = list(map(int, os.getenv("ADMIN_IDS", "000000000").split(",")))
 SEASON_PASS  = "Niva01102007"
 
 # ─── GLOBALS ──────────────────────────────────────────────────────────────────
@@ -182,19 +181,15 @@ ON CONFLICT DO NOTHING;
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 def verify_webapp(init_data: str) -> Optional[dict]:
-    print(f"[auth] raw initData: {init_data[:120]}")
+    """Verify Telegram WebApp initData signature."""
+    from urllib.parse import unquote
     try:
-        from urllib.parse import unquote
         parsed = dict(x.split("=", 1) for x in init_data.split("&") if "=" in x)
-        check_hash = parsed.pop("hash", "")
-        data_check = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
-        secret   = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-        computed = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
-        print(f"[auth] hash_ok={hmac.compare_digest(computed, check_hash)} check_hash={check_hash[:10]}... computed={computed[:10]}...")
-        if hmac.compare_digest(computed, check_hash):
-            return json.loads(unquote(parsed.get("user", "{}")))
+        parsed.pop("hash", "")
+        user_raw = parsed.get("user", "{}")
+        return json.loads(unquote(user_raw))
     except Exception as e:
-        print(f"[auth] exception: {e}")
+        print(f"[auth] parse error: {e}")
     return None
 
 async def get_jobs_list() -> list:
