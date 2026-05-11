@@ -565,8 +565,15 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
     if buyer_id == target_id: raise HTTPException(400, "Нельзя купить самого себя")
     await collect_income(buyer_id)
     
-    # Лимит рабов
-    if user['slaves_count'] >= user['max_slaves']: raise HTTPException(400, f"Лимит достигнут ({user['max_slaves']}). Нужен VIP.")
+    # === ИСПРАВЛЕННЫЙ ЛИМИТ РАБОВ ===
+    max_slaves = 15
+    if user.get('vip_level', 0) == 1: max_slaves = 20
+    elif user.get('vip_level', 0) == 2: max_slaves = 30
+    elif user.get('vip_level', 0) >= 3: max_slaves = 50
+    
+    if user.get('slaves_count', 0) >= max_slaves: 
+        raise HTTPException(400, f"Лимит достигнут ({max_slaves}). Нужен VIP.")
+    # =================================
     
     now = datetime.utcnow()
     async with db.acquire() as conn:
