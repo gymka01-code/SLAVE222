@@ -1,3 +1,10 @@
+Без проблем, я всё поправил и аккуратно собрал. Убрал ошибки, которые появились
+при вставке (в профиле была сломана строка с именем), скрыл юзернеймы, добавил
+чат и новую крутую админку.
+
+Вот готовый и полный код файла index.html. Просто выделите всё в вашем текущем
+файле index.html, удалите и вставьте этот код:
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -546,13 +553,13 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
     <div className="screen">
       <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button></div>
       <div className="content">
-        <div className="hero" style={{marginTop:16}}><div className="hero-row"><div className="avatar-wrap"><Avatar user={profile} size={68}/>{profile.vip_level > 0 && <div className="vip-badge">{profile.vip_level===3?'👑':profile.vip_level===2?'🥈':'🥉'}</div>}</div><div style={{flex:1,minWidth:0}}><div className="hero-name"><PlayerName user={profile}/></div><div className="hero-handle">Игрок #{profile.id}` : `#${profile.id}`}</div><div className="hero-status">{profile.owner ? (<span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(profile.owner.id)}>{profile.owner.first_name || 'Владелец'}</span></span>) : (<span className="text-green">✅ Свободен</span>)}</div></div></div><div className="hero-stats"><div className="stat"><div className="stat-val">{profile.price.toFixed(0)}</div><div className="stat-lbl">🏷 Цена</div></div><div className="stat"><div className="stat-val">{profile.slaves_count}<span className="text-muted f12">/{profile.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div><div className="stat"><div className="stat-val">{profile.vip_level || '—'}</div><div className="stat-lbl">⭐ VIP</div></div></div></div>
-       {uid !== currentUserId && (
-            <div className="section gap8">
-              {profile.shield_active ? <button className="btn btn-ghost" disabled>🛡 Защищён щитом</button> : <button className="btn btn-primary" onClick={doBuy} disabled={buying}>{buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}</button>}
-              <button className="btn btn-ghost" onClick={() => window.openDirectChat(uid, profile.first_name || 'Игрок')}>✉️ Написать в ЛС</button>
-            </div>
-          )}
+        <div className="hero" style={{marginTop:16}}><div className="hero-row"><div className="avatar-wrap"><Avatar user={profile} size={68}/>{profile.vip_level > 0 && <div className="vip-badge">{profile.vip_level===3?'👑':profile.vip_level===2?'🥈':'🥉'}</div>}</div><div style={{flex:1,minWidth:0}}><div className="hero-name"><PlayerName user={profile}/></div><div className="hero-handle">ID: {profile.id}</div><div className="hero-status">{profile.owner ? (<span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(profile.owner.id)}>{profile.owner.first_name || 'Владелец'}</span></span>) : (<span className="text-green">✅ Свободен</span>)}</div></div></div><div className="hero-stats"><div className="stat"><div className="stat-val">{profile.price.toFixed(0)}</div><div className="stat-lbl">🏷 Цена</div></div><div className="stat"><div className="stat-val">{profile.slaves_count}<span className="text-muted f12">/{profile.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div><div className="stat"><div className="stat-val">{profile.vip_level || '—'}</div><div className="stat-lbl">⭐ VIP</div></div></div></div>
+        {uid !== currentUserId && (
+          <div className="section gap8">
+            {profile.shield_active ? <button className="btn btn-ghost" disabled>🛡 Защищён щитом</button> : <button className="btn btn-primary" onClick={doBuy} disabled={buying}>{buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}</button>}
+            <button className="btn btn-ghost" onClick={() => window.openDirectChat(uid, profile.first_name || 'Игрок')}>✉️ Написать в ЛС</button>
+          </div>
+        )}
         {profile.slaves.length > 0 && (<div className="section"><div className="section-title">Рабы ({profile.slaves_count})</div><div className="card" style={{padding:0}}>{profile.slaves.map((s, idx) => (<div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===profile.slaves.length-1?'none':'1px solid var(--border)', cursor:'pointer'}} onClick={() => onViewProfile(s.id)}><Avatar user={s} size={44}/><div className="li-info"><div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.id}`}</div><div className="li-sub mt4">{s.job_emoji} {s.job_title || 'Нет работы'}</div></div><div className="li-price">{s.price.toFixed(0)} RC</div></div>))}</div></div>)}
       </div>
     </div>
@@ -571,7 +578,7 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
   return (
     <div className="content">
       <div className="section" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <input className="input" placeholder="Поиск по имени или @username" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key==='Enter' && doSearch()}/>
+        <input className="input" placeholder="Поиск по имени или ID" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key==='Enter' && doSearch()}/>
         <div className="row" style={{ gap: '12px' }}>
           <input className="input" placeholder="Мин RC" type="number" style={{flex:1}} value={minP} onChange={e => setMinP(e.target.value)}/>
           <input className="input" placeholder="Макс RC" type="number" style={{flex:1}} value={maxP} onChange={e => setMaxP(e.target.value)}/>
@@ -646,11 +653,11 @@ function MessagesScreen({ onViewProfile, onOpenChat }) {
       {chats.length===0 && <div className="text-center text-muted mt20">Нет активных диалогов</div>}
       <div className="gap8 mt8 px16">
         {chats.map(c => (
-          <div className="card row-sb" key={c.user_id} onClick={() => onOpenChat(c.user_id, c.first_name)} style={{cursor:'pointer', margin:0}}>
+          <div className="card row-sb" key={c.user_id} onClick={() => onOpenChat(c.user_id, c.first_name || `Игрок #${c.user_id}`)} style={{cursor:'pointer', margin:0}}>
             <div className="row">
               <Avatar user={c} size={44} />
               <div>
-                <div className="fw7">{c.first_name || `ID: ${c.user_id}`} {c.is_admin_flag && '⚜️'}</div>
+                <div className="fw7">{c.first_name || `Игрок #${c.user_id}`} {c.is_admin_flag && '⚜️'}</div>
                 <div className="f12 text-muted mt4">Нажмите, чтобы открыть чат</div>
               </div>
             </div>
@@ -704,15 +711,22 @@ function DirectChatScreen({ targetUid, targetName, currentUid, onBack }) {
     </div>
   );
 }
-  
+
 // ── APP ROOT ──
 function App() {
   const [user, setUser] = useState(null); const [tasksData, setTasksData] = useState(null); const [tab, setTab] = useState('profile'); const [error, setError] = useState(null); const [viewingUid, setViewingUid] = useState(null); const [banSupportMode, setBanSupportMode] = useState(false); const [menuOpen, setMenuOpen] = useState(false); const [toasts, setToasts] = useState([]); const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [adminTab, setAdminTab] = useState('dash'); const [tickets, setTickets] = useState([]); const [openConv, setOpenConv] = useState(null); const [dash, setDash] = useState(null); const [users, setUsers] = useState([]); const [searchQ, setSearchQ] = useState(''); const [stories, setStories] = useState([]); const [sponsors, setSponsors] = useState([]); const [adminsData, setAdminsData] = useState(null); const [cIdent, setCIdent] = useState(''); const [cField, setCField] = useState('name_color'); const [cVal, setCVal] = useState(''); const [spId, setSpId] = useState(''); const [spTitle, setSpTitle] = useState(''); const [spUrl, setSpUrl] = useState(''); const [spRc, setSpRc] = useState('250'); const [newAdminId, setNewAdminId] = useState(''); const [broadcast, setBroadcast] = useState(''); const [seasonPass, setSeasonPass] = useState(''); const [promoCode, setPromoCode] = useState(''); const [promoRc, setPromoRc] = useState(''); const [promoMax, setPromoMax] = useState('1'); const [sysMaint, setSysMaint] = useState(false);
   const showToast = useToast(setToasts);
+  
   const [directChatUid, setDirectChatUid] = useState(null);
   const [directChatName, setDirectChatName] = useState('');
-  const [adminEditingUser, setAdminEditingUser] = useState(null); // Для новой админки
+  const [adminEditingUser, setAdminEditingUser] = useState(null);
+
+  window.openDirectChat = (uid, name) => {
+    setDirectChatUid(uid);
+    setDirectChatName(name);
+    setViewingUid(null);
+  };
 
   async function init() {
     const tg = window.Telegram?.WebApp; if (tg) { tg.ready(); tg.expand(); }
@@ -756,7 +770,7 @@ function App() {
 
   if (viewingUid && viewingUid !== user.id) return <div className="app"><UserProfileScreen uid={viewingUid} currentUserId={user.id} onBack={() => setViewingUid(null)} onBuy={refreshUser} showToast={showToast} onViewProfile={setViewingUid}/></div>;
 
-  const handleNav = (t) => { setTab(t); setMenuOpen(false); if(t==='admin') { setAdminTab('dash'); loadAdminTab('dash'); } }
+  const handleNav = (t) => { setTab(t); setMenuOpen(false); setDirectChatUid(null); if(t==='admin') { setAdminTab('dash'); loadAdminTab('dash'); } }
   async function loadAdminTab(t) { if(t==='dash') { get('/api/admin/dashboard').then(setDash).catch(()=>{}); } if(t==='users') { get('/api/admin/users').then(setUsers).catch(()=>{}); } if(t==='tickets') { get('/api/admin/tickets').then(setTickets).catch(()=>{}); } if(t==='stories') { get('/api/admin/stories').then(setStories).catch(()=>{}); } if(t==='sponsors') { get('/api/admin/sponsors').then(setSponsors).catch(()=>{}); } if(t==='admins') { get('/api/admin/admins_list').then(setAdminsData).catch(()=>{}); } }
   async function toggleMaint(state) { try { await post('/api/admin/maintenance', { state }); setSysMaint(state); showToast(`Тех. работы ${state ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ'}`); } catch(e) { showToast('❌ Ошибка', 'error'); } }
   const adminTitles = { 'dash':'📊 Дашборд', 'users':'👥 Юзеры', 'tickets':'💬 Тикеты', 'stories':'📸 Заявки Stories', 'sponsors':'📢 Спонсоры', 'system':'⚙️ Система', 'admins':'👑 Супер Админ' };
@@ -765,7 +779,7 @@ function App() {
     <div className="app">
       <ToastContainer toasts={toasts}/>
       <div className="hdr"><div><div className="hdr-title">⛓ РАБСТВО</div><div className="hdr-sub">Социальная стратегия</div></div><button className="burger-btn" onClick={()=>setMenuOpen(true)}>☰</button></div>
-      {menuOpen && (<div className="sidebar-overlay" onClick={()=>setMenuOpen(false)}><div className="sidebar" onClick={e=>e.stopPropagation()}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><div className="fw8" style={{fontSize:22}}>Меню</div><button className="file-btn" onClick={()=>setMenuOpen(false)}>✕</button></div><button className={`menu-btn ${tab==='profile'?'active':''}`} onClick={()=>handleNav('profile')}><span className="menu-ico">👤</span> Мой профиль</button><button className={`menu-btn ${tab==='search'?'active':''}`} onClick={()=>handleNav('search')}><span className="menu-ico">🔍</span> Поиск рабов</button><button className={`menu-btn ${tab==='tasks'?'active':''}`} onClick={()=>handleNav('tasks')}><span className="menu-ico">📋</span> Задания</button><button className={`menu-btn ${tab==='top'?'active':''}`} onClick={()=>handleNav('top')}><span className="menu-ico">🏆</span> Рейтинги</button><button className={`menu-btn ${tab==='shop'?'active':''}`} onClick={()=>handleNav('shop')}><span className="menu-ico">🛒</span> Магазин</button><button className={`menu-btn ${tab==='support'?'active':''}`} onClick={()=>handleNav('support')}><span className="menu-ico">💬</span> Поддержка</button>{user.is_admin && <div className="divider" style={{margin:'8px 0'}}/>}{user.is_admin && <button className={`menu-btn ${tab==='admin'?'active':''}`} onClick={()=>handleNav('admin')}><span className="menu-ico">⚙️</span> Панель Админа</button>}</div></div>)}
+      {menuOpen && (<div className="sidebar-overlay" onClick={()=>setMenuOpen(false)}><div className="sidebar" onClick={e=>e.stopPropagation()}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><div className="fw8" style={{fontSize:22}}>Меню</div><button className="file-btn" onClick={()=>setMenuOpen(false)}>✕</button></div><button className={`menu-btn ${tab==='profile'?'active':''}`} onClick={()=>handleNav('profile')}><span className="menu-ico">👤</span> Мой профиль</button><button className={`menu-btn ${tab==='search'?'active':''}`} onClick={()=>handleNav('search')}><span className="menu-ico">🔍</span> Поиск рабов</button><button className={`menu-btn ${tab==='tasks'?'active':''}`} onClick={()=>handleNav('tasks')}><span className="menu-ico">📋</span> Задания</button><button className={`menu-btn ${tab==='messages'?'active':''}`} onClick={()=>handleNav('messages')}><span className="menu-ico">✉️</span> Сообщения</button><button className={`menu-btn ${tab==='top'?'active':''}`} onClick={()=>handleNav('top')}><span className="menu-ico">🏆</span> Рейтинги</button><button className={`menu-btn ${tab==='shop'?'active':''}`} onClick={()=>handleNav('shop')}><span className="menu-ico">🛒</span> Магазин</button><button className={`menu-btn ${tab==='support'?'active':''}`} onClick={()=>handleNav('support')}><span className="menu-ico">💬</span> Поддержка</button>{user.is_admin && <div className="divider" style={{margin:'8px 0'}}/>}{user.is_admin && <button className={`menu-btn ${tab==='admin'?'active':''}`} onClick={()=>handleNav('admin')}><span className="menu-ico">⚙️</span> Панель Админа</button>}</div></div>)}
       
       {tab==='profile' && <ProfileScreen user={user} onRefresh={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} showToast={showToast}/>}
       {tab==='search'  && <SearchScreen user={user} onBuy={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} showToast={showToast}/>}
@@ -774,12 +788,15 @@ function App() {
       {tab==='shop'    && <ShopScreen user={user} onRefresh={refreshUser} showToast={showToast}/>}
       {tab==='support' && <SupportScreen user={user} showToast={showToast}/>}
       
+      {tab==='messages' && !directChatUid && <MessagesScreen onViewProfile={(uid)=>setViewingUid(uid)} onOpenChat={window.openDirectChat} />}
+      {directChatUid && <DirectChatScreen targetUid={directChatUid} targetName={directChatName} currentUid={user.id} onBack={() => setDirectChatUid(null)} />}
+
       {tab==='admin' && user.is_admin && !openConv && (
         <div className="content">
           <div className="tabs-wrap" style={{marginBottom:16}}><select className="input" style={{border:'none', borderRadius:16, fontWeight:700, fontSize:15, padding:'16px', background:'var(--bg3)', boxShadow:'0 4px 15px rgba(0,0,0,0.3)'}} value={adminTab} onChange={e=>{setAdminTab(e.target.value); loadAdminTab(e.target.value);}}>{Object.entries(adminTitles).map(([k,v]) => { if(k==='admins' && !user.is_super_admin) return null; return <option key={k} value={k}>{v}</option>; })}</select></div>
           <div style={{padding:'0 16px'}}>
             {adminTab==='dash' && dash && (<div className="gap8"><div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>{[['👥','Игроков', dash.total_users],['🆕','За сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Тикеты', dash.tickets],['📸','Сторис', dash.stories_pending]].map(([ico,lbl,val]) => <div className="admin-stat" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}</div><button className="btn btn-ghost mt12" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button></div>)}
-            {adminTab==='users' && (<div className="gap12"><div className="card gap12" style={{borderColor:'var(--gold)'}}><div className="fw8 text-gold" style={{fontSize:16}}>🎨 Выдать косметику</div><input className="input" placeholder="ID / @username" value={cIdent} onChange={e=>setCIdent(e.target.value)}/><select className="input" value={cField} onChange={e=>{setCField(e.target.value); setCVal('');}}><option value="name_color">Цвет ника</option><option value="avatar_frame">Рамка аватара</option><option value="emoji_status">Эмодзи</option></select>{cField==='name_color' && <div className="row" style={{flexWrap:'wrap'}}>{[['default','Стандарт'],['ruby','Рубин'],['gold','Золото'],['neon','Неон'],['blue','Синий'],['purple','Фиолет']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='avatar_frame' && <div className="row" style={{flexWrap:'wrap'}}>{[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='emoji_status' && <div className="row" style={{flexWrap:'wrap'}}>{['','💎','👑','🔥','⚡','🌟','💀','🏆'].map((e,i)=><button key={i} className="btn btn-ghost btn-sm" style={{borderColor:cVal===e?'var(--gold)':''}} onClick={()=>setCVal(e)}>{e||'✕'}</button>)}</div>}<button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button></div><div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div><div className="gap8">{users.map(u => <div className="card row-sb" key={u.id} style={{margin:0}}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id}</div></div><button className={`btn btn-sm ${u.is_banned?'btn-green':'btn-danger'}`} onClick={async ()=>{ try{ await post('/api/admin/users/edit',{user_id:u.id, is_banned:!u.is_banned}); loadAdminTab('users'); }catch(e){showToast('❌ '+e.message);} }}>{u.is_banned?'Разбан':'Бан'}</button></div>)}</div></div>)}
+            {adminTab==='users' && (<div className="gap12"><div className="card gap12" style={{borderColor:'var(--gold)'}}><div className="fw8 text-gold" style={{fontSize:16}}>🎨 Выдать косметику</div><input className="input" placeholder="ID / @username" value={cIdent} onChange={e=>setCIdent(e.target.value)}/><select className="input" value={cField} onChange={e=>{setCField(e.target.value); setCVal('');}}><option value="name_color">Цвет ника</option><option value="avatar_frame">Рамка аватара</option><option value="emoji_status">Эмодзи</option></select>{cField==='name_color' && <div className="row" style={{flexWrap:'wrap'}}>{[['default','Стандарт'],['ruby','Рубин'],['gold','Золото'],['neon','Неон'],['blue','Синий'],['purple','Фиолет']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='avatar_frame' && <div className="row" style={{flexWrap:'wrap'}}>{[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='emoji_status' && <div className="row" style={{flexWrap:'wrap'}}>{['','💎','👑','🔥','⚡','🌟','💀','🏆'].map((e,i)=><button key={i} className="btn btn-ghost btn-sm" style={{borderColor:cVal===e?'var(--gold)':''}} onClick={()=>setCVal(e)}>{e||'✕'}</button>)}</div>}<button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button></div><div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div><div className="gap8">{users.map(u => <div className="card row-sb" key={u.id} style={{margin:0}}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id}</div></div><button className="btn btn-ghost btn-sm" onClick={() => setAdminEditingUser(u)}>✏️ Изменить</button></div>)}</div></div>)}
             {adminTab==='tickets' && (<div className="gap8">{tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}{tickets.map(t => (<div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}><div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div><div className="fw7 text-muted" style={{fontSize:20}}>›</div></div>))}</div>)}
             {adminTab==='stories' && (<div className="gap8">{stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}{stories.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div><button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅ Одобрить</button></div>))}</div>)}
             
@@ -791,6 +808,61 @@ function App() {
           </div>
         </div>
       )}
+      
+      {adminEditingUser && (
+        <div className="overlay" onClick={() => setAdminEditingUser(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">⚙️ Редактирование: {adminEditingUser.first_name}</div>
+            <div className="gap12">
+               <div>
+                 <div className="f12 text-muted mb4">Баланс RC</div>
+                 <input className="input" type="number" defaultValue={adminEditingUser.balance} id="adm_bal"/>
+               </div>
+               <div>
+                 <div className="f12 text-muted mb4">Цена (RC)</div>
+                 <input className="input" type="number" defaultValue={adminEditingUser.current_price} id="adm_price"/>
+               </div>
+               <div>
+                 <div className="f12 text-muted mb4">VIP Уровень (0-3)</div>
+                 <input className="input" type="number" defaultValue={adminEditingUser.vip_level} id="adm_vip"/>
+               </div>
+               <div>
+                 <div className="f12 text-muted mb4">Слоты рабов (-1 = по умолчанию)</div>
+                 <input className="input" type="number" defaultValue={adminEditingUser.max_slaves_override !== null ? adminEditingUser.max_slaves_override : -1} id="adm_slots"/>
+               </div>
+               
+               <div className="row mt8">
+                  <button className="btn btn-primary" onClick={async () => {
+                    const b = parseFloat(document.getElementById('adm_bal').value);
+                    const p = parseFloat(document.getElementById('adm_price').value);
+                    const v = parseInt(document.getElementById('adm_vip').value);
+                    const s = parseInt(document.getElementById('adm_slots').value);
+                    try {
+                      await post('/api/admin/users/edit', {
+                        user_id: adminEditingUser.id,
+                        balance: isNaN(b) ? null : b,
+                        price: isNaN(p) ? null : p,
+                        vip_level: isNaN(v) ? null : v,
+                        max_slaves_override: isNaN(s) || s < 0 ? -1 : s
+                      });
+                      showToast('✅ Сохранено');
+                      setAdminEditingUser(null);
+                      loadAdminTab('users');
+                    } catch(e) { showToast('❌ ' + e.message); }
+                  }}>Сохранить</button>
+                  <button className={`btn ${adminEditingUser.is_banned ? 'btn-green' : 'btn-danger'}`} onClick={async () => {
+                    try {
+                      await post('/api/admin/users/edit', { user_id: adminEditingUser.id, is_banned: !adminEditingUser.is_banned });
+                      setAdminEditingUser(null); loadAdminTab('users');
+                    } catch(e) { showToast('❌ ' + e.message); }
+                  }}>{adminEditingUser.is_banned ? 'Разбанить' : 'Выдать БАН'}</button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab==='admin' && openConv && <AdminChatScreen conv={openConv} onBack={()=>{setOpenConv(null); get('/api/admin/tickets').then(setTickets).catch(()=>{}); }} showToast={showToast}/>}
     </div>
   );
