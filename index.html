@@ -515,6 +515,11 @@ function JobProbsModal({ jobs, vipLevel, slaveName, slavePrice, onClose, onSend 
 function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
   const [sendWorkSlave, setSendWorkSlave] = useState(null); const [jobs, setJobs] = useState([]); const [storyPendingModal, setStoryPendingModal] = useState(false); const [renaming, setRenaming] = useState(null); const [newName, setNewName] = useState(''); const [loadingSelf, setLoadingSelf] = useState(false); const storiesCountdown = useCountdown(user.story_cooldown_until);
   useEffect(() => { get('/api/jobs').then(setJobs).catch(()=>{}); }, []);
+  const [nowTime, setNowTime] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTime(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   async function doSendWork(slaveId) { try { const r = await post('/api/slaves/send_to_work', { slave_id: slaveId }); showToast(`✅ ${r.job.emoji} ${r.job.title}`); setSendWorkSlave(null); onRefresh(); } catch(e) { showToast('❌ ' + e.message); setSendWorkSlave(null); } }
   async function doRename() { if (!newName.trim()) return; try { await post('/api/rename', { slave_id: renaming, new_name: newName.trim() }); showToast('✅ Кличка установлена'); setRenaming(null); setNewName(''); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } }
   async function claimStory() { try { const r = await post('/api/stories/claim'); showToast('📸 ' + r.msg); setStoryPendingModal(false); onRefresh(); } catch(e) { showToast('❌ ' + e.message); setStoryPendingModal(false); } }
@@ -562,9 +567,8 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
       {user.slaves.length > 0 && (
         <div className="section"><div className="section-title">Мои рабы ({user.slaves_count}/{user.max_slaves})</div><div className="card" style={{padding:0, margin:0}}>
           {user.slaves.map((s, idx) => { 
-            const isProtected = s.purchase_protection_until && new Date(s.purchase_protection_until) > new Date(); 
-            const [timeLeft, setTimeLeft] = useState(0);
-            useEffect(() => { if (!s.job_finishes_at) { setTimeLeft(0); return; } const interval = setInterval(() => { const t = Math.max(0, Math.floor((new Date(s.job_finishes_at) - Date.now()) / 1000)); setTimeLeft(t); if (t === 0) { clearInterval(interval); onRefresh(); } }, 1000); return () => clearInterval(interval); }, [s.job_finishes_at]);
+            const protLeft = s.purchase_protection_until ? Math.max(0, Math.floor((new Date(s.purchase_protection_until) - nowTime) / 1000)) : 0;
+            const timeLeft = s.job_finishes_at ? Math.max(0, Math.floor((new Date(s.job_finishes_at) - nowTime) / 1000)) : 0;
             return (
               <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===user.slaves.length-1?'none':'1px solid var(--border)'}}>
                 <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div>
@@ -574,7 +578,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
                     {s.is_injured ? <span className="text-red fw6">🤕 Травмирован на Арене</span> : 
                      s.job_finishes_at && timeLeft > 0 ? <><div className="text-green fw6">{s.job_emoji} {s.job_title} <span className="text-muted ml4">({fmtCountdown(timeLeft)})</span></div><div className="f11 text-gold mt4">Прибыль: ~{Math.round(s.price * s.min_yield_perc / 100)}-{Math.round(s.price * s.max_yield_perc / 100)} RC</div></> : <span>😴 Отдыхает</span>}
                   </div>
-                  <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{isProtected && <span className="protection-badge">🔒 защита</span>}</div>
+                  <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{protLeft > 0 && <span className="protection-badge">🔒 {fmtCountdown(protLeft)}</span>}</div>
                 </div>
                 <div className="gap6">
                   {s.is_injured ? (<button className="btn btn-danger btn-sm" style={{padding:'8px 12px'}} onClick={(e) => { e.stopPropagation(); doHeal(s.id); }}>💊</button>) : (<button className="btn btn-primary btn-sm" style={{padding:'8px 12px', opacity: s.job_finishes_at && timeLeft > 0 ? 0.5 : 1}} onClick={(e) => { e.stopPropagation(); if(!s.job_finishes_at || timeLeft === 0) setSendWorkSlave(s.id); }}>💼</button>)}
