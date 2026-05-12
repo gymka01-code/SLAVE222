@@ -24,7 +24,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from pydantic import BaseModel, validator
 from pathlib import Path
 
-BOT_TOKEN    = os.getenv("BOT_TOKEN", "8789914334:AAH7zS72v3-LMmIsavViB8W_SrvlQ_7-jFU")
+BOT_TOKEN    = os.getenv("BOT_TOKEN", "8759784117:AAEM280b-iM30y9hRJgYPZ76puRzV_B3Yu4")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/db")
 REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379")
 WEBAPP_URL   = os.getenv("WEBAPP_URL", "https://slave222-production.up.railway.app")
