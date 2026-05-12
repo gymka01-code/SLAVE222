@@ -939,6 +939,14 @@ async def check_sponsor(req: CheckSponsorReq, u: dict = Depends(get_current_user
     await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", s['reward_rc'], u['id'])
     return {"ok": True, "reward": float(s['reward_rc'])}
 
+class UpdatePrefsReq(BaseModel):
+    prefs: dict
+
+@app.post("/api/settings/notifications")
+async def update_notifications(req: UpdatePrefsReq, user: dict = Depends(get_current_user)):
+    await db.execute("UPDATE users SET notify_prefs=$1 WHERE id=$2", json.dumps(req.prefs), user['id'])
+    return {"ok": True}
+
 @app.post("/api/support")
 async def send_support(req: SupportMessageReq, x_init_data: str = Header(...)):
     uid = await _resolve_uid(x_init_data)
