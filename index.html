@@ -372,7 +372,6 @@ function RiotModal({ onClose, onSuppress }) {
 }
 
 // === CRASH GAME (ESCAPE) COMPONENT ===
-// === CRASH GAME (ESCAPE) COMPONENT ===
 function EscapeGameComp({ user, onRefresh, showToast }) {
   const [state, setState] = useState({ status: 'waiting', mult: 1.00, timeLeft: 10, history: [], bets: {}, startTime: 0 });
   const [betAmount, setBetAmount] = useState('');
@@ -399,11 +398,12 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
         }
         
         const pathEl = document.getElementById('esc-path');
-        if (pathEl) {
-          const w = document.getElementById('esc-area').clientWidth;
-          const h = document.getElementById('esc-area').clientHeight;
-          const px = Math.min(w * 0.9, (currentMult - 1) * 0.15 * w);
-          const py = h - 20 - Math.min(h * 0.8, Math.pow(currentMult - 1, 1.2) * 0.05 * h);
+          const areaEl = document.getElementById('esc-area'); // Находим блок
+          if (pathEl && areaEl) { // Проверяем, что оба элемента существуют!
+            const w = areaEl.clientWidth;
+            const h = areaEl.clientHeight;
+            const px = Math.min(w * 0.9, (currentMult - 1) * 0.15 * w);
+            const py = h - 20 - Math.min(h * 0.8, Math.pow(currentMult - 1, 1.2) * 0.05 * h);
           pathEl.setAttribute('d', `M 0 ${h-20} Q ${px*0.5} ${h-20} ${px} ${py}`);
         }
       }
