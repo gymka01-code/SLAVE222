@@ -372,6 +372,7 @@ function RiotModal({ onClose, onSuppress }) {
 }
 
 // === CRASH GAME (ESCAPE) COMPONENT ===
+// === CRASH GAME (ESCAPE) COMPONENT ===
 function EscapeGameComp({ user, onRefresh, showToast }) {
   const [state, setState] = useState({ status: 'waiting', mult: 1.00, timeLeft: 10, history: [], bets: {}, startTime: 0 });
   const [betAmount, setBetAmount] = useState('');
@@ -379,22 +380,18 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
   const reqRef = useRef(null);
   const multRef = useRef(1.00);
 
-  // Animation Loop for smooth 60fps graph
   const animate = useCallback(() => {
     if (state.status === 'running' && state.startTime > 0) {
       const elapsed = (Date.now() - state.startTime) / 1000;
       if (elapsed > 0) {
-        // e^(0.08 * t) is the exact formula used on the backend
         const currentMult = Math.max(1.0, Math.exp(0.08 * elapsed));
         multRef.current = currentMult;
         
-        // Update DOM directly for maximum performance instead of React state
         const multEl = document.getElementById('esc-mult');
         if (multEl) multEl.innerText = `x${currentMult.toFixed(2)}`;
         
         const runnerEl = document.getElementById('esc-runner');
         if (runnerEl) {
-          // Calculate curve
           const x = Math.min(90, (currentMult - 1) * 15);
           const y = Math.min(80, Math.pow(currentMult - 1, 1.2) * 5);
           runnerEl.style.left = `${x}%`;
@@ -436,7 +433,7 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
         } else if (d.type === 'start') {
           setState(p => ({...p, status: 'running', startTime: d.start_time * 1000}));
         } else if (d.type === 'tick') {
-          setState(p => ({...p, bets: d.bets})); // Update bets during game
+          setState(p => ({...p, bets: d.bets}));
         } else if (d.type === 'crash') {
           setState(p => ({...p, status: 'crashed', history: d.history, bets: d.bets}));
           const multEl = document.getElementById('esc-mult');
@@ -488,22 +485,13 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
         <div className="escape-ground"></div>
       </div>
 
-      <div className="card" style={{margin:0}}>
-        <div className="row gap8">
-          <input className="input" type="number" placeholder="Ставка (RC)" value={betAmount} onChange={e => setBetAmount(e.target.value)} disabled={myBet != null} style={{flex: 1}}/>
-          <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setBetAmount((user.balance/2).toFixed(0))} disabled={myBet != null}>1/2</button>
-          <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setBetAmount(user.balance.toFixed(0))} disabled={myBet != null}>ALL</button>
-        </div>
-
-        <div className="escape-controls">
-        {/* Поле ввода ставки */}
+      <div className="escape-controls">
         <div className="bet-input-wrapper" style={{ opacity: myBet ? 0.6 : 1, pointerEvents: myBet ? 'none' : 'auto' }}>
           <div className="bet-input-currency">RC</div>
           <input type="number" placeholder="0" value={betAmount} onChange={e => setBetAmount(e.target.value)} disabled={myBet != null} />
           <button className="bet-input-clear" onClick={() => setBetAmount('')}>✕</button>
         </div>
 
-        {/* Быстрые кнопки (Суммы) */}
         <div className="quick-bets">
           <button className="btn-quick" onClick={() => setBetAmount('10')} disabled={myBet != null}>+10</button>
           <button className="btn-quick" onClick={() => setBetAmount('50')} disabled={myBet != null}>+50</button>
@@ -511,7 +499,6 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
           <button className="btn-quick" onClick={() => setBetAmount(Math.floor(user.balance).toString())} disabled={myBet != null}>MAX</button>
         </div>
 
-        {/* Главная кнопка действия */}
         <div>
           {state.status === 'waiting' && !myBet && (
             <button className="escape-action-btn bet" onClick={doEscBet}>🚀 ПОСТАВИТЬ</button>
