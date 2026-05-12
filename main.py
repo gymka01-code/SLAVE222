@@ -428,7 +428,6 @@ async def lifespan(app: FastAPI):
             
         if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
             owner_id = ref_id if ref_id and ref_id != uid else None
-            # Записываем в БД сразу при старте (даже до проверки подписок)
             await db.execute(
                 "INSERT INTO users(id,username,first_name,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,50,100,$4,$5) ON CONFLICT DO NOTHING", 
                 uid, msg.from_user.username, msg.from_user.first_name, owner_id, ref_id
@@ -453,8 +452,8 @@ async def lifespan(app: FastAPI):
 
         # 3. ЕСЛИ ВСЕ ОК - ОТПРАВЛЯЕМ КНОПКУ ВХОДА В ИГРУ
         await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]]))
-        
-   @dp.callback_query(F.data == "check_main_subs")
+
+    @dp.callback_query(F.data == "check_main_subs")
     async def cb_check_subs(cq: types.CallbackQuery):
         uid = cq.from_user.id
         main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
@@ -470,7 +469,6 @@ async def lifespan(app: FastAPI):
         else:
             await cq.answer("✅ Доступ разрешен!", show_alert=True)
             await cq.message.delete()
-            # Отправляем приветственное сообщение напрямую, так как пользователь уже в БД
             await bot.send_message(
                 uid,
                 "⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", 
