@@ -678,7 +678,7 @@ async def _full_profile(uid: int) -> dict:
         "current_event": event,
         "energy": _calc_energy(u), "max_energy": u['max_energy'], "click_power": float(u['click_power']),
         "robberies_left": robberies_left,
-        "riot_active": bool(u['riot_expires_at'] and u['riot_expires_at'] > now)
+        "riot_active": bool(u['riot_expires_at'] and u['riot_expires_at'] > now),
         "uid": u.get('uid'),
         "notify_prefs": json.loads(u.get('notify_prefs') or '{"all":true,"trade":true,"jobs":true,"messages":true,"support":true}'),
     }
