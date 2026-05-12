@@ -414,19 +414,8 @@ async def lifespan(app: FastAPI):
     @dp.message(CommandStart())
     async def cmd_start(msg: types.Message):
         uid = msg.from_user.id
-        main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
-        missing_subs = []
-        for s in main_sponsors:
-            try:
-                member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
-                if member.status not in ['member', 'administrator', 'creator']: missing_subs.append(s)
-            except: missing_subs.append(s)
-        if missing_subs:
-            buttons = [[InlineKeyboardButton(text=s['channel_title'], url=s['channel_url'])] for s in missing_subs]
-            buttons.append([InlineKeyboardButton(text="🔄 Проверить подписку", callback_data="check_main_subs")])
-            await msg.answer("⛔️ <b>Для использования игры необходимо подписаться на наши генеральные каналы:</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-            return
-
+        
+        # 1. СНАЧАЛА РЕГИСТРИРУЕМ ПОЛЬЗОВАТЕЛЯ И ПРИМЕНЯЕМ РЕФКУ
         ref_id = None
         if msg.text and "ref_" in msg.text:
             try: 
@@ -436,13 +425,36 @@ async def lifespan(app: FastAPI):
                     ref_row = await db.fetchrow("SELECT id FROM users WHERE uid=$1", raw_ref)
                     if ref_row: ref_id = ref_row['id']
             except: pass
+            
         if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
             owner_id = ref_id if ref_id and ref_id != uid else None
-            await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,$4,50,100,$5,$6) ON CONFLICT DO NOTHING", uid, msg.from_user.username, msg.from_user.first_name, msg.from_user.photo_url if hasattr(msg.from_user, 'photo_url') else None, owner_id, ref_id)
-            if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{msg.from_user.username or uid}! Вы будете получать 5% с его доходов.", notif_type="trade"))
-        await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]]))
+            # Записываем в БД сразу при старте (даже до проверки подписок)
+            await db.execute(
+                "INSERT INTO users(id,username,first_name,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,50,100,$4,$5) ON CONFLICT DO NOTHING", 
+                uid, msg.from_user.username, msg.from_user.first_name, owner_id, ref_id
+            )
+            if owner_id: 
+                asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{msg.from_user.username or uid}! Вы будете получать 5% с его доходов.", notif_type="trade"))
 
-    @dp.callback_query(F.data == "check_main_subs")
+        # 2. ЗАТЕМ ПРОВЕРЯЕМ ПОДПИСКИ НА СПОНСОРОВ
+        main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
+        missing_subs = []
+        for s in main_sponsors:
+            try:
+                member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
+                if member.status not in ['member', 'administrator', 'creator']: missing_subs.append(s)
+            except: missing_subs.append(s)
+            
+        if missing_subs:
+            buttons = [[InlineKeyboardButton(text=s['channel_title'], url=s['channel_url'])] for s in missing_subs]
+            buttons.append([InlineKeyboardButton(text="🔄 Проверить подписку", callback_data="check_main_subs")])
+            await msg.answer("⛔️ <b>Для использования игры необходимо подписаться на наши генеральные каналы:</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+            return
+
+        # 3. ЕСЛИ ВСЕ ОК - ОТПРАВЛЯЕМ КНОПКУ ВХОДА В ИГРУ
+        await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]]))
+        
+   @dp.callback_query(F.data == "check_main_subs")
     async def cb_check_subs(cq: types.CallbackQuery):
         uid = cq.from_user.id
         main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
@@ -452,11 +464,19 @@ async def lifespan(app: FastAPI):
                 member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=uid)
                 if member.status not in ['member', 'administrator', 'creator']: missing_subs.append(s)
             except: missing_subs.append(s)
-        if missing_subs: await cq.answer("❌ Вы не подписаны на все каналы!", show_alert=True)
+            
+        if missing_subs: 
+            await cq.answer("❌ Вы не подписаны на все каналы!", show_alert=True)
         else:
             await cq.answer("✅ Доступ разрешен!", show_alert=True)
             await cq.message.delete()
-            await cmd_start(cq.message)
+            # Отправляем приветственное сообщение напрямую, так как пользователь уже в БД
+            await bot.send_message(
+                uid,
+                "⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", 
+                parse_mode="HTML", 
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]])
+            )
 
     @dp.pre_checkout_query()
     async def pre_checkout(query: PreCheckoutQuery): await query.answer(ok=True)
