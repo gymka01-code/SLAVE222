@@ -341,7 +341,7 @@ function SettingsScreen({ user, onRefresh, showToast }) {
       <div className="section mt20 text-center">
         <div className="f13 text-muted mb4">Ваш игровой UID:</div>
         <div className="fw8 text-gold" style={{fontSize: 24}}>{user.uid}</div>
-        {user.is_admin && <div className="f11 text-red mt8">Telegram ID: {user.id} (Видно только админам)</div>}
+        {user.is_admin && <div className="f11 text-red mt8">Telegram ID: {user.id}</div>}
       </div>
     </div>
   );
