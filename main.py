@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS users (
     purchase_protection_until TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), slaves_count INT DEFAULT 0,
     ban_reason TEXT DEFAULT NULL, login_streak INT DEFAULT 0, last_login_date TEXT,
     referrer_id BIGINT,
-    energy DECIMAL DEFAULT 1000, max_energy INT DEFAULT 1000, click_power DECIMAL DEFAULT 1.0, last_energy_update TIMESTAMP DEFAULT NOW(),
+    energy DECIMAL DEFAULT 300, max_energy INT DEFAULT 300, click_power DECIMAL DEFAULT 1.0, last_energy_update TIMESTAMP DEFAULT NOW(),
     robberies_count INT DEFAULT 0, robbery_reset_at TIMESTAMP DEFAULT NOW(),
     riot_expires_at TIMESTAMP DEFAULT NULL, is_injured_until TIMESTAMP DEFAULT NULL,
     riots_today INT DEFAULT 0, last_riot_date TEXT, last_riot_time TIMESTAMP
@@ -117,8 +117,8 @@ CREATE TABLE IF NOT EXISTS daily_progress (
     PRIMARY KEY (user_id, task_id, date_str)
 );
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS energy DECIMAL DEFAULT 1000;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS max_energy INT DEFAULT 1000;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS energy DECIMAL DEFAULT 300;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS max_energy INT DEFAULT 300;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS click_power DECIMAL DEFAULT 1.0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_energy_update TIMESTAMP DEFAULT NOW();
 ALTER TABLE users ADD COLUMN IF NOT EXISTS robberies_count INT DEFAULT 0;
@@ -340,8 +340,8 @@ def _calc_energy(u: dict) -> float:
     if not last_update: last_update = now
     elif isinstance(last_update, str): last_update = datetime.fromisoformat(last_update.replace("Z", "+00:00")).replace(tzinfo=None)
     seconds_passed = (now - last_update).total_seconds()
-    energy = float(u.get('energy') if u.get('energy') is not None else 1000)
-    max_energy = float(u.get('max_energy') if u.get('max_energy') is not None else 1000)
+    energy = float(u.get('energy') if u.get('energy') is not None else 300)
+    max_energy = float(u.get('max_energy') if u.get('max_energy') is not None else 300)
     regen_per_sec = max_energy / 7200.0
     return min(max_energy, energy + seconds_passed * regen_per_sec)
 
@@ -400,6 +400,9 @@ async def lifespan(app: FastAPI):
         await c.execute("UPDATE users SET uid = nextval('user_uid_seq') WHERE uid IS NULL")
         try: await c.execute("ALTER TABLE escape_rounds ADD COLUMN status TEXT DEFAULT 'waiting'")
         except: pass
+        
+        # ДОБАВЬТЕ ЭТУ СТРОКУ (установит всем текущим игрокам макс энергию 300)
+        await c.execute("UPDATE users SET max_energy = 300, energy = LEAST(energy, 300) WHERE max_energy > 300")
         
     for aid in ADMIN_IDS:
         try: await db.execute("UPDATE users SET is_admin_flag=TRUE WHERE id=$1", aid)
@@ -1241,7 +1244,7 @@ async def admin_broadcast(req: BroadcastReq, _: dict = Depends(get_admin_user)):
 @app.post("/api/admin/season/start")
 async def season_start(req: SeasonReq, _: dict = Depends(get_admin_user)):
     if req.password != SEASON_PASS: raise HTTPException(403)
-    await db.execute("UPDATE users SET balance=50,current_price=100,owner_id=NULL,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,shield_until=NULL,chains_until=NULL,booster_mult=1.0,booster_until=NULL,stealth_until=NULL,energy=1000,max_energy=1000,click_power=1.0,robberies_count=0,riot_expires_at=NULL,is_injured_until=NULL")
+    await db.execute("UPDATE users SET balance=50,current_price=100,owner_id=NULL,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,shield_until=NULL,chains_until=NULL,booster_mult=1.0,booster_until=NULL,stealth_until=NULL,energy=300,max_energy=300,click_power=1.0,robberies_count=0,riot_expires_at=NULL,is_injured_until=NULL")
     await rdb.delete("top:forbes", "top:owners", "top:legends")
     return {"ok": True}
 
