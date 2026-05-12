@@ -154,6 +154,17 @@ input, textarea, select { font-size: 16px !important; }
 .floating-number { position: absolute; font-size: 24px; font-weight: 800; color: var(--gold); pointer-events: none; animation: floatUp 0.8s ease-out forwards; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
 @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-50px) scale(1.2); } }
 
+/* Escape Crash Game */
+.escape-graph-area { position:relative; width:100%; height:240px; background:linear-gradient(to bottom, #1a1a2e, #000); border-radius:16px; border:1px solid rgba(239,68,68,0.3); overflow:hidden; margin-bottom:16px; display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow: inset 0 0 40px rgba(0,0,0,0.8); }
+.escape-mult { font-size: 64px; font-weight: 800; color: var(--text); z-index: 2; text-shadow: 0 4px 20px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
+.escape-mult.crashed { color: var(--red); }
+.escape-runner { position:absolute; bottom:20px; font-size:40px; z-index:2; transition: left 0.1s linear; }
+.escape-ground { position:absolute; bottom:0; width:100%; height:20px; background: rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.1); z-index: 1; }
+.escape-history { display:flex; gap:8px; overflow-x:auto; padding:4px 0; margin-bottom:16px; scrollbar-width:none; }
+.escape-history::-webkit-scrollbar { display:none; }
+.escape-hist-item { padding:4px 10px; border-radius:8px; font-size:12px; font-weight:700; background:var(--surface2); color:var(--text-2); flex-shrink:0; border: 1px solid var(--border2); }
+.escape-hist-item.good { color:var(--green); border-color: rgba(34,197,94,0.3); background: var(--green-dim); }
+
 /* Robbery Mini-Game */
 .robbery-item { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; user-select: none; animation: dropDown linear forwards; }
 @keyframes dropDown { from { top: -50px; } to { top: 100%; } }
@@ -282,6 +293,7 @@ function AdminGhostToggle({ userId, initialHidden, onToast }) {
   return <button onClick={toggle} disabled={loading} className="btn btn-ghost btn-sm" style={{borderColor: hidden ? 'var(--gold)' : 'var(--border2)', color: hidden ? 'var(--gold)' : 'var(--text-2)'}}>{loading ? '...' : hidden ? '🟡 Скрыт' : '⚫ Виден'}</button>;
 }
 
+// === МОДАЛКИ ДЛЯ ИГР ===
 function RobberyGameModal({ targetId, onClose, onFinish }) {
   const [timeLeft, setTimeLeft] = useState(10);
   const [score, setScore] = useState(0);
@@ -335,8 +347,12 @@ function RiotModal({ onClose, onSuppress }) {
   );
 }
 
+// === ЭКРАНЫ ===
+
 function GamesScreen({ user, onRefresh, showToast }) {
   const [tab, setTab] = useState('mine');
+  
+  // -- Mine --
   const [localEnergy, setLocalEnergy] = useState(parseFloat(user.energy) || 0);
   const [unsyncedClicks, setUnsyncedClicks] = useState(0);
   const [floats, setFloats] = useState([]);
@@ -376,6 +392,7 @@ function GamesScreen({ user, onRefresh, showToast }) {
 
   const buyUpgrade = async (type) => { try { await post('/api/mine/upgrade', { type }); showToast('✅ Улучшено!'); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } };
 
+  // -- Arena --
   const [arenaSlave, setArenaSlave] = useState(''); const [arenaBet, setArenaBet] = useState(''); const [arenaLog, setArenaLog] = useState(null); const [fighting, setFighting] = useState(false);
   const startFight = async () => {
     if (!arenaSlave || !arenaBet) return;
@@ -384,18 +401,111 @@ function GamesScreen({ user, onRefresh, showToast }) {
     setFighting(false);
   };
 
+  // -- Escape (Crash Game) --
+  const [escState, setEscState] = useState({ status: 'waiting', mult: 1.00, timeLeft: 10, history: [] });
+  const [escBet, setEscBet] = useState('');
+  const [escMyBet, setEscMyBet] = useState(null);
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    if (tab !== 'escape') {
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+      return;
+    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/api/escape/ws`);
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'state') {
+          setEscState({ status: data.status, mult: data.mult, timeLeft: data.time_left, history: data.history });
+          if (data.status === 'waiting' && escState.status !== 'waiting') setEscMyBet(null); // Reset bet on new round
+        }
+      } catch(err) {}
+    };
+    wsRef.current = ws;
+    return () => { ws.close(); };
+  }, [tab]);
+
+  const doEscBet = async () => {
+    if (!escBet || isNaN(escBet)) return;
+    try { await post('/api/escape/bet', { amount: parseFloat(escBet) }); setEscMyBet({ amount: parseFloat(escBet), cashedOut: false }); showToast('✅ Ставка принята!'); onRefresh(); } 
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
+  const doEscCashout = async () => {
+    try { const r = await post('/api/escape/cashout'); setEscMyBet(p => ({...p, cashedOut: true, win: r.win, mult: r.mult})); showToast(`✅ Вывели ${r.win.toFixed(0)} RC!`); onRefresh(); } 
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
   return (
     <div className="content" style={{padding:0}}>
-      <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Каменоломня</button><button className={`tab${tab==='arena'?' active':''}`} onClick={() => setTab('arena')}>⚔️ Арена</button></div></div>
+      <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Каменоломня</button><button className={`tab${tab==='escape'?' active':''}`} onClick={() => setTab('escape')}>🏃 Побег</button><button className={`tab${tab==='arena'?' active':''}`} onClick={() => setTab('arena')}>⚔️ Арена</button></div></div>
       
       {tab === 'mine' && (
         <div style={{padding: 16}}>
-          <div className="text-center mb16"><div className="fw8" style={{fontSize: 24}}>{user.balance.toFixed(1)} RC</div>{user.owner ? <div className="f12 text-red mt4">⛓ 20% добычи уходит вашему хозяину</div> : <div className="f12 text-green mt4">✅ Вы свободны. 100% добычи ваши.</div>}</div>
+          <div className="text-center mb16">
+            <div className="fw8" style={{fontSize: 24}}>{user.balance.toFixed(1)} RC</div>
+            {user.owner && <div className="f12 text-red mt4">⛓ 20% добычи уходит вашему хозяину</div>}
+            {!user.owner && <div className="f12 text-green mt4">✅ Вы свободны. 100% добычи ваши.</div>}
+          </div>
           <div className="mine-rock" onPointerDown={handleMineTap}>🪨{floats.map(f => (<div key={f.id} className="floating-number" style={{left: f.x, top: f.y}}>+{(user.click_power * 0.5).toFixed(1)}</div>))}</div>
           <div className="mt20"><div className="row-sb mb8"><span className="fw7 f12 text-muted">Энергия</span><span className="fw8 f13">{Math.floor(localEnergy)} / {user.max_energy}</span></div><div className="energy-bar-wrap"><div className="energy-bar-fill" style={{width: `${(localEnergy/user.max_energy)*100}%`}}></div></div></div>
           <div className="section-title mt20">Прокачка кирки</div>
           <div className="card row-sb" style={{margin:0, marginBottom:8}}><div><div className="fw7">Мощь тапа (ур. {user.click_power})</div><div className="f12 text-muted mt4">+0.5 RC за клик</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('power')}>{(user.click_power * 3000).toFixed(0)} RC</button></div>
           <div className="card row-sb" style={{margin:0}}><div><div className="fw7">Запас энергии ({user.max_energy})</div><div className="f12 text-muted mt4">+100 макс. энергии</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('energy')}>1500 RC</button></div>
+        </div>
+      )}
+
+      {tab === 'escape' && (
+        <div style={{padding: 16}}>
+          <div className="escape-history">
+            {escState.history.map((h, i) => <div key={i} className={`escape-hist-item ${h >= 2.0 ? 'good' : ''}`}>x{h.toFixed(2)}</div>)}
+            {escState.history.length === 0 && <div className="text-muted f12">Нет истории...</div>}
+          </div>
+
+          <div className="escape-graph-area">
+            {escState.status === 'waiting' && <div className="f13 text-muted" style={{position:'absolute', top:20}}>Следующий побег через {escState.timeLeft.toFixed(1)}с</div>}
+            
+            <div className={`escape-mult ${escState.status === 'crashed' ? 'crashed' : ''}`}>
+              x{escState.mult.toFixed(2)}
+            </div>
+            {escState.status === 'crashed' && <div className="fw8 text-red mt8" style={{zIndex:2}}>ПОЙМАН! ОХРАНА РАБОТАЕТ</div>}
+            
+            {escState.status === 'running' && (
+              <div className="escape-runner" style={{left: `${Math.min(90, (escState.mult - 1) * 15)}%`}}>🏃‍♂️</div>
+            )}
+            <div className="escape-ground"></div>
+          </div>
+
+          <div className="card" style={{margin:0}}>
+            <div className="row gap8">
+              <input className="input" type="number" placeholder="Ставка (RC)" value={escBet} onChange={e => setEscBet(e.target.value)} disabled={escMyBet !== null} style={{flex: 1}}/>
+              <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setEscBet((user.balance/2).toFixed(0))} disabled={escMyBet !== null}>1/2</button>
+              <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setEscBet(user.balance.toFixed(0))} disabled={escMyBet !== null}>ALL</button>
+            </div>
+
+            <div className="mt16">
+              {escState.status === 'waiting' && !escMyBet && (
+                <button className="btn btn-primary" style={{height: 56, fontSize: 16}} onClick={doEscBet}>ПОСТАВИТЬ</button>
+              )}
+              {escState.status === 'waiting' && escMyBet && (
+                <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--green)', color:'var(--green)'}} disabled>СТАВКА ПРИНЯТА ({escMyBet.amount} RC)</button>
+              )}
+              {escState.status === 'running' && escMyBet && !escMyBet.cashedOut && (
+                <button className="btn" style={{height: 56, fontSize: 18, background:'var(--green)', color:'#000'}} onClick={doEscCashout}>ЗАБРАТЬ {(escMyBet.amount * escState.mult).toFixed(0)} RC</button>
+              )}
+              {escState.status === 'running' && escMyBet && escMyBet.cashedOut && (
+                <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--gold)', color:'var(--gold)'}} disabled>ВЫВЕЛИ: {escMyBet.win.toFixed(0)} RC!</button>
+              )}
+              {escState.status === 'running' && !escMyBet && (
+                <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>ЖДИТЕ СЛЕДУЮЩЕГО РАУНДА...</button>
+              )}
+              {escState.status === 'crashed' && (
+                <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>УБЕЖАЛ / ПОЙМАН</button>
+              )}
+            </div>
+          </div>
         </div>
       )}
       
@@ -473,7 +583,6 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
 
   const handleCopyReferral = () => { navigator.clipboard.writeText(refLink); showToast('📋 Ссылка скопирована!'); };
   const handleShareReferral = () => {
-    const shareText = `⛓ Залетай в РАБСТВО! \nТут можно покупать и продавать людей, зарабатывать и строить свою империю! 👇\n\n${refLink}`;
     window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent("⛓ Залетай в РАБСТВО! \nТут можно покупать и продавать людей, зарабатывать и строить свою империю! 👇")}`);
   };
 
@@ -543,15 +652,8 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
   
   async function doBuy() { 
     setBuying(true); 
-    try { 
-      await post('/api/buy', { target_id: uid }); 
-      showToast('✅ Куплен!'); 
-      onBuy(); 
-      setTimeout(onBack, 1500); 
-    } catch(e) { 
-      showToast('❌ ' + e.message); 
-      setBuying(false);
-    } 
+    try { await post('/api/buy', { target_id: uid }); showToast('✅ Куплен!'); onBuy(); setTimeout(onBack, 1500); } 
+    catch(e) { showToast('❌ ' + e.message); setBuying(false); } 
   }
   
   async function finishRobbery(status, score) { setRobbing(false); try { const r = await post('/api/robbery/resolve', { target_id: uid, status, amount: score }); showToast(r.msg); onBuy(); get(`/api/profile/${uid}`).then(setProfile); } catch(e) { showToast('❌ ' + e.message); } }
@@ -584,15 +686,8 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
   
   async function doBuy() { 
     if (!selected) return; 
-    try { 
-      await post('/api/buy', { target_id: selected.id }); 
-      showToast('✅ Куплен!'); 
-      setSelected(null); 
-      doSearch(); 
-      onBuy(); 
-    } catch(e) { 
-      showToast('❌ ' + e.message); 
-    } 
+    try { await post('/api/buy', { target_id: selected.id }); showToast('✅ Куплен!'); setSelected(null); doSearch(); onBuy(); } 
+    catch(e) { showToast('❌ ' + e.message); } 
   }
   
   useEffect(() => { doSearch(false, true); }, []);
