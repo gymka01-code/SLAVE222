@@ -602,7 +602,10 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
   async function doBuy() { setBuying(true); try { await post('/api/buy', { target_id: uid }); showToast('✅ Куплен!'); onBuy(); setTimeout(onBack, 1500); } catch(e) { showToast('❌ ' + e.message); setBuying(false); } }
   async function finishRobbery(status, score) { setRobbing(false); try { const r = await post('/api/robbery/resolve', { target_id: uid, status, amount: score }); showToast(r.msg); onBuy(); get(`/api/profile/${uid}`).then(setProfile); } catch(e) { showToast('❌ ' + e.message); } }
   
-  const shieldTime = useCountdown(profile?.shield_until);
+ const shieldTime = useCountdown(profile?.shield_until);
+  const protTime = useCountdown(profile?.purchase_protection_until);
+  const activeProtectTime = shieldTime > 0 ? shieldTime : (protTime > 0 ? protTime : 0);
+  const protectLabel = shieldTime > 0 ? '🛡 Щит' : '🔒 Защита';
 
   if (loading) return <div className="screen"><div style={{display:'flex',justifyContent:'center',padding:60}}><div className="spinner"/></div></div>;
   if (!profile) return <div className="screen"><div className="section mt20 text-center text-muted">Профиль не найден</div></div>;
@@ -614,7 +617,7 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
         <div className="hero" style={{marginTop:16}}><div className="hero-row"><div className="avatar-wrap"><Avatar user={profile} size={68}/>{profile.vip_level > 0 && <div className="vip-badge">{profile.vip_level===3?'👑':profile.vip_level===2?'🥈':'🥉'}</div>}</div><div style={{flex:1,minWidth:0}}><div className="hero-name"><PlayerName user={profile}/></div><div className="hero-handle">UID: {profile.uid}</div><div className="hero-status">{profile.owner ? (<span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(profile.owner.id)}>{profile.owner.first_name || 'Владелец'}</span></span>) : (<span className="text-green">✅ Свободен</span>)}</div></div></div><div className="hero-stats"><div className="stat"><div className="stat-val">{profile.price.toFixed(0)}</div><div className="stat-lbl">🏷 Цена</div></div><div className="stat"><div className="stat-val">{profile.slaves_count}<span className="text-muted f12">/{profile.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div><div className="stat"><div className="stat-val">{profile.vip_level || '—'}</div><div className="stat-lbl">⭐ VIP</div></div></div></div>
         {uid !== currentUserId && (
           <div className="section gap8">
-            {shieldTime > 0 ? <button className="btn btn-ghost" disabled>🛡 Защита: {fmtCountdown(shieldTime)}</button> : <button className="btn btn-primary" onClick={doBuy} disabled={buying}>{buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}</button>}
+            {activeProtectTime > 0 ? <button className="btn btn-ghost" disabled>{protectLabel}: {fmtCountdown(activeProtectTime)}</button> : <button className="btn btn-primary" onClick={doBuy} disabled={buying}>{buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}</button>}
             <button className="btn btn-ghost" onClick={() => window.openDirectChat(uid, profile.first_name || 'Игрок')}>✉️ Написать в ЛС</button>
             {!profile.shield_active && profile.owner_id !== currentUserId && (<button className="btn" style={{background:'var(--surface2)', border:'1px solid var(--red)', color:'var(--red)'}} onClick={() => { if(currentUser.robberies_left <= 0) showToast('Лимит ограблений исчерпан!'); else setRobbing(true); }}>🥷 Ограбить (Осталось: {currentUser.robberies_left})</button>)}
           </div>
