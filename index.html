@@ -926,6 +926,43 @@ function App() {
   const [adminEditingUser, setAdminEditingUser] = useState(null);
   const [suppressingRiot, setSuppressingRiot] = useState(false);
 
+  // === СВАЙП НАЗАД ===
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const handleTouchStart = (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    };
+
+    const handleTouchEnd = (e) => {
+      const touchEndX = e.changedTouches[0].screenX;
+      const touchEndY = e.changedTouches[0].screenY;
+      const dx = touchEndX - touchStartX;
+      const dy = Math.abs(touchEndY - touchStartY);
+
+      // Если свайп начат от самого левого края (до 40px), 
+      // сдвинут вправо больше чем на 70px и это именно горизонтальный свайп
+      if (touchStartX <= 40 && dx > 70 && dx > dy) {
+        // Закрываем все всплывающие экраны (возвращаемся назад)
+        setViewingUid(null);     // Закрывает чужой профиль
+        setDirectChatUid(null);  // Закрывает личные сообщения
+        setOpenConv(null);       // Закрывает админ-чат
+        setBanSupportMode(false);// Закрывает поддержку для забаненных
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, []);
+  // ====================
+
   window.openDirectChat = (uid, name) => {
     setDirectChatUid(uid);
     setDirectChatName(name);
