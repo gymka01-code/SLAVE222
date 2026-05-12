@@ -83,6 +83,13 @@ CREATE TABLE IF NOT EXISTS user_chats (
 );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS max_slaves_override INT DEFAULT NULL;
 
+-- Создаем счетчик для UID (начнем с 10000)
+CREATE SEQUENCE IF NOT EXISTS user_uid_seq START 10000;
+
+-- Добавляем колонку UID и настройки уведомлений
+ALTER TABLE users ADD COLUMN IF NOT EXISTS uid INT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_prefs TEXT DEFAULT '{"all": true, "trade": true, "jobs": true, "messages": true, "support": true}';
+
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY, username TEXT, first_name TEXT, photo_url TEXT,
     balance DECIMAL DEFAULT 50, current_price DECIMAL DEFAULT 100, owner_id BIGINT,
@@ -234,11 +241,24 @@ def pick_job(vip_level: int, jobs: list) -> dict:
     else: pool = [j for j in jobs if j['drop_chance'] == 5] if vip_level >= 3 else [j for j in jobs if j['drop_chance'] == 25]
     return random.choice(pool) if pool else jobs[0]
 
-async def push(uid: int, text: str, parse_mode: str = "HTML", photo_path: str = None):
+async def push(uid: int, text: str, notif_type: str = "all", parse_mode: str = "HTML", photo_path: str = None):
+    """
+    notif_type: 'trade' (покупки/ограбления), 'jobs' (работа), 'messages' (лс), 'support' (поддержка), 'all' (системные)
+    """
     if bot:
         try:
-            if photo_path: await bot.send_photo(uid, photo=FSInputFile(photo_path), caption=text, parse_mode=parse_mode)
-            else: await bot.send_message(uid, text, parse_mode=parse_mode)
+            # Проверяем настройки уведомлений пользователя
+            prefs_str = await db.fetchval("SELECT notify_prefs FROM users WHERE id=$1", uid)
+            prefs = json.loads(prefs_str) if prefs_str else {"all": True, "trade": True, "jobs": True, "messages": True, "support": True}
+            
+            # Если выключены вообще все, или выключена конкретная категория - не отправляем
+            if not prefs.get("all", True): return
+            if notif_type != "all" and not prefs.get(notif_type, True): return
+
+            if photo_path: 
+                await bot.send_photo(uid, photo=FSInputFile(photo_path), caption=text, parse_mode=parse_mode)
+            else: 
+                await bot.send_message(uid, text, parse_mode=parse_mode)
         except: pass
 
 async def get_admin_ids() -> set:
@@ -411,6 +431,7 @@ async def lifespan(app: FastAPI):
 
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
     async with db.acquire() as c: await c.execute(SCHEMA)
+    await c.execute("UPDATE users SET uid = nextval('user_uid_seq') WHERE uid IS NULL")
     
     # Добавляем колонку status для истории крашей, если её нет
     try: await db.execute("ALTER TABLE escape_rounds ADD COLUMN status TEXT DEFAULT 'waiting'")
@@ -442,7 +463,16 @@ async def lifespan(app: FastAPI):
 
         ref_id = None
         if msg.text and "ref_" in msg.text:
-            try: ref_id = int(msg.text.split("ref_")[1])
+            try: 
+                raw_ref = int(msg.text.split("ref_")[1])
+                # Если число больше 100 млн — это старая ссылка (Telegram ID)
+                if raw_ref > 100000000:
+                    ref_id = raw_ref
+                # Иначе — это новая ссылка (игровой UID)
+                else:
+                    ref_row = await db.fetchrow("SELECT id FROM users WHERE uid=$1", raw_ref)
+                    if ref_row:
+                        ref_id = ref_row['id']
             except: pass
         if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
             owner_id = ref_id if ref_id and ref_id != uid else None
@@ -649,6 +679,8 @@ async def _full_profile(uid: int) -> dict:
         "energy": _calc_energy(u), "max_energy": u['max_energy'], "click_power": float(u['click_power']),
         "robberies_left": robberies_left,
         "riot_active": bool(u['riot_expires_at'] and u['riot_expires_at'] > now)
+        "uid": u.get('uid'),
+        "notify_prefs": json.loads(u.get('notify_prefs') or '{"all":true,"trade":true,"jobs":true,"messages":true,"support":true}'),
     }
 
 @app.get("/api/config")
