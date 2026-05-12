@@ -200,6 +200,27 @@ input, textarea, select { font-size: 16px !important; }
 .login-day.active { background: var(--gold-dim); border-color: rgba(232,197,71,0.4); transform: translateY(-2px); }
 .login-day.past { opacity: 0.6; }
 .login-day.past::after { content: '✓'; position: absolute; font-size: 16px; font-weight: 800; color: var(--green); }
+
+/* Escape Game Controls */
+.escape-controls { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-top: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.bet-input-wrapper { display: flex; align-items: center; background: var(--bg1); border: 2px solid var(--border2); border-radius: 14px; padding: 4px; margin-bottom: 12px; transition: 0.2s; }
+.bet-input-wrapper:focus-within { border-color: var(--gold); box-shadow: 0 0 15px rgba(232,197,71,0.1); }
+.bet-input-currency { padding: 0 16px; color: var(--text-3); font-weight: 800; font-size: 14px; }
+.bet-input-wrapper input { flex: 1; background: transparent; border: none; color: var(--gold); font-size: 24px !important; font-weight: 800; text-align: center; padding: 12px 0; outline: none; width: 100%; }
+.bet-input-wrapper input::placeholder { color: var(--text-3); font-weight: 600; }
+.bet-input-clear { background: none; border: none; padding: 0 16px; color: var(--text-2); font-size: 18px; cursor: pointer; }
+.quick-bets { display: flex; gap: 8px; margin-bottom: 16px; }
+.btn-quick { flex: 1; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); font-weight: 700; font-size: 13px; padding: 12px 0; border-radius: 10px; cursor: pointer; transition: 0.15s; }
+.btn-quick:active { transform: scale(0.95); background: var(--gold-dim); color: var(--gold); border-color: rgba(232,197,71,0.5); }
+.btn-quick:disabled { opacity: 0.4; pointer-events: none; }
+.escape-action-btn { height: 64px; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; border-radius: 16px; text-transform: uppercase; letter-spacing: 1px; transition: 0.15s; border: none; cursor: pointer; }
+.escape-action-btn:active { transform: scale(0.96); }
+.escape-action-btn.bet { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #fff; box-shadow: 0 4px 20px rgba(59,130,246,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.escape-action-btn.cashout { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: #fff; box-shadow: 0 4px 20px rgba(34,197,94,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.3); animation: pulseGreen 1.5s infinite; }
+.escape-action-btn.wait { background: var(--surface2); color: var(--gold); border: 2px solid rgba(232,197,71,0.3); }
+.escape-action-btn.disabled { background: var(--surface2); color: var(--text-3); border: 2px solid var(--border2); pointer-events: none; }
+@keyframes pulseGreen { 0% { box-shadow: 0 0 10px rgba(34,197,94,0.4); } 50% { box-shadow: 0 0 30px rgba(34,197,94,0.8); } 100% { box-shadow: 0 0 10px rgba(34,197,94,0.4); } }
+  
 </style>
 </head>
 <body>
@@ -474,24 +495,41 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
           <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setBetAmount(user.balance.toFixed(0))} disabled={myBet != null}>ALL</button>
         </div>
 
-        <div className="mt16">
+        <div className="escape-controls">
+        {/* Поле ввода ставки */}
+        <div className="bet-input-wrapper" style={{ opacity: myBet ? 0.6 : 1, pointerEvents: myBet ? 'none' : 'auto' }}>
+          <div className="bet-input-currency">RC</div>
+          <input type="number" placeholder="0" value={betAmount} onChange={e => setBetAmount(e.target.value)} disabled={myBet != null} />
+          <button className="bet-input-clear" onClick={() => setBetAmount('')}>✕</button>
+        </div>
+
+        {/* Быстрые кнопки (Суммы) */}
+        <div className="quick-bets">
+          <button className="btn-quick" onClick={() => setBetAmount('10')} disabled={myBet != null}>+10</button>
+          <button className="btn-quick" onClick={() => setBetAmount('50')} disabled={myBet != null}>+50</button>
+          <button className="btn-quick" onClick={() => setBetAmount(Math.floor(user.balance/2).toString())} disabled={myBet != null}>1/2</button>
+          <button className="btn-quick" onClick={() => setBetAmount(Math.floor(user.balance).toString())} disabled={myBet != null}>MAX</button>
+        </div>
+
+        {/* Главная кнопка действия */}
+        <div>
           {state.status === 'waiting' && !myBet && (
-            <button className="btn btn-primary" style={{height: 56, fontSize: 16}} onClick={doEscBet}>ПОСТАВИТЬ</button>
+            <button className="escape-action-btn bet" onClick={doEscBet}>🚀 ПОСТАВИТЬ</button>
           )}
           {state.status === 'waiting' && myBet && (
-            <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--green)', color:'var(--green)'}} disabled>СТАВКА ПРИНЯТА ({myBet.amount} RC)</button>
+            <button className="escape-action-btn wait" disabled>✅ ОЖИДАЕМ ({myBet.amount} RC)</button>
           )}
           {state.status === 'running' && myBet && !myBet.cashed_out && (
-            <button className="btn" style={{height: 56, fontSize: 18, background:'var(--green)', color:'#000'}} onClick={doEscCashout}>ЗАБРАТЬ {(myBet.amount * multRef.current).toFixed(0)} RC</button>
+            <button className="escape-action-btn cashout" onClick={doEscCashout}>💰 ЗАБРАТЬ</button>
           )}
           {state.status === 'running' && myBet && myBet.cashed_out && (
-            <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--gold)', color:'var(--gold)'}} disabled>ВЫВЕЛИ: {myBet.win.toFixed(0)} RC!</button>
+            <button className="escape-action-btn disabled" style={{color:'var(--green)', borderColor:'rgba(34,197,94,0.3)'}}>🏆 ВЫВЕЛИ: {myBet.win.toFixed(0)} RC!</button>
           )}
           {state.status === 'running' && !myBet && (
-            <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>ИДЕТ ПОБЕГ...</button>
+            <button className="escape-action-btn disabled">🏃‍♂️ ИДЕТ ПОБЕГ...</button>
           )}
           {state.status === 'crashed' && (
-            <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>УБЕЖАЛ / ПОЙМАН</button>
+            <button className="escape-action-btn disabled" style={{color:'var(--red)', borderColor:'rgba(239,68,68,0.3)'}}>💥 РАУНД ЗАВЕРШЕН</button>
           )}
         </div>
       </div>
