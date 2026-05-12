@@ -158,12 +158,15 @@ input, textarea, select { font-size: 16px !important; }
 .escape-graph-area { position:relative; width:100%; height:240px; background:linear-gradient(to bottom, #1a1a2e, #000); border-radius:16px; border:1px solid rgba(239,68,68,0.3); overflow:hidden; margin-bottom:16px; display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow: inset 0 0 40px rgba(0,0,0,0.8); }
 .escape-mult { font-size: 64px; font-weight: 800; color: var(--text); z-index: 2; text-shadow: 0 4px 20px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
 .escape-mult.crashed { color: var(--red); }
-.escape-runner { position:absolute; bottom:20px; font-size:40px; z-index:2; transition: left 0.1s linear; }
+.escape-runner { position:absolute; font-size:32px; z-index:2; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+.escape-line { position:absolute; bottom:20px; left:0; height:100%; width:100%; z-index:1; pointer-events:none; }
 .escape-ground { position:absolute; bottom:0; width:100%; height:20px; background: rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.1); z-index: 1; }
 .escape-history { display:flex; gap:8px; overflow-x:auto; padding:4px 0; margin-bottom:16px; scrollbar-width:none; }
 .escape-history::-webkit-scrollbar { display:none; }
 .escape-hist-item { padding:4px 10px; border-radius:8px; font-size:12px; font-weight:700; background:var(--surface2); color:var(--text-2); flex-shrink:0; border: 1px solid var(--border2); }
 .escape-hist-item.good { color:var(--green); border-color: rgba(34,197,94,0.3); background: var(--green-dim); }
+.live-bets-container { display:flex; flex-direction:column; gap:8px; margin-top:16px; max-height: 200px; overflow-y:auto; }
+.live-bet-item { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surface2); border-radius:8px; border:1px solid var(--border2); }
 
 /* Robbery Mini-Game */
 .robbery-item { position: absolute; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; user-select: none; animation: dropDown linear forwards; }
@@ -347,7 +350,169 @@ function RiotModal({ onClose, onSuppress }) {
   );
 }
 
-// === ЭКРАНЫ ===
+// === CRASH GAME (ESCAPE) COMPONENT ===
+function EscapeGameComp({ user, onRefresh, showToast }) {
+  const [state, setState] = useState({ status: 'waiting', mult: 1.00, timeLeft: 10, history: [], bets: {}, startTime: 0 });
+  const [betAmount, setBetAmount] = useState('');
+  const wsRef = useRef(null);
+  const reqRef = useRef(null);
+  const multRef = useRef(1.00);
+
+  // Animation Loop for smooth 60fps graph
+  const animate = useCallback(() => {
+    if (state.status === 'running' && state.startTime > 0) {
+      const elapsed = (Date.now() - state.startTime) / 1000;
+      if (elapsed > 0) {
+        // e^(0.08 * t) is the exact formula used on the backend
+        const currentMult = Math.max(1.0, Math.exp(0.08 * elapsed));
+        multRef.current = currentMult;
+        
+        // Update DOM directly for maximum performance instead of React state
+        const multEl = document.getElementById('esc-mult');
+        if (multEl) multEl.innerText = `x${currentMult.toFixed(2)}`;
+        
+        const runnerEl = document.getElementById('esc-runner');
+        if (runnerEl) {
+          // Calculate curve
+          const x = Math.min(90, (currentMult - 1) * 15);
+          const y = Math.min(80, Math.pow(currentMult - 1, 1.2) * 5);
+          runnerEl.style.left = `${x}%`;
+          runnerEl.style.bottom = `${20 + y}%`;
+        }
+        
+        const pathEl = document.getElementById('esc-path');
+        if (pathEl) {
+          const w = document.getElementById('esc-area').clientWidth;
+          const h = document.getElementById('esc-area').clientHeight;
+          const px = Math.min(w * 0.9, (currentMult - 1) * 0.15 * w);
+          const py = h - 20 - Math.min(h * 0.8, Math.pow(currentMult - 1, 1.2) * 0.05 * h);
+          pathEl.setAttribute('d', `M 0 ${h-20} Q ${px*0.5} ${h-20} ${px} ${py}`);
+        }
+      }
+    }
+    reqRef.current = requestAnimationFrame(animate);
+  }, [state.status, state.startTime]);
+
+  useEffect(() => {
+    reqRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(reqRef.current);
+  }, [animate]);
+
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/api/escape/ws`);
+    ws.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.type === 'state') {
+          setState(p => ({...p, status: d.status, timeLeft: d.time_left, history: d.history, bets: d.bets, startTime: d.start_time * 1000 || 0}));
+          if (d.status !== 'running') {
+            const multEl = document.getElementById('esc-mult');
+            if (multEl) multEl.innerText = d.status === 'crashed' ? `ПОЙМАН!` : `x1.00`;
+            const pathEl = document.getElementById('esc-path');
+            if (pathEl) pathEl.setAttribute('d', '');
+          }
+        } else if (d.type === 'start') {
+          setState(p => ({...p, status: 'running', startTime: d.start_time * 1000}));
+        } else if (d.type === 'tick') {
+          setState(p => ({...p, bets: d.bets})); // Update bets during game
+        } else if (d.type === 'crash') {
+          setState(p => ({...p, status: 'crashed', history: d.history, bets: d.bets}));
+          const multEl = document.getElementById('esc-mult');
+          if (multEl) multEl.innerText = `x${d.mult.toFixed(2)}`;
+          multRef.current = d.mult;
+        } else if (d.type === 'bets_update') {
+          setState(p => ({...p, bets: d.bets}));
+        }
+      } catch(err) {}
+    };
+    wsRef.current = ws;
+    return () => ws.close();
+  }, []);
+
+  const doEscBet = async () => {
+    if (!betAmount || isNaN(betAmount)) return;
+    try { await post('/api/escape/bet', { amount: parseFloat(betAmount) }); setBetAmount(''); showToast('✅ Ставка принята!'); onRefresh(); } 
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
+  const doEscCashout = async () => {
+    try { const r = await post('/api/escape/cashout'); showToast(`✅ Вывели ${r.win.toFixed(0)} RC!`); onRefresh(); } 
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
+  const myBet = state.bets[user.id];
+
+  return (
+    <div style={{padding: 16}}>
+      <div className="escape-history">
+        {state.history.map((h, i) => <div key={i} className={`escape-hist-item ${h >= 2.0 ? 'good' : ''}`}>x{h.toFixed(2)}</div>)}
+        {state.history.length === 0 && <div className="text-muted f12">Нет истории...</div>}
+      </div>
+
+      <div id="esc-area" className="escape-graph-area">
+        {state.status === 'waiting' && <div className="f13 text-muted" style={{position:'absolute', top:20}}>Следующий побег через {state.timeLeft.toFixed(1)}с</div>}
+        
+        <svg className="escape-line" xmlns="http://www.w3.org/2000/svg">
+          <path id="esc-path" d="" fill="none" stroke="var(--gold)" strokeWidth="4" strokeLinecap="round" style={{filter: 'drop-shadow(0 0 8px var(--gold))'}} />
+        </svg>
+
+        <div id="esc-mult" className={`escape-mult ${state.status === 'crashed' ? 'crashed' : ''}`}>
+          x1.00
+        </div>
+        
+        {(state.status === 'running' || state.status === 'waiting') && (
+          <div id="esc-runner" className="escape-runner" style={{left: '0%', bottom: '20%'}}>🏃‍♂️</div>
+        )}
+        <div className="escape-ground"></div>
+      </div>
+
+      <div className="card" style={{margin:0}}>
+        <div className="row gap8">
+          <input className="input" type="number" placeholder="Ставка (RC)" value={betAmount} onChange={e => setBetAmount(e.target.value)} disabled={myBet != null} style={{flex: 1}}/>
+          <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setBetAmount((user.balance/2).toFixed(0))} disabled={myBet != null}>1/2</button>
+          <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setBetAmount(user.balance.toFixed(0))} disabled={myBet != null}>ALL</button>
+        </div>
+
+        <div className="mt16">
+          {state.status === 'waiting' && !myBet && (
+            <button className="btn btn-primary" style={{height: 56, fontSize: 16}} onClick={doEscBet}>ПОСТАВИТЬ</button>
+          )}
+          {state.status === 'waiting' && myBet && (
+            <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--green)', color:'var(--green)'}} disabled>СТАВКА ПРИНЯТА ({myBet.amount} RC)</button>
+          )}
+          {state.status === 'running' && myBet && !myBet.cashed_out && (
+            <button className="btn" style={{height: 56, fontSize: 18, background:'var(--green)', color:'#000'}} onClick={doEscCashout}>ЗАБРАТЬ {(myBet.amount * multRef.current).toFixed(0)} RC</button>
+          )}
+          {state.status === 'running' && myBet && myBet.cashed_out && (
+            <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--gold)', color:'var(--gold)'}} disabled>ВЫВЕЛИ: {myBet.win.toFixed(0)} RC!</button>
+          )}
+          {state.status === 'running' && !myBet && (
+            <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>ИДЕТ ПОБЕГ...</button>
+          )}
+          {state.status === 'crashed' && (
+            <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>УБЕЖАЛ / ПОЙМАН</button>
+          )}
+        </div>
+      </div>
+
+      <div className="live-bets-container">
+        {Object.values(state.bets).map((b, i) => (
+          <div key={i} className="live-bet-item">
+            <div className="row">
+              <div className="avatar-sm" style={{width: 24, height: 24, fontSize: 10}}>{b.avatar ? <img src={b.avatar}/> : b.name[0]}</div>
+              <div className="fw6">{b.name.substring(0, 10)}</div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              <div className="fw7">{b.amount} RC</div>
+              {b.cashed_out ? <div className="f11 text-green">Вывел {b.win.toFixed(0)} (x{b.mult.toFixed(2)})</div> : state.status === 'crashed' ? <div className="f11 text-red">Пойман</div> : <div className="f11 text-muted">В побеге...</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function GamesScreen({ user, onRefresh, showToast }) {
   const [tab, setTab] = useState('mine');
@@ -401,43 +566,6 @@ function GamesScreen({ user, onRefresh, showToast }) {
     setFighting(false);
   };
 
-  // -- Escape (Crash Game) --
-  const [escState, setEscState] = useState({ status: 'waiting', mult: 1.00, timeLeft: 10, history: [] });
-  const [escBet, setEscBet] = useState('');
-  const [escMyBet, setEscMyBet] = useState(null);
-  const wsRef = useRef(null);
-
-  useEffect(() => {
-    if (tab !== 'escape') {
-      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
-      return;
-    }
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/api/escape/ws`);
-    ws.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.type === 'state') {
-          setEscState({ status: data.status, mult: data.mult, timeLeft: data.time_left, history: data.history });
-          if (data.status === 'waiting' && escState.status !== 'waiting') setEscMyBet(null); // Reset bet on new round
-        }
-      } catch(err) {}
-    };
-    wsRef.current = ws;
-    return () => { ws.close(); };
-  }, [tab]);
-
-  const doEscBet = async () => {
-    if (!escBet || isNaN(escBet)) return;
-    try { await post('/api/escape/bet', { amount: parseFloat(escBet) }); setEscMyBet({ amount: parseFloat(escBet), cashedOut: false }); showToast('✅ Ставка принята!'); onRefresh(); } 
-    catch(e) { showToast('❌ ' + e.message); }
-  };
-
-  const doEscCashout = async () => {
-    try { const r = await post('/api/escape/cashout'); setEscMyBet(p => ({...p, cashedOut: true, win: r.win, mult: r.mult})); showToast(`✅ Вывели ${r.win.toFixed(0)} RC!`); onRefresh(); } 
-    catch(e) { showToast('❌ ' + e.message); }
-  };
-
   return (
     <div className="content" style={{padding:0}}>
       <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Каменоломня</button><button className={`tab${tab==='escape'?' active':''}`} onClick={() => setTab('escape')}>🏃 Побег</button><button className={`tab${tab==='arena'?' active':''}`} onClick={() => setTab('arena')}>⚔️ Арена</button></div></div>
@@ -456,58 +584,8 @@ function GamesScreen({ user, onRefresh, showToast }) {
           <div className="card row-sb" style={{margin:0}}><div><div className="fw7">Запас энергии ({user.max_energy})</div><div className="f12 text-muted mt4">+100 макс. энергии</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('energy')}>1500 RC</button></div>
         </div>
       )}
-
-      {tab === 'escape' && (
-        <div style={{padding: 16}}>
-          <div className="escape-history">
-            {escState.history.map((h, i) => <div key={i} className={`escape-hist-item ${h >= 2.0 ? 'good' : ''}`}>x{h.toFixed(2)}</div>)}
-            {escState.history.length === 0 && <div className="text-muted f12">Нет истории...</div>}
-          </div>
-
-          <div className="escape-graph-area">
-            {escState.status === 'waiting' && <div className="f13 text-muted" style={{position:'absolute', top:20}}>Следующий побег через {escState.timeLeft.toFixed(1)}с</div>}
-            
-            <div className={`escape-mult ${escState.status === 'crashed' ? 'crashed' : ''}`}>
-              x{escState.mult.toFixed(2)}
-            </div>
-            {escState.status === 'crashed' && <div className="fw8 text-red mt8" style={{zIndex:2}}>ПОЙМАН! ОХРАНА РАБОТАЕТ</div>}
-            
-            {escState.status === 'running' && (
-              <div className="escape-runner" style={{left: `${Math.min(90, (escState.mult - 1) * 15)}%`}}>🏃‍♂️</div>
-            )}
-            <div className="escape-ground"></div>
-          </div>
-
-          <div className="card" style={{margin:0}}>
-            <div className="row gap8">
-              <input className="input" type="number" placeholder="Ставка (RC)" value={escBet} onChange={e => setEscBet(e.target.value)} disabled={escMyBet !== null} style={{flex: 1}}/>
-              <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setEscBet((user.balance/2).toFixed(0))} disabled={escMyBet !== null}>1/2</button>
-              <button className="btn btn-ghost" style={{padding:'12px', width:'auto'}} onClick={() => setEscBet(user.balance.toFixed(0))} disabled={escMyBet !== null}>ALL</button>
-            </div>
-
-            <div className="mt16">
-              {escState.status === 'waiting' && !escMyBet && (
-                <button className="btn btn-primary" style={{height: 56, fontSize: 16}} onClick={doEscBet}>ПОСТАВИТЬ</button>
-              )}
-              {escState.status === 'waiting' && escMyBet && (
-                <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--green)', color:'var(--green)'}} disabled>СТАВКА ПРИНЯТА ({escMyBet.amount} RC)</button>
-              )}
-              {escState.status === 'running' && escMyBet && !escMyBet.cashedOut && (
-                <button className="btn" style={{height: 56, fontSize: 18, background:'var(--green)', color:'#000'}} onClick={doEscCashout}>ЗАБРАТЬ {(escMyBet.amount * escState.mult).toFixed(0)} RC</button>
-              )}
-              {escState.status === 'running' && escMyBet && escMyBet.cashedOut && (
-                <button className="btn btn-ghost" style={{height: 56, fontSize: 16, borderColor:'var(--gold)', color:'var(--gold)'}} disabled>ВЫВЕЛИ: {escMyBet.win.toFixed(0)} RC!</button>
-              )}
-              {escState.status === 'running' && !escMyBet && (
-                <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>ЖДИТЕ СЛЕДУЮЩЕГО РАУНДА...</button>
-              )}
-              {escState.status === 'crashed' && (
-                <button className="btn btn-ghost" style={{height: 56, fontSize: 16}} disabled>УБЕЖАЛ / ПОЙМАН</button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      
+      {tab === 'escape' && <EscapeGameComp user={user} onRefresh={onRefresh} showToast={showToast} />}
       
       {tab === 'arena' && (
         <div style={{padding: 16}}>
@@ -652,8 +730,15 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
   
   async function doBuy() { 
     setBuying(true); 
-    try { await post('/api/buy', { target_id: uid }); showToast('✅ Куплен!'); onBuy(); setTimeout(onBack, 1500); } 
-    catch(e) { showToast('❌ ' + e.message); setBuying(false); } 
+    try { 
+      await post('/api/buy', { target_id: uid }); 
+      showToast('✅ Куплен!'); 
+      onBuy(); 
+      setTimeout(onBack, 1500); 
+    } catch(e) { 
+      showToast('❌ ' + e.message); 
+      setBuying(false);
+    } 
   }
   
   async function finishRobbery(status, score) { setRobbing(false); try { const r = await post('/api/robbery/resolve', { target_id: uid, status, amount: score }); showToast(r.msg); onBuy(); get(`/api/profile/${uid}`).then(setProfile); } catch(e) { showToast('❌ ' + e.message); } }
@@ -686,8 +771,15 @@ function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
   
   async function doBuy() { 
     if (!selected) return; 
-    try { await post('/api/buy', { target_id: selected.id }); showToast('✅ Куплен!'); setSelected(null); doSearch(); onBuy(); } 
-    catch(e) { showToast('❌ ' + e.message); } 
+    try { 
+      await post('/api/buy', { target_id: selected.id }); 
+      showToast('✅ Куплен!'); 
+      setSelected(null); 
+      doSearch(); 
+      onBuy(); 
+    } catch(e) { 
+      showToast('❌ ' + e.message); 
+    } 
   }
   
   useEffect(() => { doSearch(false, true); }, []);
