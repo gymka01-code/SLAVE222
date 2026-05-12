@@ -5,11 +5,12 @@ import json
 import base64
 import uuid
 import math
+import time
 import hmac as _hmac
 import hashlib
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 import asyncpg
 import redis.asyncio as aioredis
@@ -44,16 +45,30 @@ db: asyncpg.Pool = None
 rdb: aioredis.Redis = None
 story_cache: dict = {}
 
-# Глобальный стейт для Краш-игры (Побег)
-escape_state = {
-    "round_id": 0,
-    "status": "waiting", # waiting, running, crashed
-    "mult": 1.00,
-    "time_left": 10.0,
-    "crash_point": 1.00,
-    "history": []
-}
-escape_connections: List[WebSocket] = []
+# ГЛОБАЛЬНЫЙ СТЕЙТ КРАШ-ИГРЫ (Побег)
+class EscapeGame:
+    def __init__(self):
+        self.round_id = 0
+        self.status = "waiting" # waiting, running, crashed
+        self.mult = 1.00
+        self.start_time = 0.0
+        self.crash_point = 1.00
+        self.history = []
+        self.bets: Dict[int, Dict[str, Any]] = {} # uid -> {name, amount, win, cashed_out, avatar}
+        self.connections: List[WebSocket] = []
+
+    async def broadcast(self, message: dict):
+        dead = []
+        msg_str = json.dumps(message)
+        for ws in self.connections:
+            try:
+                await ws.send_text(msg_str)
+            except:
+                dead.append(ws)
+        for ws in dead:
+            self.connections.remove(ws)
+
+escape_game = EscapeGame()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS user_chats (
@@ -95,9 +110,7 @@ CREATE TABLE IF NOT EXISTS pending_purchases (id SERIAL PRIMARY KEY, user_id BIG
 CREATE TABLE IF NOT EXISTS admin_users (user_id BIGINT PRIMARY KEY, added_by BIGINT, added_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS sponsors (id SERIAL PRIMARY KEY, channel_id TEXT UNIQUE NOT NULL, channel_title TEXT, channel_url TEXT, reward_rc DECIMAL DEFAULT 0, is_main BOOLEAN DEFAULT FALSE, is_active BOOLEAN DEFAULT TRUE);
 CREATE TABLE IF NOT EXISTS user_sponsors (user_id BIGINT, sponsor_id INT, claimed_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (user_id, sponsor_id));
-CREATE TABLE IF NOT EXISTS season_snapshots (id SERIAL PRIMARY KEY, snapshot_data JSONB, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT);
-
 CREATE TABLE IF NOT EXISTS daily_progress (
     user_id BIGINT, task_id TEXT, date_str TEXT, progress INT DEFAULT 0, claimed BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (user_id, task_id, date_str)
@@ -114,7 +127,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_injured_until TIMESTAMP DEFAULT NU
 ALTER TABLE users ADD COLUMN IF NOT EXISTS riots_today INT DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_riot_date TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_riot_time TIMESTAMP;
-
 ALTER TABLE users ALTER COLUMN energy TYPE DECIMAL USING energy::DECIMAL;
 ALTER TABLE users ALTER COLUMN click_power TYPE DECIMAL USING click_power::DECIMAL;
 
@@ -176,12 +188,7 @@ async def add_task_progress(user_id: int, action: str, amount: int = 1):
     date_str, daily_tasks = get_daily_tasks()
     for t in daily_tasks:
         if t['action'] == action:
-            await db.execute("""
-                INSERT INTO daily_progress (user_id, task_id, date_str, progress)
-                VALUES ($1, $2, $3, $4)
-                ON CONFLICT (user_id, task_id, date_str) 
-                DO UPDATE SET progress = daily_progress.progress + $4
-            """, user_id, t['id'], date_str, amount)
+            await db.execute("INSERT INTO daily_progress (user_id, task_id, date_str, progress) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, task_id, date_str) DO UPDATE SET progress = daily_progress.progress + $4", user_id, t['id'], date_str, amount)
 
 def verify_webapp(init_data: str) -> Optional[dict]:
     from urllib.parse import unquote
@@ -189,20 +196,16 @@ def verify_webapp(init_data: str) -> Optional[dict]:
         if DEV_MODE and init_data.startswith("dev:"):
             uid = int(init_data.split(":")[1])
             return {"id": uid, "first_name": "DevUser", "username": f"dev_{uid}"}
-
         parsed = {}
         for item in init_data.split("&"):
             if "=" in item:
                 k, v = item.split("=", 1)
                 parsed[k] = unquote(v)
-
         received_hash = parsed.pop("hash", None)
         if not received_hash: return None
-
         check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
         secret_key = _hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
         computed_hash = _hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
-
         if not _hmac.compare_digest(computed_hash, received_hash): return None
         return json.loads(parsed.get("user", "{}"))
     except: return None
@@ -251,15 +254,10 @@ async def is_admin_user(uid: int) -> bool:
 
 async def collect_income(owner_id: int) -> float:
     now = datetime.utcnow()
-    slaves = await db.fetch("""
-        SELECT u.id, u.current_price, u.booster_mult, u.booster_until, j.min_yield, j.max_yield 
-        FROM users u JOIN jobs j ON u.job_id = j.id 
-        WHERE u.owner_id=$1 AND u.job_id IS NOT NULL AND u.job_assigned_at <= $2
-    """, owner_id, now - timedelta(hours=2))
+    slaves = await db.fetch("SELECT u.id, u.current_price, u.booster_mult, u.booster_until, j.min_yield, j.max_yield FROM users u JOIN jobs j ON u.job_id = j.id WHERE u.owner_id=$1 AND u.job_id IS NOT NULL AND u.job_assigned_at <= $2", owner_id, now - timedelta(hours=2))
     if not slaves: return 0.0
     ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
     event = json.loads(ev_data) if ev_data else {"type": "normal"}
-
     total = 0.0
     for s in slaves:
         base_reward = float(s['current_price']) * random.uniform(float(s['min_yield']), float(s['max_yield']))
@@ -268,7 +266,6 @@ async def collect_income(owner_id: int) -> float:
         total += base_reward * mult
         await db.execute("UPDATE users SET job_id=NULL, job_assigned_at=NULL WHERE id=$1", s['id'])
         await add_task_progress(owner_id, 'collect')
-
     if total > 0: 
         await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", round(total, 2), owner_id)
         owner_ref = await db.fetchval("SELECT referrer_id FROM users WHERE id=$1", owner_id)
@@ -334,62 +331,66 @@ def _calc_energy(u: dict) -> float:
 
 # === ЛОГИКА ИГРЫ "ПОБЕГ" (CRASH) ===
 def get_crash_point() -> float:
-    if random.random() < 0.05: return 1.00 # 5% шанс моментального проигрыша (House edge)
+    if random.random() < 0.05: return 1.00 # 5% шанс моментального проигрыша
     return round(max(1.00, 0.95 / (1.0 - random.random())), 2)
 
-async def broadcast_escape_state():
-    dead_connections = []
-    msg = json.dumps({
-        "type": "state", "status": escape_state["status"], "mult": round(escape_state["mult"], 2),
-        "time_left": round(escape_state["time_left"], 1), "history": escape_state["history"]
-    })
-    for ws in escape_connections:
-        try: await ws.send_text(msg)
-        except: dead_connections.append(ws)
-    for ws in dead_connections:
-        escape_connections.remove(ws)
-
 async def _escape_game_loop():
-    global escape_state
+    # Загружаем историю при старте
     try:
-        escape_state["round_id"] = await db.fetchval("INSERT INTO escape_rounds DEFAULT VALUES RETURNING id")
+        hist_rows = await db.fetch("SELECT crash_mult FROM escape_rounds WHERE status='crashed' ORDER BY id DESC LIMIT 10")
+        escape_game.history = [float(r['crash_mult']) for r in hist_rows]
     except: pass
-    
-    while True:
-        # WAITING STATE
-        escape_state["status"] = "waiting"
-        escape_state["mult"] = 1.00
-        for i in range(100, 0, -1):
-            escape_state["time_left"] = i / 10.0
-            await broadcast_escape_state()
-            await asyncio.sleep(0.1)
-            
-        # RUNNING STATE
-        escape_state["status"] = "running"
-        escape_state["crash_point"] = get_crash_point()
-        
-        ticks = 0
-        while True:
-            # Экспоненциальный рост
-            escape_state["mult"] = math.pow(1.03, ticks / 10.0) 
-            if escape_state["mult"] >= escape_state["crash_point"]:
-                escape_state["mult"] = escape_state["crash_point"]
-                break
-            await broadcast_escape_state()
-            await asyncio.sleep(0.1)
-            ticks += 1
-            
-        # CRASHED STATE
-        escape_state["status"] = "crashed"
-        escape_state["history"] = ([escape_state["crash_point"]] + escape_state["history"])[:10]
-        try:
-            await db.execute("UPDATE escape_rounds SET crash_mult=$1, status='crashed' WHERE id=$2", escape_state["crash_point"], escape_state["round_id"])
-            escape_state["round_id"] = await db.fetchval("INSERT INTO escape_rounds DEFAULT VALUES RETURNING id")
-        except: pass
-        
-        await broadcast_escape_state()
-        await asyncio.sleep(5)
 
+    while True:
+        try:
+            # WAITING STATE (10 секунд)
+            escape_game.status = "waiting"
+            escape_game.mult = 1.00
+            escape_game.bets = {}
+            escape_game.round_id = await db.fetchval("INSERT INTO escape_rounds DEFAULT VALUES RETURNING id")
+            
+            for i in range(100, 0, -1):
+                await escape_game.broadcast({
+                    "type": "state", "status": escape_game.status, "time_left": i / 10.0, 
+                    "history": escape_game.history, "bets": escape_game.bets
+                })
+                await asyncio.sleep(0.1)
+                
+            # RUNNING STATE (Расчет через время)
+            escape_game.status = "running"
+            escape_game.crash_point = get_crash_point()
+            escape_game.start_time = time.time()
+            
+            # Отправляем точное время старта, чтобы клиенты рендерили 60fps сами
+            await escape_game.broadcast({"type": "start", "start_time": escape_game.start_time})
+            
+            while True:
+                elapsed = time.time() - escape_game.start_time
+                # Математика: e^(0.08 * t). При 10 сек = x2.22, при 20 сек = x4.95
+                current_mult = math.exp(0.08 * elapsed) 
+                escape_game.mult = current_mult
+                
+                if current_mult >= escape_game.crash_point:
+                    escape_game.mult = escape_game.crash_point
+                    break
+                
+                # Транслируем текущий икс и ставки каждые 100мс
+                await escape_game.broadcast({"type": "tick", "mult": round(current_mult, 2), "bets": escape_game.bets})
+                await asyncio.sleep(0.1)
+                
+            # CRASHED STATE
+            escape_game.status = "crashed"
+            escape_game.history = ([round(escape_game.crash_point, 2)] + escape_game.history)[:10]
+            
+            # Сохраняем результат раунда и сгоревшие ставки
+            await db.execute("UPDATE escape_rounds SET crash_mult=$1, status='crashed' WHERE id=$2", escape_game.crash_point, escape_game.round_id)
+            
+            await escape_game.broadcast({"type": "crash", "mult": round(escape_game.crash_point, 2), "history": escape_game.history, "bets": escape_game.bets})
+            await asyncio.sleep(5) # Пауза после краша
+            
+        except Exception as e:
+            print(f"Escape Game Error: {e}")
+            await asyncio.sleep(5)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -404,6 +405,11 @@ async def lifespan(app: FastAPI):
 
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
     async with db.acquire() as c: await c.execute(SCHEMA)
+    
+    # Добавляем колонку status для истории крашей, если её нет
+    try: await db.execute("ALTER TABLE escape_rounds ADD COLUMN status TEXT DEFAULT 'waiting'")
+    except: pass
+    
     for aid in ADMIN_IDS:
         try: await db.execute("UPDATE users SET is_admin_flag=TRUE WHERE id=$1", aid)
         except: pass
@@ -654,7 +660,7 @@ async def init_user(req: InitReq):
         except: pass
     if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
         owner_id = req.ref_id if (req.ref_id and req.ref_id != uid) else None
-        await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,$4,50,100,$5,$6) ON CONFLICT DO NOTHING", uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id, req.ref_id)
+        await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,$4,50,100,$5,$6) ON CONFLICT DO NOTHING", uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id, ref_id)
         if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{tg.get('username') or uid}! Вы будете получать 5% с его доходов."))
     else: await db.execute("UPDATE users SET username=$1,first_name=$2,photo_url=$3 WHERE id=$4", tg.get('username'), tg.get('first_name'), photo_url, uid)
     return await _full_profile(uid)
@@ -695,7 +701,7 @@ async def buy_player(req: BuyReq, user: dict = Depends(get_current_user)):
             
             if target['owner_id'] == buyer_id: raise HTTPException(400, "Этот игрок уже ваш раб")
             if target['shield_until'] and target['shield_until'] > now: raise HTTPException(400, "Цель защищена Щитом 🛡")
-            if target.get('purchase_protection_until') and target['purchase_protection_until'] > now: raise HTTPException(400, "Защита от покупки активна")
+            if target.get('purchase_protection_until') and target.get('purchase_protection_until') > now: raise HTTPException(400, "Защита от покупки активна")
             
             price = float(target['current_price']) * (1.5 if target['chains_until'] and target['chains_until'] > now else 1.0)
             if float(buyer['balance']) < price: raise HTTPException(400, f"Недостаточно RC. Нужно {price:.0f}")
@@ -1089,36 +1095,61 @@ async def arena_fight(req: ArenaFightReq, user: dict = Depends(get_current_user)
 # === РОУТЫ КРАШ ИГРЫ (ESCAPE) ===
 @app.post("/api/escape/bet")
 async def escape_bet(req: EscapeBetReq, user: dict = Depends(get_current_user)):
-    if escape_state["status"] != "waiting": raise HTTPException(400, "Раунд уже идет")
+    if escape_game.status != "waiting": raise HTTPException(400, "Раунд уже идет")
     if req.amount <= 0 or req.amount > float(user['balance']): raise HTTPException(400, "Неверная ставка")
-    if await db.fetchval("SELECT 1 FROM escape_bets WHERE round_id=$1 AND user_id=$2", escape_state["round_id"], user['id']): raise HTTPException(400, "Ставка уже сделана")
+    if user['id'] in escape_game.bets: raise HTTPException(400, "Ставка уже сделана")
     
     await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", req.amount, user['id'])
-    await db.execute("INSERT INTO escape_bets (round_id, user_id, amount) VALUES ($1,$2,$3)", escape_state["round_id"], user['id'], req.amount)
+    await db.execute("INSERT INTO escape_bets (round_id, user_id, amount) VALUES ($1,$2,$3)", escape_game.round_id, user['id'], req.amount)
+    
+    # Сохраняем в памяти и рассылаем всем
+    escape_game.bets[user['id']] = {
+        "name": user['first_name'] or user['username'] or str(user['id']),
+        "avatar": user['photo_url'],
+        "amount": req.amount,
+        "win": 0,
+        "cashed_out": False
+    }
+    await escape_game.broadcast({"type": "bets_update", "bets": escape_game.bets})
     return {"ok": True}
 
 @app.post("/api/escape/cashout")
 async def escape_cashout(user: dict = Depends(get_current_user)):
-    if escape_state["status"] != "running": raise HTTPException(400, "Слишком поздно!")
-    bet = await db.fetchrow("SELECT * FROM escape_bets WHERE round_id=$1 AND user_id=$2 FOR UPDATE", escape_state["round_id"], user['id'])
-    if not bet: raise HTTPException(400, "Вы не делали ставку")
-    if bet['cashout_mult'] is not None: raise HTTPException(400, "Уже вывели")
+    if escape_game.status != "running": raise HTTPException(400, "Слишком поздно!")
+    uid = user['id']
     
-    mult = escape_state["mult"]
-    win = float(bet['amount']) * mult
+    if uid not in escape_game.bets: raise HTTPException(400, "Вы не делали ставку")
+    if escape_game.bets[uid]["cashed_out"]: raise HTTPException(400, "Уже вывели")
     
-    await db.execute("UPDATE escape_bets SET cashout_mult=$1, win_amount=$2 WHERE id=$3", mult, win, bet['id'])
-    await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", win, user['id'])
+    # Фиксируем точный множитель на момент запроса
+    mult = escape_game.mult
+    win = float(escape_game.bets[uid]['amount']) * mult
+    
+    # Обновляем память
+    escape_game.bets[uid]["cashed_out"] = True
+    escape_game.bets[uid]["win"] = win
+    escape_game.bets[uid]["mult"] = mult
+    
+    await db.execute("UPDATE escape_bets SET cashout_mult=$1, win_amount=$2 WHERE round_id=$3 AND user_id=$4", mult, win, escape_game.round_id, uid)
+    await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", win, uid)
+    
+    await escape_game.broadcast({"type": "bets_update", "bets": escape_game.bets})
     return {"ok": True, "mult": mult, "win": win}
 
 @app.websocket("/api/escape/ws")
 async def escape_websocket(ws: WebSocket):
     await ws.accept()
-    escape_connections.append(ws)
+    escape_game.connections.append(ws)
+    # Сразу отправляем текущее состояние при подключении
+    await ws.send_text(json.dumps({
+        "type": "state", "status": escape_game.status, 
+        "history": escape_game.history, "bets": escape_game.bets,
+        "start_time": escape_game.start_time
+    }))
     try:
         while True: await ws.receive_text()
     except:
-        if ws in escape_connections: escape_connections.remove(ws)
+        if ws in escape_game.connections: escape_game.connections.remove(ws)
 
 # === АДМИНКА ===
 @app.post("/api/admin/maintenance")
