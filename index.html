@@ -348,25 +348,50 @@ function SettingsScreen({ user, onRefresh, showToast }) {
 }
 
 function RobberyGameModal({ targetId, onClose, onFinish }) {
-  const [timeLeft, setTimeLeft] = useState(10); const [score, setScore] = useState(0); const [items, setItems] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(10); 
+  const [score, setScore] = useState(0); 
+  const [items, setItems] = useState([]);
+  
   useEffect(() => {
     const tId = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     const iId = setInterval(() => {
       const isBomb = Math.random() < 0.25;
       const newItem = { id: Date.now() + Math.random(), type: isBomb ? 'bomb' : 'coin', x: Math.floor(Math.random() * 80) + 10, dur: isBomb ? 1.5 : (Math.random() * 1 + 1.5) };
-      setItems(p => [...p, newItem]); setTimeout(() => setItems(p => p.filter(i => i.id !== newItem.id)), newItem.dur * 1000);
+      setItems(p => [...p, newItem]); 
+      setTimeout(() => setItems(p => p.filter(i => i.id !== newItem.id)), newItem.dur * 1000);
     }, 400);
     return () => { clearInterval(tId); clearInterval(iId); };
   }, []);
+  
   useEffect(() => { if (timeLeft <= 0) onFinish("success", score); }, [timeLeft, score, onFinish]);
-  const tap = (e, item) => { e.stopPropagation(); setItems(p => p.filter(i => i.id !== item.id)); if (item.type === 'bomb') onFinish("caught", 0); else setScore(p => p + 10); };
+  
+  const tap = (e, item) => { 
+    e.stopPropagation(); 
+    setItems(p => p.filter(i => i.id !== item.id)); 
+    if (item.type === 'bomb') {
+      onFinish("caught", 0); 
+    } else {
+      // 1 монетка = +0.5%. Максимум 5% (то есть нужно 10 монеток)
+      setScore(p => Math.min(5, p + 0.5)); 
+    }
+  };
+  
   return (
     <div className="overlay">
       <div className="modal" style={{textAlign:'center'}}>
         <div className="modal-title">🥷 Ограбление!</div>
-        <div className="f13 text-muted mb8">Лови монеты (RC)! Не трогай копов (полиция)!</div>
-        <div className="row-sb mb8"><div className="fw8 text-gold">Собрано: {score} RC</div><div className="fw8 text-red">⏳ {timeLeft}с</div></div>
-        <div className="robbery-area">{items.map(item => (<div key={item.id} className="robbery-item" style={{left: `${item.x}%`, animationDuration: `${item.dur}s`}} onPointerDown={(e) => tap(e, item)}>{item.type === 'coin' ? '💰' : '👮'}</div>))}</div>
+        <div className="f13 text-muted mb8">Каждый мешок = 0.5% казны жертвы (макс 5%). Не трогай полицию!</div>
+        <div className="row-sb mb8">
+          <div className="fw8 text-gold">Собрано: {score.toFixed(1)}%</div>
+          <div className="fw8 text-red">⏳ {timeLeft}с</div>
+        </div>
+        <div className="robbery-area">
+          {items.map(item => (
+            <div key={item.id} className="robbery-item" style={{left: `${item.x}%`, animationDuration: `${item.dur}s`}} onPointerDown={(e) => tap(e, item)}>
+              {item.type === 'coin' ? '💰' : '👮'}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
