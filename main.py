@@ -1008,34 +1008,52 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
     now = datetime.utcnow()
     reset_at = user.get('robbery_reset_at') or now
     if isinstance(reset_at, str): reset_at = datetime.fromisoformat(reset_at.replace("Z", "+00:00")).replace(tzinfo=None)
+    
     if now >= reset_at:
         robberies_count = 0
         new_reset_at = now + timedelta(hours=2)
         await db.execute("UPDATE users SET robberies_count=0, robbery_reset_at=$1 WHERE id=$2", new_reset_at, uid)
-    else: robberies_count = user.get('robberies_count', 0)
-    if robberies_count >= 3: raise HTTPException(400, "Лимит ограблений (3 раза в 2 часа) исчерпан")
-    if req.amount > 100 or req.amount < 0: req.amount = 0 
+    else: 
+        robberies_count = user.get('robberies_count', 0)
+        
+    if robberies_count >= 3: 
+        raise HTTPException(400, "Лимит ограблений (3 раза в 2 часа) исчерпан")
+    
+    # req.amount теперь передает ПРОЦЕНТЫ. Защита от читов: ограничиваем строго от 0 до 5%
+    percent = max(0.0, min(float(req.amount), 5.0))
+    
     async with db.acquire() as conn:
         async with conn.transaction():
             target = await conn.fetchrow("SELECT balance, shield_until, admin_god_mode FROM users WHERE id=$1 FOR UPDATE", req.target_id)
             if not target: raise HTTPException(404)
             if target.get('admin_god_mode'): raise HTTPException(400, "Игрок под защитой богов")
             if target['shield_until'] and target['shield_until'] > now: raise HTTPException(400, "У игрока активирован Щит")
-            actual_amount = min(float(req.amount), float(target['balance']))
+            
+            # Высчитываем реальную сумму: процент от текущего баланса жертвы
+            actual_amount = round(float(target['balance']) * (percent / 100.0), 2)
+            
             await conn.execute("UPDATE users SET robberies_count=robberies_count+1 WHERE id=$1", uid)
+            
             if req.status == "success" and actual_amount > 0:
                 await conn.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", actual_amount, uid)
                 await conn.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", actual_amount, req.target_id)
-                msg = f"💸 Вы украли {actual_amount:.0f} RC."
-                asyncio.create_task(push(req.target_id, f"🥷 <b>Вас ограбили!</b>\nИгрок @{user['username'] or uid} украл у вас {actual_amount:.0f} RC.", notif_type="trade"))
+                msg = f"💸 Вы успешно украли {actual_amount:.0f} RC ({percent:.0f}% от казны)!"
+                asyncio.create_task(push(req.target_id, f"🥷 <b>Вас ограбили!</b>\nИгрок @{user['username'] or uid} пробрался к вам и украл {actual_amount:.0f} RC.", notif_type="trade"))
                 await add_task_progress(uid, 'robbery')
+                
             elif req.status == "caught":
                 penalty = min(50.0, float(user['balance']))
                 await conn.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", penalty, uid)
                 await conn.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", penalty, req.target_id)
                 msg = f"👮 Вы попались! Штраф {penalty:.0f} RC переведен жертве."
                 asyncio.create_task(push(req.target_id, f"🛡 <b>Попытка ограбления!</b>\nИгрок @{user['username'] or uid} пытался вас ограбить, но попался полиции. Вы получаете компенсацию {penalty:.0f} RC.", notif_type="trade"))
-            else: msg = "Ничего не украдено."
+                
+            else: 
+                if float(target['balance']) <= 0:
+                    msg = "У жертвы пустые карманы (0 RC)! Ничего не украдено."
+                else:
+                    msg = "Ничего не украдено."
+                    
     return {"ok": True, "msg": msg}
 
 @app.post("/api/riot/suppress")
