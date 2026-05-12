@@ -430,8 +430,8 @@ async def lifespan(app: FastAPI):
         except: await asyncio.sleep(5)
 
     rdb = aioredis.from_url(REDIS_URL, decode_responses=True)
-    async with db.acquire() as c: await c.execute(SCHEMA)
-    await c.execute("UPDATE users SET uid = nextval('user_uid_seq') WHERE uid IS NULL")
+    await db.execute(SCHEMA)
+    await db.execute("UPDATE users SET uid = nextval('user_uid_seq') WHERE uid IS NULL")
     
     # Добавляем колонку status для истории крашей, если её нет
     try: await db.execute("ALTER TABLE escape_rounds ADD COLUMN status TEXT DEFAULT 'waiting'")
