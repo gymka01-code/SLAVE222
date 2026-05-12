@@ -60,13 +60,19 @@ class EscapeGame:
     async def broadcast(self, message: dict):
         dead = []
         msg_str = json.dumps(message)
-        for ws in self.connections:
+        
+        # Оборачиваем в list(), чтобы итерироваться по КОПИИ списка. 
+        # Это защитит от ошибок, если список изменится во время цикла.
+        for ws in list(self.connections):
             try:
                 await ws.send_text(msg_str)
             except:
                 dead.append(ws)
+                
         for ws in dead:
-            self.connections.remove(ws)
+            # Безопасное удаление: сначала проверяем, есть ли сокет еще в списке
+            if ws in self.connections:
+                self.connections.remove(ws)
 
 escape_game = EscapeGame()
 
