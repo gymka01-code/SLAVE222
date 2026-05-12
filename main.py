@@ -29,7 +29,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/db")
 REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379")
 WEBAPP_URL   = os.getenv("WEBAPP_URL", "https://slave222-production.up.railway.app")
 ADMIN_IDS    = list(map(int, filter(None, os.getenv("ADMIN_IDS", "7502434760").split(","))))
-BOT_USERNAME = os.getenv("BOT_USERNAME", "Rabstvo_Slave_bot")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "RabstvoSlave_bot")
 SEASON_PASS  = os.getenv("SEASON_PASS", "change_me_in_env")
 SUPER_ADMIN_ID = ADMIN_IDS[0] if ADMIN_IDS else 0
 DEV_MODE     = os.getenv("DEV_MODE", "0") == "1"
