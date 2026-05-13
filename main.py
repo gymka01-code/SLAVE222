@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS daily_progress (
     user_id BIGINT, task_id TEXT, date_str TEXT, progress INT DEFAULT 0, claimed BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (user_id, task_id, date_str)
 );
+CREATE TABLE IF NOT EXISTS inventory (user_id BIGINT, item_id TEXT, quantity INT DEFAULT 0, PRIMARY KEY (user_id, item_id));
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS energy DECIMAL DEFAULT 300;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS max_energy INT DEFAULT 300;
@@ -163,13 +164,13 @@ SHOP_ITEMS = [
     {"id":"shield_6", "name":"🛡 Щит 6ч", "price_stars":25, "price_rc":0, "desc":"Защита от покупки/ограблений на 6ч"},
     {"id":"shield_12", "name":"🛡 Щит 12ч", "price_stars":40, "price_rc":0, "desc":"Защита от покупки/ограблений на 12ч"},
     {"id":"shield_24", "name":"🛡 Щит 24ч", "price_stars":70, "price_rc":0, "desc":"Защита от покупки/ограблений на 24ч"},
-    {"id":"chains", "name":"⛓ Оковы", "price_stars":20, "price_rc":0, "desc":"Выкуп раба дорожает на 50%"},
+    {"id":"chains", "name":"⛓ Оковы", "price_stars":20, "price_rc":0, "desc":"Выкуп раба дорожает на 50% на 7 дней"},
     {"id":"boost_15", "name":"🚀 Буст ×1.5", "price_stars":20, "price_rc":0, "desc":"Доход +50% на 4 часа"},
     {"id":"boost_20", "name":"🚀 Буст ×2.0", "price_stars":35, "price_rc":0, "desc":"Двойной доход на 4 часа"},
     {"id":"stealth_3", "name":"👻 Стелс 3д", "price_stars":20, "price_rc":0, "desc":"Скрывает вас из рейтингов на 3 дня"},
     {"id":"stealth_7", "name":"👻 Стелс 7д", "price_stars":40, "price_rc":0, "desc":"Скрывает вас из рейтингов на 7 дней"},
-    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":100000, "desc":"Лимит +5 рабов. Ежедневный буст x1.5 (4ч). На 30 дн."},
-    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":200000, "desc":"Лимит +15 рабов. Ежедневный буст x2 (4ч). На 30 дн."},
+    {"id":"vip_1", "name":"🥉 VIP Бронза", "price_stars":100, "price_rc":100000, "desc":"Лимит +5 рабов. Ежедневный буст x1.5. На 30 дн."},
+    {"id":"vip_2", "name":"🥈 VIP Серебро", "price_stars":200, "price_rc":200000, "desc":"Лимит +15 рабов. Ежедневный буст x2. На 30 дн."},
     {"id":"vip_3", "name":"👑 VIP Золото", "price_stars":350, "price_rc":300000, "desc":"Лимит +35 рабов. Доход +25% навсегда, Стелс. На 30 дн."},
 ]
 
@@ -289,21 +290,13 @@ async def collect_income(owner_id: int) -> float:
 
 async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
     now = datetime.utcnow()
-    if item_type == "shield_6": await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=6), uid)
-    elif item_type == "shield_12": await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=12), uid)
-    elif item_type == "shield_24": await db.execute("UPDATE users SET shield_until=$1 WHERE id=$2", now+timedelta(hours=24), uid)
-    elif item_type == "boost_15": await db.execute("UPDATE users SET booster_mult=1.5,booster_until=$1 WHERE id=$2", now+timedelta(hours=4), uid)
-    elif item_type == "boost_20": await db.execute("UPDATE users SET booster_mult=2.0,booster_until=$1 WHERE id=$2", now+timedelta(hours=4), uid)
-    elif item_type == "stealth_3": await db.execute("UPDATE users SET stealth_until=$1 WHERE id=$2", now+timedelta(days=3), uid)
-    elif item_type == "stealth_7": await db.execute("UPDATE users SET stealth_until=$1 WHERE id=$2", now+timedelta(days=7), uid)
-    elif item_type == "chains":
-        if slave_id:
-            s = await db.fetchrow("SELECT owner_id FROM users WHERE id=$1", slave_id)
-            if s and s['owner_id'] == uid:
-                await db.execute("UPDATE users SET chains_until=$1 WHERE id=$2", now+timedelta(days=7), slave_id)
-                asyncio.create_task(push(slave_id, "🔒 На вас повесили Оковы! Ваш выкуп стал на 50% дороже.", notif_type="trade"))
+    # Consumables -> to Inventory
+    if item_type in ("shield_6", "shield_12", "shield_24", "chains", "boost_15", "boost_20", "stealth_3", "stealth_7"):
+        await db.execute("INSERT INTO inventory (user_id, item_id, quantity) VALUES ($1, $2, 1) ON CONFLICT (user_id, item_id) DO UPDATE SET quantity = inventory.quantity + 1", uid, item_type)
+    # VIP -> Applies instantly
     elif item_type in ("vip_1","vip_2","vip_3"):
         await db.execute("UPDATE users SET vip_level=$1,vip_until=$2 WHERE id=$3", int(item_type[-1]), now+timedelta(days=30), uid)
+    # Cosmetics -> to User Cosmetics, auto-equip
     elif item_type == "cosmetic" and cosmetic_id:
         c = await db.fetchrow("SELECT * FROM cosmetics WHERE id=$1", cosmetic_id)
         if c:
@@ -505,7 +498,7 @@ async def lifespan(app: FastAPI):
             if not purchase: return await msg.answer("⚠️ Покупка уже обработана.")
             await db.execute("UPDATE pending_purchases SET status='completed' WHERE id=$1", purchase_id)
             await _grant_shop_item(uid, item_type, purchase['cosmetic_id'], purchase['slave_id'])
-            await msg.answer("✅ Покупка успешна! Предмет активирован.")
+            await msg.answer("✅ Покупка успешна! Предмет добавлен на Склад (или активирован).")
             asyncio.create_task(push(SUPER_ADMIN_ID, f"💰 <b>Покупка за Звезды!</b>\nПользователь ID: {uid} купил {item_type}.", notif_type="all"))
         except: pass
 
@@ -594,6 +587,8 @@ class ArenaFightReq(BaseModel): slave_id: int; bet: float
 class SendChatReq(BaseModel): target_uid: int; text: str
 class EscapeBetReq(BaseModel): amount: float; auto_cashout: Optional[float] = None
 class UpdatePrefsReq(BaseModel): prefs: dict
+class InventoryUseReq(BaseModel): item_id: str; target_slave_id: Optional[int] = None
+class EquipCosmeticReq(BaseModel): field: str; value: str
 
 async def _full_profile(uid: int) -> dict:
     u = await db.fetchrow("SELECT * FROM users WHERE id=$1", uid)
@@ -761,9 +756,11 @@ async def claim_vip_boost(user: dict = Depends(get_current_user)):
     last_claim = user.get('last_vip_boost_claim')
     if isinstance(last_claim, str): last_claim = datetime.fromisoformat(last_claim.replace("Z", "+00:00")).replace(tzinfo=None)
     if last_claim and last_claim.date() == now.date(): raise HTTPException(400, "Буст на сегодня уже получен")
-    mult = 2.0 if user['vip_level'] >= 2 else 1.5
-    await db.execute("UPDATE users SET booster_mult=$1, booster_until=$2, last_vip_boost_claim=$3 WHERE id=$4", mult, now + timedelta(hours=4), now, user['id'])
-    return {"ok": True, "mult": mult}
+    
+    item_type = "boost_20" if user['vip_level'] >= 2 else "boost_15"
+    await db.execute("INSERT INTO inventory (user_id, item_id, quantity) VALUES ($1, $2, 1) ON CONFLICT (user_id, item_id) DO UPDATE SET quantity = inventory.quantity + 1", user['id'], item_type)
+    await db.execute("UPDATE users SET last_vip_boost_claim=$1 WHERE id=$2", now, user['id'])
+    return {"ok": True, "msg": "Карточка Буста добавлена на Склад!"}
 
 @app.get("/api/jobs")
 async def get_jobs(_: dict = Depends(get_current_user)): 
@@ -987,6 +984,68 @@ async def buy_shop_rc(req: ShopRcBuyReq, user: dict = Depends(get_current_user))
     await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", item['price_rc'], uid)
     await _grant_shop_item(uid, req.item_type, None, req.target_slave_id)
     return {"ok": True, "spent_rc": item['price_rc']}
+
+@app.get("/api/inventory")
+async def get_inventory(user: dict = Depends(get_current_user)):
+    items = await db.fetch("SELECT item_id, quantity FROM inventory WHERE user_id=$1 AND quantity > 0", user['id'])
+    cosmetics = await db.fetch("SELECT c.* FROM cosmetics c JOIN user_cosmetics uc ON c.id = uc.cosmetic_id WHERE uc.user_id=$1", user['id'])
+    return {
+        "items": [dict(r) for r in items],
+        "cosmetics": [dict(c) for c in cosmetics]
+    }
+
+@app.post("/api/inventory/use")
+async def use_inventory_item(req: InventoryUseReq, user: dict = Depends(get_current_user)):
+    uid = user['id']
+    now = datetime.utcnow()
+    async with db.acquire() as conn:
+        async with conn.transaction():
+            item = await conn.fetchrow("SELECT quantity FROM inventory WHERE user_id=$1 AND item_id=$2 FOR UPDATE", uid, req.item_id)
+            if not item or item['quantity'] <= 0:
+                raise HTTPException(400, "Предмет не найден или закончился")
+            
+            if req.item_id == "shield_6":
+                await conn.execute("UPDATE users SET shield_until=GREATEST(shield_until, $1) + INTERVAL '6 hours' WHERE id=$2", now, uid)
+            elif req.item_id == "shield_12":
+                await conn.execute("UPDATE users SET shield_until=GREATEST(shield_until, $1) + INTERVAL '12 hours' WHERE id=$2", now, uid)
+            elif req.item_id == "shield_24":
+                await conn.execute("UPDATE users SET shield_until=GREATEST(shield_until, $1) + INTERVAL '24 hours' WHERE id=$2", now, uid)
+            elif req.item_id == "boost_15":
+                await conn.execute("UPDATE users SET booster_mult=GREATEST(booster_mult, 1.5::numeric), booster_until=GREATEST(booster_until, $1) + INTERVAL '4 hours' WHERE id=$2", now, uid)
+            elif req.item_id == "boost_20":
+                await conn.execute("UPDATE users SET booster_mult=GREATEST(booster_mult, 2.0::numeric), booster_until=GREATEST(booster_until, $1) + INTERVAL '4 hours' WHERE id=$2", now, uid)
+            elif req.item_id == "stealth_3":
+                await conn.execute("UPDATE users SET stealth_until=GREATEST(stealth_until, $1) + INTERVAL '3 days' WHERE id=$2", now, uid)
+            elif req.item_id == "stealth_7":
+                await conn.execute("UPDATE users SET stealth_until=GREATEST(stealth_until, $1) + INTERVAL '7 days' WHERE id=$2", now, uid)
+            elif req.item_id == "chains":
+                if not req.target_slave_id: raise HTTPException(400, "Укажите раба")
+                s = await conn.fetchrow("SELECT owner_id FROM users WHERE id=$1", req.target_slave_id)
+                if not s or s['owner_id'] != uid: raise HTTPException(403, "Это не ваш раб")
+                await conn.execute("UPDATE users SET chains_until=GREATEST(chains_until, $1) + INTERVAL '7 days' WHERE id=$2", now, req.target_slave_id)
+                asyncio.create_task(push(req.target_slave_id, "🔒 На вас повесили Оковы! Ваш выкуп стал на 50% дороже на 7 дней.", notif_type="trade"))
+            else:
+                raise HTTPException(400, "Неизвестный предмет")
+
+            await conn.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id=$1 AND item_id=$2", uid, req.item_id)
+    return {"ok": True}
+
+@app.post("/api/inventory/equip_cosmetic")
+async def equip_cosmetic(req: EquipCosmeticReq, user: dict = Depends(get_current_user)):
+    uid = user['id']
+    if req.field not in ['name_color', 'avatar_frame', 'emoji_status']: raise HTTPException(400, "Неверное поле")
+    
+    if req.value in ['none', 'default', '']:
+        val = 'default' if req.field == 'name_color' else ('none' if req.field == 'avatar_frame' else '')
+        await db.execute(f"UPDATE users SET {req.field}=$1 WHERE id=$2", val, uid)
+        return {"ok": True}
+    
+    ctype = req.field.replace('name_', '').replace('avatar_', '').replace('_status', '')
+    c = await db.fetchrow("SELECT c.id FROM cosmetics c JOIN user_cosmetics uc ON c.id = uc.cosmetic_id WHERE uc.user_id=$1 AND c.value=$2 AND c.type=$3", uid, req.value, ctype)
+    if not c: raise HTTPException(403, "Косметика не приобретена")
+    
+    await db.execute(f"UPDATE users SET {req.field}=$1 WHERE id=$2", req.value, uid)
+    return {"ok": True}
 
 @app.post("/api/promo")
 async def use_promo(req: PromoUseReq, user: dict = Depends(get_current_user)):
@@ -1303,7 +1362,7 @@ async def season_start(req: SeasonReq, _: dict = Depends(get_admin_user)):
 async def clear_database(_: dict = Depends(get_admin_user)):
     async with db.acquire() as conn:
         async with conn.transaction():
-            for t in ["pending_purchases", "promo_uses", "user_cosmetics", "user_sponsors", "stories_claims", "support_messages", "tickets", "transactions", "users", "escape_rounds", "escape_bets"]:
+            for t in ["pending_purchases", "promo_uses", "user_cosmetics", "user_sponsors", "stories_claims", "support_messages", "tickets", "transactions", "users", "escape_rounds", "escape_bets", "inventory"]:
                 await conn.execute(f"DELETE FROM {t}")
     await rdb.delete("top:forbes", "top:owners", "top:legends")
     return {"ok": True}
