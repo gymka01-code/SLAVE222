@@ -191,9 +191,9 @@ input, textarea, select { font-size: 16px !important; }
 .login-day.past { opacity: 0.6; }
 .login-day.past::after { content: '✓'; position: absolute; font-size: 16px; font-weight: 800; color: var(--green); }
 .escape-controls { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-top: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-.bet-input-wrapper { display: flex; align-items: center; background: var(--bg1); border: 2px solid var(--border2); border-radius: 14px; padding: 4px; margin-bottom: 12px; transition: 0.2s; }
+.bet-input-wrapper { display: flex; align-items: center; background: var(--bg1); border: 2px solid var(--border2); border-radius: 14px; padding: 4px; margin-bottom: 8px; transition: 0.2s; }
 .bet-input-wrapper:focus-within { border-color: var(--gold); box-shadow: 0 0 15px rgba(232,197,71,0.1); }
-.bet-input-currency { padding: 0 16px; color: var(--text-3); font-weight: 800; font-size: 14px; }
+.bet-input-currency { padding: 0 16px; color: var(--text-3); font-weight: 800; font-size: 14px; min-width: 70px; text-align: center; }
 .bet-input-wrapper input { flex: 1; background: transparent; border: none; color: var(--gold); font-size: 24px !important; font-weight: 800; text-align: center; padding: 12px 0; outline: none; width: 100%; }
 .bet-input-wrapper input::placeholder { color: var(--text-3); font-weight: 600; }
 .bet-input-clear { background: none; border: none; padding: 0 16px; color: var(--text-2); font-size: 18px; cursor: pointer; }
@@ -371,7 +371,6 @@ function RobberyGameModal({ targetId, onClose, onFinish }) {
     if (item.type === 'bomb') {
       onFinish("caught", 0); 
     } else {
-      // 1 монетка = +0.5%. Максимум 5% (то есть нужно 10 монеток)
       setScore(p => Math.min(5, p + 0.5)); 
     }
   };
@@ -407,7 +406,9 @@ function RiotModal({ onClose, onSuppress }) {
 
 function EscapeGameComp({ user, onRefresh, showToast }) {
   const [state, setState] = useState({ status: 'waiting', mult: 1.00, timeLeft: 10, history: [], bets: {}, startTime: 0 });
-  const [betAmount, setBetAmount] = useState(''); const wsRef = useRef(null); const reqRef = useRef(null); const multRef = useRef(1.00);
+  const [betAmount, setBetAmount] = useState(''); 
+  const [autoCashout, setAutoCashout] = useState(''); 
+  const wsRef = useRef(null); const reqRef = useRef(null); const multRef = useRef(1.00);
 
   const animate = useCallback(() => {
     if (state.status === 'running' && state.startTime > 0) {
@@ -445,7 +446,23 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
     wsRef.current = ws; return () => ws.close();
   }, []);
 
-  const doEscBet = async () => { if (!betAmount || isNaN(betAmount)) return; try { await post('/api/escape/bet', { amount: parseFloat(betAmount) }); setBetAmount(''); showToast('✅ Ставка принята!'); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } };
+  const doEscBet = async () => { 
+    if (!betAmount || isNaN(betAmount)) return; 
+    let payload = { amount: parseFloat(betAmount) };
+    if (autoCashout && !isNaN(autoCashout)) {
+        let ac = parseFloat(autoCashout);
+        if (ac > 1.0) payload.auto_cashout = ac;
+        else { showToast('Автовывод должен быть больше 1.0'); return; }
+    }
+    try { 
+        await post('/api/escape/bet', payload); 
+        setBetAmount(''); 
+        showToast('✅ Ставка принята!'); 
+        onRefresh(); 
+    } catch(e) { 
+        showToast('❌ ' + e.message); 
+    } 
+  };
   const doEscCashout = async () => { try { const r = await post('/api/escape/cashout'); showToast(`✅ Вывели ${r.win.toFixed(0)} RC!`); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } };
   const myBet = state.bets[user.id];
 
@@ -460,11 +477,20 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
         <div className="escape-ground"></div>
       </div>
       <div className="escape-controls">
-        <div className="bet-input-wrapper" style={{ opacity: myBet ? 0.6 : 1, pointerEvents: myBet ? 'none' : 'auto' }}><div className="bet-input-currency">RC</div><input type="number" placeholder="0" value={betAmount} onChange={e => setBetAmount(e.target.value)} disabled={myBet != null} /><button className="bet-input-clear" onClick={() => setBetAmount('')}>✕</button></div>
+        <div className="bet-input-wrapper" style={{ opacity: myBet ? 0.6 : 1, pointerEvents: myBet ? 'none' : 'auto' }}>
+            <div className="bet-input-currency">RC</div>
+            <input type="number" placeholder="0" value={betAmount} onChange={e => setBetAmount(e.target.value)} disabled={myBet != null} />
+            <button className="bet-input-clear" onClick={() => setBetAmount('')}>✕</button>
+        </div>
+        <div className="bet-input-wrapper" style={{ opacity: myBet ? 0.6 : 1, pointerEvents: myBet ? 'none' : 'auto' }}>
+            <div className="bet-input-currency" style={{color: 'var(--gold)'}}>Авто x</div>
+            <input type="number" placeholder="Без автовывода" value={autoCashout} onChange={e => setAutoCashout(e.target.value)} disabled={myBet != null} step="0.01" />
+            <button className="bet-input-clear" onClick={() => setAutoCashout('')}>✕</button>
+        </div>
         <div className="quick-bets"><button className="btn-quick" onClick={() => setBetAmount('10')} disabled={myBet != null}>+10</button><button className="btn-quick" onClick={() => setBetAmount('50')} disabled={myBet != null}>+50</button><button className="btn-quick" onClick={() => setBetAmount(Math.floor(user.balance/2).toString())} disabled={myBet != null}>1/2</button><button className="btn-quick" onClick={() => setBetAmount(Math.floor(user.balance).toString())} disabled={myBet != null}>MAX</button></div>
         <div>{state.status === 'waiting' && !myBet && (<button className="escape-action-btn bet" onClick={doEscBet}>🚀 ПОСТАВИТЬ</button>)}{state.status === 'waiting' && myBet && (<button className="escape-action-btn wait" disabled>✅ ОЖИДАЕМ ({myBet.amount} RC)</button>)}{state.status === 'running' && myBet && !myBet.cashed_out && (<button className="escape-action-btn cashout" onClick={doEscCashout}>💰 ЗАБРАТЬ</button>)}{state.status === 'running' && myBet && myBet.cashed_out && (<button className="escape-action-btn disabled" style={{color:'var(--green)', borderColor:'rgba(34,197,94,0.3)'}}>🏆 ВЫВЕЛИ: {myBet.win.toFixed(0)} RC!</button>)}{state.status === 'running' && !myBet && (<button className="escape-action-btn disabled">🏃‍♂️ ИДЕТ ПОБЕГ...</button>)}{state.status === 'crashed' && (<button className="escape-action-btn disabled" style={{color:'var(--red)', borderColor:'rgba(239,68,68,0.3)'}}>💥 РАУНД ЗАВЕРШЕН</button>)}</div>
       </div>
-      <div className="live-bets-container">{Object.values(state.bets).map((b, i) => (<div key={i} className="live-bet-item"><div className="row"><div className="avatar-sm" style={{width: 24, height: 24, fontSize: 10}}>{b.avatar ? <img src={b.avatar}/> : b.name[0]}</div><div className="fw6">{b.name.substring(0, 10)}</div></div><div style={{textAlign:'right'}}><div className="fw7">{b.amount} RC</div>{b.cashed_out ? <div className="f11 text-green">Вывел {b.win.toFixed(0)} (x{b.mult.toFixed(2)})</div> : state.status === 'crashed' ? <div className="f11 text-red">Пойман</div> : <div className="f11 text-muted">В побеге...</div>}</div></div>))}</div>
+      <div className="live-bets-container">{Object.values(state.bets).map((b, i) => (<div key={i} className="live-bet-item"><div className="row"><div className="avatar-sm" style={{width: 24, height: 24, fontSize: 10}}>{b.avatar ? <img src={b.avatar}/> : b.name[0]}</div><div className="fw6">{b.name.substring(0, 10)}</div></div><div style={{textAlign:'right'}}><div className="fw7">{b.amount} RC {b.auto_cashout ? <span className="f11 text-muted"> (Авто x{b.auto_cashout})</span> : null}</div>{b.cashed_out ? <div className="f11 text-green">Вывел {b.win.toFixed(0)} (x{b.mult.toFixed(2)})</div> : state.status === 'crashed' ? <div className="f11 text-red">Пойман</div> : <div className="f11 text-muted">В побеге...</div>}</div></div>))}</div>
     </div>
   );
 }
@@ -687,7 +713,7 @@ function ShopScreen({ user, onRefresh, showToast }) {
   const [shop, setShop] = useState(null); const [tab, setTab] = useState('items'); const [selectedSlave, setSelectedSlave] = useState(''); const [promoCode, setPromoCode] = useState(''); const [loading, setLoading] = useState({}); const tg = window.Telegram?.WebApp;
   async function load() { try { setShop(await get('/api/shop')); } catch {} } useEffect(() => { load(); }, []);
   async function buyItemStars(itemType, cosmeticId=null) { const key = itemType + (cosmeticId||''); setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; if (cosmeticId) body.cosmetic_id = cosmeticId; if (itemType === 'chains') { if (!selectedSlave) { showToast('Выберите раба для оков'); setLoading(l => ({...l, [key]: false})); return; } body.target_slave_id = parseInt(selectedSlave); } const r = await post('/api/shop/invoice', body); if (r.invoice_link && tg?.openInvoice) { tg.openInvoice(r.invoice_link, (status) => { if (status === 'paid') { showToast('✅ Успешно! Предмет активирован.'); onRefresh(); load(); } else if (status === 'cancelled') { showToast('Платёж отменён'); } else { showToast('⚠️ Статус: ' + status); } }); } } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
-  async function buyItemRC(itemType) { const key = 'rc_' + itemType; setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; if (itemType === 'chains') { if (!selectedSlave) { showToast('Выберите раба для оков'); setLoading(l => ({...l, [key]: false})); return; } body.target_slave_id = parseInt(selectedSlave); } const r = await post('/api/shop/buy_rc', body); showToast(`✅ Куплено за ${r.spent_rc} RC!`); onRefresh(); load(); } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
+  async function buyItemRC(itemType) { const key = 'rc_' + itemType; setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; if (itemType === 'chains') { if (!selectedSlave) { showToast('Выберите раба для оков'); setLoading(l => ({...l,[key]: false})); return; } body.target_slave_id = parseInt(selectedSlave); } const r = await post('/api/shop/buy_rc', body); showToast(`✅ Куплено за ${r.spent_rc} RC!`); onRefresh(); load(); } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
   async function usePromo() { if (!promoCode.trim()) return; try { const r = await post('/api/promo', { code: promoCode.trim() }); showToast(`🎁 +${r.reward} RC!`); setPromoCode(''); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } }
   const cosmByType = useMemo(() => shop ? { colors: shop.cosmetics.filter(c => c.type==='color'), frames: shop.cosmetics.filter(c => c.type==='frame'), emojis: shop.cosmetics.filter(c => c.type==='emoji') } : {}, [shop]);
   const selfItems  = shop?.items.filter(i => i.id !== 'chains') || []; const slaveItems = shop?.items.filter(i => i.id === 'chains') || [];
