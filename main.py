@@ -76,6 +76,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS max_slaves_override INT DEFAULT NULL;
 
 CREATE SEQUENCE IF NOT EXISTS user_uid_seq START 10000;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS uid INT UNIQUE;
+ALTER TABLE users ALTER COLUMN uid SET DEFAULT nextval('user_uid_seq');
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_prefs TEXT DEFAULT '{"all": true, "trade": true, "jobs": true, "messages": true, "support": true}';
 
 CREATE TABLE IF NOT EXISTS users (
@@ -278,7 +279,7 @@ async def collect_income(owner_id: int) -> float:
         await db.execute("UPDATE users SET job_id=NULL, job_assigned_at=NULL WHERE id=$1", s['id'])
         await add_task_progress(owner_id, 'collect')
         
-    if owner_info['vip_level'] >= 3: total *= 1.25 # Gold VIP passive bonus
+    if owner_info['vip_level'] >= 3: total *= 1.25
 
     if total > 0: 
         await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", round(total, 2), owner_id)
@@ -368,12 +369,32 @@ async def _escape_game_loop():
             while True:
                 elapsed = time.time() - escape_game.start_time
                 current_mult = math.exp(0.08 * elapsed) 
+                
+                is_crash = current_mult >= escape_game.crash_point
+                if is_crash:
+                    current_mult = escape_game.crash_point
+                    
                 escape_game.mult = current_mult
-                if current_mult >= escape_game.crash_point:
-                    escape_game.mult = escape_game.crash_point
+                
+                # Auto cashout processing
+                for uid, bet in list(escape_game.bets.items()):
+                    if not bet['cashed_out'] and bet.get('auto_cashout') and bet['auto_cashout'] <= current_mult:
+                        bet['cashed_out'] = True
+                        win = float(bet['amount']) * bet['auto_cashout']
+                        bet['win'] = win
+                        bet['mult'] = bet['auto_cashout']
+                        try:
+                            await db.execute("UPDATE escape_bets SET cashout_mult=$1, win_amount=$2 WHERE round_id=$3 AND user_id=$4", bet['auto_cashout'], win, escape_game.round_id, uid)
+                            await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", win, uid)
+                        except Exception as e:
+                            print(f"Escape auto cashout error: {e}")
+                
+                if is_crash:
                     break
+                    
                 await escape_game.broadcast({"type": "tick", "mult": round(current_mult, 2), "bets": escape_game.bets})
                 await asyncio.sleep(0.1)
+                
             escape_game.status = "crashed"
             escape_game.history = ([round(escape_game.crash_point, 2)] + escape_game.history)[:10]
             await db.execute("UPDATE escape_rounds SET crash_mult=$1, status='crashed' WHERE id=$2", escape_game.crash_point, escape_game.round_id)
@@ -401,7 +422,6 @@ async def lifespan(app: FastAPI):
         try: await c.execute("ALTER TABLE escape_rounds ADD COLUMN status TEXT DEFAULT 'waiting'")
         except: pass
         
-        # ДОБАВЬТЕ ЭТУ СТРОКУ (установит всем текущим игрокам макс энергию 300)
         await c.execute("UPDATE users SET max_energy = 300, energy = LEAST(energy, 300) WHERE max_energy > 300")
         
     for aid in ADMIN_IDS:
@@ -415,7 +435,6 @@ async def lifespan(app: FastAPI):
     async def cmd_start(msg: types.Message):
         uid = msg.from_user.id
         
-        # 1. СНАЧАЛА РЕГИСТРИРУЕМ ПОЛЬЗОВАТЕЛЯ И ПРИМЕНЯЕМ РЕФКУ
         ref_id = None
         if msg.text and "ref_" in msg.text:
             try: 
@@ -435,7 +454,6 @@ async def lifespan(app: FastAPI):
             if owner_id: 
                 asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{msg.from_user.username or uid}! Вы будете получать 5% с его доходов.", notif_type="trade"))
 
-        # 2. ЗАТЕМ ПРОВЕРЯЕМ ПОДПИСКИ НА СПОНСОРОВ
         main_sponsors = await db.fetch("SELECT * FROM sponsors WHERE is_main=TRUE AND is_active=TRUE")
         missing_subs = []
         for s in main_sponsors:
@@ -450,7 +468,6 @@ async def lifespan(app: FastAPI):
             await msg.answer("⛔️ <b>Для использования игры необходимо подписаться на наши генеральные каналы:</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
             return
 
-        # 3. ЕСЛИ ВСЕ ОК - ОТПРАВЛЯЕМ КНОПКУ ВХОДА В ИГРУ
         await msg.answer("⛓ <b>РАБСТВО</b>\n\nСоциальная экономическая стратегия внутри Telegram.\nПокупай людей → назначай работу → собирай доход.", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⛓ Открыть Рабство", web_app=WebAppInfo(url=WEBAPP_URL))]]))
 
     @dp.callback_query(F.data == "check_main_subs")
@@ -575,7 +592,7 @@ class MineUpgradeReq(BaseModel): type: str
 class RobberyReq(BaseModel): target_id: int; status: str; amount: int
 class ArenaFightReq(BaseModel): slave_id: int; bet: float
 class SendChatReq(BaseModel): target_uid: int; text: str
-class EscapeBetReq(BaseModel): amount: float
+class EscapeBetReq(BaseModel): amount: float; auto_cashout: Optional[float] = None
 class UpdatePrefsReq(BaseModel): prefs: dict
 
 async def _full_profile(uid: int) -> dict:
@@ -1037,7 +1054,6 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
     if robberies_count >= 3: 
         raise HTTPException(400, "Лимит ограблений (3 раза в 2 часа) исчерпан")
     
-    # req.amount теперь передает ПРОЦЕНТЫ. Защита от читов: ограничиваем строго от 0 до 5%
     percent = max(0.0, min(float(req.amount), 5.0))
     
     async with db.acquire() as conn:
@@ -1047,7 +1063,6 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
             if target.get('admin_god_mode'): raise HTTPException(400, "Игрок под защитой богов")
             if target['shield_until'] and target['shield_until'] > now: raise HTTPException(400, "У игрока активирован Щит")
             
-            # Высчитываем реальную сумму: процент от текущего баланса жертвы
             actual_amount = round(float(target['balance']) * (percent / 100.0), 2)
             
             await conn.execute("UPDATE users SET robberies_count=robberies_count+1 WHERE id=$1", uid)
@@ -1114,7 +1129,7 @@ async def escape_bet(req: EscapeBetReq, user: dict = Depends(get_current_user)):
     await db.execute("INSERT INTO escape_bets (round_id, user_id, amount) VALUES ($1,$2,$3)", escape_game.round_id, user['id'], req.amount)
     escape_game.bets[user['id']] = {
         "name": user['first_name'] or user['username'] or str(user['id']),
-        "avatar": user['photo_url'], "amount": req.amount, "win": 0, "cashed_out": False
+        "avatar": user['photo_url'], "amount": req.amount, "auto_cashout": req.auto_cashout, "win": 0, "cashed_out": False
     }
     await escape_game.broadcast({"type": "bets_update", "bets": escape_game.bets})
     await add_task_progress(user['id'], 'escape_bet')
@@ -1216,7 +1231,7 @@ async def admin_chat_send(req: AdminChatSendReq, admin: dict = Depends(get_admin
     text = req.text.strip()[:2000]
     tkt = await db.fetchrow("SELECT id FROM tickets WHERE user_id=$1 ORDER BY id DESC LIMIT 1", req.target_uid)
     if tkt:
-        await db.execute("UPDATE tickets SET status='claimed', claimed_by=$1 WHERE id=$2", admin['id'], tkt['id'])
+        await db.execute("UPDATE tickets SET status='claimed', claimed_by=$1 WHERE id=$2", tkt['id'])
         tkt_id = tkt['id']
     else: tkt_id = await db.fetchval("INSERT INTO tickets (user_id, status, claimed_by) VALUES ($1, 'claimed', $2) RETURNING id", req.target_uid, admin['id'])
     await db.execute("INSERT INTO support_messages (ticket_id, user_id, text, direction, reply_to_id, is_from_admin, is_read) VALUES ($1,$2,$3,'out',$4,TRUE,FALSE)", tkt_id, req.target_uid, text, req.reply_to_id)
