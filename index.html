@@ -15,21 +15,21 @@
 html, body, #root { height:100%; width:100%; overflow:hidden; }
 body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.5; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
 input, textarea, select { font-size: 16px !important; }
-.app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; position: relative; }
-.screen { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; position: relative; padding-bottom: calc(65px + env(safe-area-inset-bottom)); }
+.screen { flex:1; overflow:hidden; display:flex; flex-direction:column; height: 100%; }
 .content { flex:1; overflow-y:auto; padding:0 0 24px; scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 .hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
 .hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
 .hdr-sub { font-size: 10px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
-.burger-btn { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 6px; padding: 4px 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-.sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; justify-content: flex-end; animation: fadeIn 0.2s ease; }
-.sidebar { width: 260px; height: 100%; background: var(--surface); border-left: 1px solid var(--border); padding: 24px 16px; display: flex; flex-direction: column; gap: 8px; animation: slideLeft 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: -10px 0 40px rgba(0,0,0,0.8); }
-@keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.menu-btn { width: 100%; text-align: left; background: transparent; border: none; padding: 14px 16px; border-bottom: 1px solid var(--border2); color: var(--text); font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
-.menu-btn.active { color: var(--gold); }
-.menu-ico { font-size: 18px; }
+
+/* Bottom Navigation */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(65px + env(safe-area-inset-bottom)); background: rgba(10,10,10,0.95); backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 1000; max-width: 480px; margin: 0 auto; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--text-3); font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; background: transparent; cursor: pointer; transition: 0.2s; letter-spacing: 0.05em; }
+.nav-item.active { color: var(--gold); }
+.nav-item-ico { font-size: 22px; margin-bottom: 2px; transition: 0.2s; }
+.nav-item.active .nav-item-ico { transform: scale(1.15); }
+
 .tabs-wrap { padding: 12px 16px; background: var(--bg); position: sticky; top: 0; z-index: 5; }
 .tabs { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); padding: 4px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
@@ -116,7 +116,8 @@ input, textarea, select { font-size: 16px !important; }
 .msg-sender { font-size: 11px; font-weight: 700; margin-bottom: 4px; color: var(--gold); padding: 0 4px; }
 .chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
 .reply-preview-bar { display: flex; justify-content: space-between; align-items: center; background: var(--bg4); padding: 10px 14px; border-radius: 12px; border-left: 3px solid var(--gold); font-size: 13px; font-weight: 500; }
-.file-btn { background: none; border: none; color: var(--text-2); font-size: 24px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+.file-btn { background: none; border: none; color: var(--text-2); font-size: 20px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.file-btn:active { transform: scale(0.9); }
 .chat-input { flex: 1; background: var(--bg1); border: 1px solid var(--border2); border-radius: 20px; color: var(--text); padding: 12px 16px; outline: none; resize: none; max-height: 100px; font-family: var(--font); }
 .msg-actions { display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end; }
 .msg-act-btn { background: var(--surface3); border: 1px solid var(--border2); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; color: var(--text-2); cursor: pointer; }
@@ -298,7 +299,7 @@ async function generateAndShareStory(user, showToast, onSetPending) {
   } catch(e) { showToast('❌ Ошибка генерации: ' + e.message); }
 }
 
-function SettingsScreen({ user, onRefresh, showToast }) {
+function SettingsScreen({ user, onRefresh, showToast, onBack }) {
   const [prefs, setPrefs] = useState(user.notify_prefs || {all:true, trade:true, jobs:true, messages:true, support:true});
   const [saving, setSaving] = useState(false);
   async function toggle(key) {
@@ -316,32 +317,34 @@ function SettingsScreen({ user, onRefresh, showToast }) {
   }
 
   return (
-    <div className="content">
-      <div className="section-title mt16 px16">Настройки</div>
-      <div className="card mx16 mt8 gap12" style={{margin: '0 16px'}}>
-        <div className="row-sb pb12" style={{borderBottom: '1px solid var(--border)'}}>
-          <div><div className="fw7">🔔 Уведомления в бота</div><div className="f11 text-muted mt4">Глобальный переключатель</div></div>
-          <div className={`toggle-switch ${prefs.all ? 'on' : ''}`} onClick={() => !saving && toggle('all')}/>
-        </div>
-        <div style={{opacity: prefs.all ? 1 : 0.4, pointerEvents: prefs.all ? 'auto' : 'none'}} className="gap12 mt4">
-          <div className="row-sb"><div><div className="fw6 f13">💰 Покупки и ограбления</div></div><div className={`toggle-switch ${prefs.trade ? 'on' : ''}`} onClick={() => !saving && toggle('trade')}/></div>
-          <div className="row-sb"><div><div className="fw6 f13">💼 Работа и доход</div></div><div className={`toggle-switch ${prefs.jobs ? 'on' : ''}`} onClick={() => !saving && toggle('jobs')}/></div>
-          <div className="row-sb"><div><div className="fw6 f13">✉️ Личные сообщения</div></div><div className={`toggle-switch ${prefs.messages ? 'on' : ''}`} onClick={() => !saving && toggle('messages')}/></div>
-          <div className="row-sb"><div><div className="fw6 f13">💬 Ответы поддержки</div></div><div className={`toggle-switch ${prefs.support ? 'on' : ''}`} onClick={() => !saving && toggle('support')}/></div>
-        </div>
-      </div>
-      {user.is_admin && (
-        <div className="card mx16 mt16 gap12" style={{margin: '16px 16px 0', borderColor:'var(--red)'}}>
-          <div className="row-sb">
-            <div><div className="fw7 text-red">👑 Режим Бога (Админ)</div><div className="f11 text-muted mt4">Запрещает вас покупать и грабить</div></div>
-            <div className={`toggle-switch ${user.admin_god_mode ? 'on' : ''}`} onClick={() => !saving && toggleGodMode()}/>
+    <div className="screen">
+      <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button><div className="hdr-title">Настройки</div><div style={{width:60}}></div></div>
+      <div className="content">
+        <div className="card mx16 mt16 gap12" style={{margin: '16px 16px 0'}}>
+          <div className="row-sb pb12" style={{borderBottom: '1px solid var(--border)'}}>
+            <div><div className="fw7">🔔 Уведомления в бота</div><div className="f11 text-muted mt4">Глобальный переключатель</div></div>
+            <div className={`toggle-switch ${prefs.all ? 'on' : ''}`} onClick={() => !saving && toggle('all')}/>
+          </div>
+          <div style={{opacity: prefs.all ? 1 : 0.4, pointerEvents: prefs.all ? 'auto' : 'none'}} className="gap12 mt4">
+            <div className="row-sb"><div><div className="fw6 f13">💰 Покупки и ограбления</div></div><div className={`toggle-switch ${prefs.trade ? 'on' : ''}`} onClick={() => !saving && toggle('trade')}/></div>
+            <div className="row-sb"><div><div className="fw6 f13">💼 Работа и доход</div></div><div className={`toggle-switch ${prefs.jobs ? 'on' : ''}`} onClick={() => !saving && toggle('jobs')}/></div>
+            <div className="row-sb"><div><div className="fw6 f13">✉️ Личные сообщения</div></div><div className={`toggle-switch ${prefs.messages ? 'on' : ''}`} onClick={() => !saving && toggle('messages')}/></div>
+            <div className="row-sb"><div><div className="fw6 f13">💬 Ответы поддержки</div></div><div className={`toggle-switch ${prefs.support ? 'on' : ''}`} onClick={() => !saving && toggle('support')}/></div>
           </div>
         </div>
-      )}
-      <div className="section mt20 text-center">
-        <div className="f13 text-muted mb4">Ваш игровой UID:</div>
-        <div className="fw8 text-gold" style={{fontSize: 24}}>{user.uid}</div>
-        {user.is_admin && <div className="f11 text-red mt8">Telegram ID: {user.id}</div>}
+        {user.is_admin && (
+          <div className="card mx16 mt16 gap12" style={{margin: '16px 16px 0', borderColor:'var(--red)'}}>
+            <div className="row-sb">
+              <div><div className="fw7 text-red">👑 Режим Бога (Админ)</div><div className="f11 text-muted mt4">Запрещает вас покупать и грабить</div></div>
+              <div className={`toggle-switch ${user.admin_god_mode ? 'on' : ''}`} onClick={() => !saving && toggleGodMode()}/>
+            </div>
+          </div>
+        )}
+        <div className="section mt20 text-center">
+          <div className="f13 text-muted mb4">Ваш игровой UID:</div>
+          <div className="fw8 text-gold" style={{fontSize: 24}}>{user.uid}</div>
+          {user.is_admin && <div className="f11 text-red mt8">Telegram ID: {user.id}</div>}
+        </div>
       </div>
     </div>
   );
@@ -495,7 +498,7 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
   );
 }
 
-function GamesScreen({ user, onRefresh, showToast }) {
+function GamesScreen({ user, tasksData, onRefresh, showToast }) {
   const [tab, setTab] = useState('mine');
   const [localEnergy, setLocalEnergy] = useState(parseFloat(user.energy) || 0); const [unsyncedClicks, setUnsyncedClicks] = useState(0); const [floats, setFloats] = useState([]);
   useEffect(() => { if (tab !== 'mine') return; const regenPerSec = user.max_energy / 7200; const int = setInterval(() => setLocalEnergy(e => Math.min(user.max_energy, e + regenPerSec)), 1000); return () => clearInterval(int); }, [tab, user.max_energy]);
@@ -507,43 +510,50 @@ function GamesScreen({ user, onRefresh, showToast }) {
   const startFight = async () => { if (!arenaSlave || !arenaBet) return; setFighting(true); setArenaLog(null); try { const r = await post('/api/arena/fight', { slave_id: parseInt(arenaSlave), bet: parseFloat(arenaBet) }); setArenaLog(r); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } setFighting(false); };
 
   return (
-    <div className="content" style={{padding:0}}>
-      <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Шахта</button><button className={`tab${tab==='escape'?' active':''}`} onClick={() => setTab('escape')}>🏃 Побег</button><button className={`tab${tab==='arena'?' active':''}`} onClick={() => setTab('arena')}>⚔️ Арена</button></div></div>
-      {tab === 'mine' && (
-        <div style={{padding: 16}}>
-          <div className="text-center mb16"><div className="fw8" style={{fontSize: 24}}>{user.balance.toFixed(1)} RC</div>{user.owner && <div className="f12 text-red mt4">⛓ 20% добычи уходит вашему хозяину</div>}{!user.owner && <div className="f12 text-green mt4">✅ Вы свободны. 100% добычи ваши.</div>}</div>
-          <div className="mine-rock" onPointerDown={handleMineTap}>🪨{floats.map(f => (<div key={f.id} className="floating-number" style={{left: f.x, top: f.y}}>+{(user.click_power * 0.5).toFixed(1)}</div>))}</div>
-          <div className="mt20"><div className="row-sb mb8"><span className="fw7 f12 text-muted">Энергия</span><span className="fw8 f13">{Math.floor(localEnergy)} / {user.max_energy}</span></div><div className="energy-bar-wrap"><div className="energy-bar-fill" style={{width: `${(localEnergy/user.max_energy)*100}%`}}></div></div></div>
-          <div className="section-title mt20">Прокачка кирки</div>
-          <div className="card row-sb" style={{margin:0, marginBottom:8}}><div><div className="fw7">Мощь тапа (ур. {user.click_power})</div><div className="f12 text-muted mt4">+0.5 RC за клик</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('power')}>{(user.click_power * 3000).toFixed(0)} RC</button></div>
-          <div className="card row-sb" style={{margin:0}}><div><div className="fw7">Запас энергии ({user.max_energy})</div><div className="f12 text-muted mt4">+100 макс. энергии</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('energy')}>1500 RC</button></div>
-        </div>
-      )}
-      {tab === 'escape' && <EscapeGameComp user={user} onRefresh={onRefresh} showToast={showToast} />}
-      {tab === 'arena' && (
-        <div style={{padding: 16}}>
-          <div className="card" style={{background: 'linear-gradient(135deg, #1e0000, #111)', borderColor: 'var(--red)'}}><div className="fw8 text-red" style={{fontSize:18, marginBottom:8}}>⚔️ Подпольные Бои</div><div className="f12 text-muted" style={{lineHeight:1.5}}>Выставляйте рабов на бой. Победитель забирает банк (ставка х0.9). Проигравший получает травму на 4 часа.</div></div>
-          {user.slaves.length === 0 ? (<div className="text-center text-muted mt20">Нет рабов для Арены.</div>) : (
-            <div className="mt16 gap12">
-              <select className="input" value={arenaSlave} onChange={e => setArenaSlave(e.target.value)}><option value="">— Выберите бойца —</option>{user.slaves.map(s => { const label = `${s.custom_name||s.first_name||s.id} (${s.price.toFixed(0)} RC)`; if (s.is_injured) return <option key={s.id} disabled>🤕 {label} - Травмирован</option>; if (s.job_id) return <option key={s.id} disabled>💼 {label} - На работе</option>; return <option key={s.id} value={s.id}>⚔️ {label}</option>; })}</select>
-              <input className="input" type="number" placeholder="Ставка (RC)" value={arenaBet} onChange={e => setArenaBet(e.target.value)} />
-              <button className="btn btn-danger mt8" onClick={startFight} disabled={fighting || !arenaSlave || !arenaBet}>{fighting ? '🥊 Бой идет...' : '🥊 Начать бой'}</button>
-              {arenaLog && (<div className="card mt16" style={{borderColor: arenaLog.is_win ? 'var(--green)' : 'var(--red)'}}><div className="fw8" style={{fontSize:16, color: arenaLog.is_win ? 'var(--green)' : 'var(--red)'}}>{arenaLog.is_win ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ'}</div><div className="f13 mt8" style={{lineHeight:1.5}}>{arenaLog.log}</div></div>)}
-            </div>
-          )}
-        </div>
-      )}
+    <div className="screen">
+      <div className="hdr">
+        <div className="hdr-title">🎮 Активности</div>
+      </div>
+      <div className="content" style={{padding:0}}>
+        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Шахта</button><button className={`tab${tab==='escape'?' active':''}`} onClick={() => setTab('escape')}>🏃 Побег</button><button className={`tab${tab==='arena'?' active':''}`} onClick={() => setTab('arena')}>⚔️ Арена</button><button className={`tab${tab==='tasks'?' active':''}`} onClick={() => setTab('tasks')}>📋 Задания</button></div></div>
+        {tab === 'mine' && (
+          <div style={{padding: 16}}>
+            <div className="text-center mb16"><div className="fw8" style={{fontSize: 24}}>{user.balance.toFixed(1)} RC</div>{user.owner && <div className="f12 text-red mt4">⛓ 20% добычи уходит вашему хозяину</div>}{!user.owner && <div className="f12 text-green mt4">✅ Вы свободны. 100% добычи ваши.</div>}</div>
+            <div className="mine-rock" onPointerDown={handleMineTap}>🪨{floats.map(f => (<div key={f.id} className="floating-number" style={{left: f.x, top: f.y}}>+{(user.click_power * 0.5).toFixed(1)}</div>))}</div>
+            <div className="mt20"><div className="row-sb mb8"><span className="fw7 f12 text-muted">Энергия</span><span className="fw8 f13">{Math.floor(localEnergy)} / {user.max_energy}</span></div><div className="energy-bar-wrap"><div className="energy-bar-fill" style={{width: `${(localEnergy/user.max_energy)*100}%`}}></div></div></div>
+            <div className="section-title mt20">Прокачка кирки</div>
+            <div className="card row-sb" style={{margin:0, marginBottom:8}}><div><div className="fw7">Мощь тапа (ур. {user.click_power})</div><div className="f12 text-muted mt4">+0.5 RC за клик</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('power')}>{(user.click_power * 3000).toFixed(0)} RC</button></div>
+            <div className="card row-sb" style={{margin:0}}><div><div className="fw7">Запас энергии ({user.max_energy})</div><div className="f12 text-muted mt4">+100 макс. энергии</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('energy')}>1500 RC</button></div>
+          </div>
+        )}
+        {tab === 'escape' && <EscapeGameComp user={user} onRefresh={onRefresh} showToast={showToast} />}
+        {tab === 'arena' && (
+          <div style={{padding: 16}}>
+            <div className="card" style={{background: 'linear-gradient(135deg, #1e0000, #111)', borderColor: 'var(--red)'}}><div className="fw8 text-red" style={{fontSize:18, marginBottom:8}}>⚔️ Подпольные Бои</div><div className="f12 text-muted" style={{lineHeight:1.5}}>Выставляйте рабов на бой. Победитель забирает банк (ставка х0.9). Проигравший получает травму на 4 часа.</div></div>
+            {user.slaves.length === 0 ? (<div className="text-center text-muted mt20">Нет рабов для Арены.</div>) : (
+              <div className="mt16 gap12">
+                <select className="input" value={arenaSlave} onChange={e => setArenaSlave(e.target.value)}><option value="">— Выберите бойца —</option>{user.slaves.map(s => { const label = `${s.custom_name||s.first_name||s.id} (${s.price.toFixed(0)} RC)`; if (s.is_injured) return <option key={s.id} disabled>🤕 {label} - Травмирован</option>; if (s.job_id) return <option key={s.id} disabled>💼 {label} - На работе</option>; return <option key={s.id} value={s.id}>⚔️ {label}</option>; })}</select>
+                <input className="input" type="number" placeholder="Ставка (RC)" value={arenaBet} onChange={e => setArenaBet(e.target.value)} />
+                <button className="btn btn-danger mt8" onClick={startFight} disabled={fighting || !arenaSlave || !arenaBet}>{fighting ? '🥊 Бой идет...' : '🥊 Начать бой'}</button>
+                {arenaLog && (<div className="card mt16" style={{borderColor: arenaLog.is_win ? 'var(--green)' : 'var(--red)'}}><div className="fw8" style={{fontSize:16, color: arenaLog.is_win ? 'var(--green)' : 'var(--red)'}}>{arenaLog.is_win ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ'}</div><div className="f13 mt8" style={{lineHeight:1.5}}>{arenaLog.log}</div></div>)}
+              </div>
+            )}
+          </div>
+        )}
+        {tab === 'tasks' && <TasksComp tasksData={tasksData} onRefresh={onRefresh} showToast={showToast} />}
+      </div>
     </div>
   );
 }
 
-function TasksScreen({ tasksData, onRefresh, showToast }) {
+function TasksComp({ tasksData, onRefresh, showToast }) {
   const [tab, setTab] = useState('daily'); const [claiming, setClaiming] = useState(false);
   const daily = tasksData?.daily || []; const sponsors = tasksData?.sponsors || []; const loginBonus = tasksData?.login_bonus;
   async function claimTask(taskId) { setClaiming(true); try { const r = await post('/api/tasks/claim_daily', { task_id: taskId }); showToast(`🎁 Вы получили +${r.reward} RC!`); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } setClaiming(false); }
   async function claimLoginBonus() { setClaiming(true); try { const r = await post('/api/tasks/claim_login'); showToast(`🎁 Награда за день ${r.day}: +${r.reward} RC!`); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } setClaiming(false); }
   return (
-    <div className="content" style={{padding:0}}><div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='daily'?' active':''}`} onClick={() => setTab('daily')}>Ежедневные</button><button className={`tab${tab==='sponsors'?' active':''}`} onClick={() => setTab('sponsors')}>Спонсоры</button></div></div>
+    <div style={{padding:0}}>
+      <div className="tabs" style={{margin: '16px 16px 0'}}><button className={`tab${tab==='daily'?' active':''}`} onClick={() => setTab('daily')}>Ежедневные</button><button className={`tab${tab==='sponsors'?' active':''}`} onClick={() => setTab('sponsors')}>Спонсоры</button></div>
       <div style={{padding:'16px'}}>
         {tab === 'daily' && (<div>
           {loginBonus && (<div className="card" style={{padding:'16px', background:'linear-gradient(145deg, #111 0%, #1a1a1a 100%)', borderColor:'rgba(232,197,71,0.2)'}}><div className="row-sb mb12"><div className="fw8" style={{fontSize:16}}>📅 Награды за вход</div>{loginBonus.can_claim ? <button className="btn btn-primary btn-sm" disabled={claiming} onClick={claimLoginBonus}>Забрать</button> : <span className="text-muted f12 fw6">Получено ✓</span>}</div><div className="f12 text-muted">Заходите каждый день!</div><div className="login-track">{loginBonus.rewards.map((rew, idx) => { const dayNum = idx + 1; const isActive = dayNum === loginBonus.current_day; const isPast = dayNum < loginBonus.current_day || (!loginBonus.can_claim && isActive); return (<div key={idx} className={`login-day ${isActive && loginBonus.can_claim ? 'active' : ''} ${isPast ? 'past' : ''}`}><div className="ld-day">День {dayNum}</div><div className="ld-val">{rew >= 1000 ? (rew/1000).toFixed(1).replace('.0','')+'k' : rew}</div></div>); })}</div></div>)}
@@ -563,7 +573,7 @@ function JobProbsModal({ jobs, vipLevel, slaveName, slavePrice, onClose, onSend 
   );
 }
 
-function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
+function ProfileScreen({ user, onRefresh, onViewProfile, onNavSub, showToast }) {
   const [sendWorkSlave, setSendWorkSlave] = useState(null); const [jobs, setJobs] = useState([]); const [storyPendingModal, setStoryPendingModal] = useState(false); const [renaming, setRenaming] = useState(null); const [newName, setNewName] = useState(''); const [loadingSelf, setLoadingSelf] = useState(false); const storiesCountdown = useCountdown(user.story_cooldown_until);
   useEffect(() => { get('/api/jobs').then(setJobs).catch(()=>{}); }, []);
   const [nowTime, setNowTime] = useState(Date.now());
@@ -577,7 +587,7 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
   async function doSelfbuy() { if (!confirm(`Выкупить себя за ${(user.price * 1.5).toFixed(0)} RC? (50% уйдет владельцу, 50% сгорит)`)) return; setLoadingSelf(true); try { await post('/api/selfbuy'); showToast('🎉 Вы на свободе!'); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } setLoadingSelf(false); }
   async function doHeal(slaveId) { if (!confirm('Вылечить раба за 500 RC?')) return; try { await post('/api/slaves/heal', { slave_id: slaveId }); showToast('✅ Раб здоров!'); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } }
   async function doRelease(slaveId) { if(!confirm('Вы уверены, что хотите отпустить раба? Вы не получите за это RC.')) return; try { await post('/api/slaves/release', { slave_id: slaveId }); showToast('🕊️ Раб свободен!'); onRefresh(); } catch(e) { showToast('❌ '+e.message); } }
-  async function doClaimVipBoost() { try { const r = await post('/api/vip/claim_boost'); showToast(`🚀 Буст x${r.mult} на 4 часа активирован!`); onRefresh(); } catch(e) { showToast('❌ '+e.message); } }
+  async function doClaimVipBoost() { try { const r = await post('/api/vip/claim_boost'); showToast(`✅ ${r.msg}`); onRefresh(); } catch(e) { showToast('❌ '+e.message); } }
   
   const workingSlave = sendWorkSlave ? user.slaves.find(s => s.id === sendWorkSlave) : null; 
   const refLink = `https://t.me/${user.bot_username || _botUsername}?start=ref_${user.uid}`; 
@@ -587,62 +597,71 @@ function ProfileScreen({ user, onRefresh, onViewProfile, showToast }) {
   const handleShareReferral = () => { window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?text=${encodeURIComponent("⛓ Залетай в РАБСТВО! \nТут можно покупать и продавать людей, зарабатывать и строить свою империю! 👇")}&url=${encodeURIComponent(refLink)}`); };
 
   return (
-    <div className="content">
-      {ev.type !== 'normal' && (<div className={`event-banner ${ev.type}`}><div style={{fontSize: 24}}>{ev.type === 'crisis' ? '📉' : '📈'}</div><div className="event-info"><div className={`event-title ${ev.type === 'crisis' ? 'text-red' : 'text-green'}`}>{ev.name}</div><div className="event-desc">{ev.desc}</div></div></div>)}
-      <div className="hero" style={{marginTop: ev.type !== 'normal' ? 4 : 16}}>
-        <div className="hero-row"><div className="avatar-wrap"><Avatar user={user} size={68}/>{user.vip_level > 0 && <div className="vip-badge">{user.vip_level===3?'👑':user.vip_level===2?'🥈':'🥉'}</div>}</div><div style={{flex:1,minWidth:0}}><div className="hero-name"><PlayerName user={user}/></div><div className="hero-handle">UID: {user.uid} {user.username ? `| @${user.username}` : ''}</div><div className="hero-status">{user.owner ? (<span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(user.owner.id)}>{user.owner.first_name || 'Владелец'}</span></span>) : (<span className="text-green">✅ Свободен</span>)}</div></div></div>
-        <div className="hero-stats"><div className="stat"><div className="stat-val">{user.balance.toFixed(0)}</div><div className="stat-lbl">💰 Баланс RC</div></div><div className="stat"><div className="stat-val">{user.price.toFixed(0)}</div><div className="stat-lbl">🏷 Моя цена</div></div><div className="stat"><div className="stat-val">{user.slaves_count}<span className="text-muted f12">/{user.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div></div>
-        {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (<div className="effects-row" style={{marginTop: 16, borderTop:'1px solid var(--border)', paddingTop:12}}>{user.shield_active  && <div className="effect-chip gold">🛡 Щит</div>}{user.stealth_active && <div className="effect-chip">👻 Стелс</div>}{user.booster_active && <div className="effect-chip green">🚀 Буст ×{user.booster_mult}</div>}{user.chains_active  && <div className="effect-chip red">⛓ Оковы</div>}</div>)}
+    <div className="screen">
+      <div className="hdr">
+        <div><div className="hdr-title">⛓ РАБСТВО</div><div className="hdr-sub">Социальная стратегия</div></div>
+        <div className="row" style={{gap: 4}}>
+          <button className="file-btn" onClick={() => onNavSub('messages')}>✉️</button>
+          <button className="file-btn" onClick={() => onNavSub('settings')}>⚙️</button>
+        </div>
       </div>
-      
-      {user.vip_level > 0 && (
-        <div className="section mt16">
-          <div className="card row-sb" style={{margin:0, background:'linear-gradient(135deg, #1a1a1a, #000)', borderColor:'var(--gold)'}}>
-            <div><div className="fw7 text-gold">Ежедневный VIP Буст</div><div className="f11 text-muted mt4">{user.vip_level===1?'1.5x на 4 часа':user.vip_level===2?'2x на 4 часа':'2x на 4 часа + 1.25x пассивно'}</div></div>
-            <button className="btn btn-primary btn-sm" onClick={doClaimVipBoost}>Активировать</button>
+      <div className="content">
+        {ev.type !== 'normal' && (<div className={`event-banner ${ev.type}`}><div style={{fontSize: 24}}>{ev.type === 'crisis' ? '📉' : '📈'}</div><div className="event-info"><div className={`event-title ${ev.type === 'crisis' ? 'text-red' : 'text-green'}`}>{ev.name}</div><div className="event-desc">{ev.desc}</div></div></div>)}
+        <div className="hero" style={{marginTop: ev.type !== 'normal' ? 4 : 16}}>
+          <div className="hero-row"><div className="avatar-wrap"><Avatar user={user} size={68}/>{user.vip_level > 0 && <div className="vip-badge">{user.vip_level===3?'👑':user.vip_level===2?'🥈':'🥉'}</div>}</div><div style={{flex:1,minWidth:0}}><div className="hero-name"><PlayerName user={user}/></div><div className="hero-handle">UID: {user.uid} {user.username ? `| @${user.username}` : ''}</div><div className="hero-status">{user.owner ? (<span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(user.owner.id)}>{user.owner.first_name || 'Владелец'}</span></span>) : (<span className="text-green">✅ Свободен</span>)}</div></div></div>
+          <div className="hero-stats"><div className="stat"><div className="stat-val">{user.balance.toFixed(0)}</div><div className="stat-lbl">💰 Баланс RC</div></div><div className="stat"><div className="stat-val">{user.price.toFixed(0)}</div><div className="stat-lbl">🏷 Моя цена</div></div><div className="stat"><div className="stat-val">{user.slaves_count}<span className="text-muted f12">/{user.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div></div>
+          {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (<div className="effects-row" style={{marginTop: 16, borderTop:'1px solid var(--border)', paddingTop:12}}>{user.shield_active  && <div className="effect-chip gold">🛡 Щит</div>}{user.stealth_active && <div className="effect-chip">👻 Стелс</div>}{user.booster_active && <div className="effect-chip green">🚀 Буст ×{user.booster_mult}</div>}{user.chains_active  && <div className="effect-chip red">⛓ Оковы</div>}</div>)}
+        </div>
+        
+        {user.vip_level > 0 && (
+          <div className="section mt16">
+            <div className="card row-sb" style={{margin:0, background:'linear-gradient(135deg, #1a1a1a, #000)', borderColor:'var(--gold)'}}>
+              <div><div className="fw7 text-gold">Ежедневный VIP Буст</div><div className="f11 text-muted mt4">{user.vip_level===1?'1.5x на 4 часа':user.vip_level===2?'2x на 4 часа':'2x на 4 часа + 1.25x пассивно'}</div></div>
+              <button className="btn btn-primary btn-sm" onClick={doClaimVipBoost}>Забрать в инвентарь</button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="section gap8" style={{marginTop:16}}>
-        <div className="f12 text-muted text-center fw6">Приглашайте друзей и получайте 5% с их дохода!</div>
-        <div className="row">
-          <button className="btn btn-ghost" style={{flex:1, padding:'12px 10px'}} onClick={handleCopyReferral}>📋 Скопировать</button>
-          <button className="btn btn-primary" style={{flex:1, padding:'12px 10px'}} onClick={handleShareReferral}>📤 Поделиться</button>
+        <div className="section gap8" style={{marginTop:16}}>
+          <div className="f12 text-muted text-center fw6">Приглашайте друзей и получайте 5% с их дохода!</div>
+          <div className="row">
+            <button className="btn btn-ghost" style={{flex:1, padding:'12px 10px'}} onClick={handleCopyReferral}>📋 Скопировать</button>
+            <button className="btn btn-primary" style={{flex:1, padding:'12px 10px'}} onClick={handleShareReferral}>📤 Поделиться</button>
+          </div>
+          {user.owner && <button className="btn btn-danger mt8" onClick={doSelfbuy} disabled={loadingSelf}>{loadingSelf ? '...' : `🔓 Выкупить себя (${(user.price * 1.5).toFixed(0)} RC)`}</button>}
         </div>
-        {user.owner && <button className="btn btn-danger mt8" onClick={doSelfbuy} disabled={loadingSelf}>{loadingSelf ? '...' : `🔓 Выкупить себя (${(user.price * 1.5).toFixed(0)} RC)`}</button>}
-      </div>
-      
-      <div className="stories-card"><div className="stories-ico">📸</div><div className="stories-title">Stories Бонус</div><div className="stories-sub">Опубликуй Story с карточкой — получи +250 RC</div>{user.story_cooldown_until && storiesCountdown > 0 ? (<><div className="stories-timer">{fmtCountdown(storiesCountdown)}</div><div className="f12 text-muted mt4">до следующей возможности</div></>) : (<button className="btn btn-primary mt16" onClick={() => generateAndShareStory(user, showToast, setStoryPendingModal)}>✨ Выложить Story</button>)}</div>
-      
-      {user.slaves.length > 0 && (
-        <div className="section"><div className="section-title">Мои рабы ({user.slaves_count}/{user.max_slaves})</div><div className="card" style={{padding:0, margin:0}}>
-          {user.slaves.map((s, idx) => { 
-            const protLeft = s.purchase_protection_until ? Math.max(0, Math.floor((new Date(s.purchase_protection_until) - nowTime) / 1000)) : 0;
-            const timeLeft = s.job_finishes_at ? Math.max(0, Math.floor((new Date(s.job_finishes_at) - nowTime) / 1000)) : 0;
-            return (
-              <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===user.slaves.length-1?'none':'1px solid var(--border)'}}>
-                <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div>
-                <div className="li-info" onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
-                  <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f11">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.uid||s.id}`)}</div>
-                  <div className="li-sub mt4">
-                    {s.is_injured ? <span className="text-red fw6">🤕 Травмирован на Арене</span> : 
-                     s.job_finishes_at && timeLeft > 0 ? <><div className="text-green fw6">{s.job_emoji} {s.job_title} <span className="text-muted ml4">({fmtCountdown(timeLeft)})</span></div><div className="f11 text-gold mt4">Прибыль: ~{Math.round(s.price * s.min_yield_perc / 100)}-{Math.round(s.price * s.max_yield_perc / 100)} RC</div></> : <span>😴 Отдыхает</span>}
+        
+        <div className="stories-card"><div className="stories-ico">📸</div><div className="stories-title">Stories Бонус</div><div className="stories-sub">Опубликуй Story с карточкой — получи +250 RC</div>{user.story_cooldown_until && storiesCountdown > 0 ? (<><div className="stories-timer">{fmtCountdown(storiesCountdown)}</div><div className="f12 text-muted mt4">до следующей возможности</div></>) : (<button className="btn btn-primary mt16" onClick={() => generateAndShareStory(user, showToast, setStoryPendingModal)}>✨ Выложить Story</button>)}</div>
+        
+        {user.slaves.length > 0 && (
+          <div className="section"><div className="section-title">Мои рабы ({user.slaves_count}/{user.max_slaves})</div><div className="card" style={{padding:0, margin:0}}>
+            {user.slaves.map((s, idx) => { 
+              const protLeft = s.purchase_protection_until ? Math.max(0, Math.floor((new Date(s.purchase_protection_until) - nowTime) / 1000)) : 0;
+              const timeLeft = s.job_finishes_at ? Math.max(0, Math.floor((new Date(s.job_finishes_at) - nowTime) / 1000)) : 0;
+              return (
+                <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===user.slaves.length-1?'none':'1px solid var(--border)'}}>
+                  <div onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div>
+                  <div className="li-info" onClick={() => onViewProfile(s.id)} style={{cursor:'pointer'}}>
+                    <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f11">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.uid||s.id}`)}</div>
+                    <div className="li-sub mt4">
+                      {s.is_injured ? <span className="text-red fw6">🤕 Травмирован на Арене</span> : 
+                       s.job_finishes_at && timeLeft > 0 ? <><div className="text-green fw6">{s.job_emoji} {s.job_title} <span className="text-muted ml4">({fmtCountdown(timeLeft)})</span></div><div className="f11 text-gold mt4">Прибыль: ~{Math.round(s.price * s.min_yield_perc / 100)}-{Math.round(s.price * s.max_yield_perc / 100)} RC</div></> : <span>😴 Отдыхает</span>}
+                    </div>
+                    <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{protLeft > 0 && <span className="protection-badge">🔒 {fmtCountdown(protLeft)}</span>}</div>
                   </div>
-                  <div className="row mt4" style={{gap:6}}><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{protLeft > 0 && <span className="protection-badge">🔒 {fmtCountdown(protLeft)}</span>}</div>
+                  <div className="gap6">
+                    {s.is_injured ? (<button className="btn btn-danger btn-sm" style={{padding:'8px 12px'}} onClick={(e) => { e.stopPropagation(); doHeal(s.id); }}>💊</button>) : (<button className="btn btn-primary btn-sm" style={{padding:'8px 12px', opacity: s.job_finishes_at && timeLeft > 0 ? 0.5 : 1}} onClick={(e) => { e.stopPropagation(); if(!s.job_finishes_at || timeLeft === 0) setSendWorkSlave(s.id); }}>💼</button>)}
+                    <div className="row"><button className="btn btn-ghost btn-sm" style={{flex:1, padding:'8px'}} onClick={(e) => { e.stopPropagation(); setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button><button className="btn btn-danger btn-sm" style={{padding:'8px'}} onClick={(e) => { e.stopPropagation(); doRelease(s.id); }}>🗑️</button></div>
+                  </div>
                 </div>
-                <div className="gap6">
-                  {s.is_injured ? (<button className="btn btn-danger btn-sm" style={{padding:'8px 12px'}} onClick={(e) => { e.stopPropagation(); doHeal(s.id); }}>💊</button>) : (<button className="btn btn-primary btn-sm" style={{padding:'8px 12px', opacity: s.job_finishes_at && timeLeft > 0 ? 0.5 : 1}} onClick={(e) => { e.stopPropagation(); if(!s.job_finishes_at || timeLeft === 0) setSendWorkSlave(s.id); }}>💼</button>)}
-                  <div className="row"><button className="btn btn-ghost btn-sm" style={{flex:1, padding:'8px'}} onClick={(e) => { e.stopPropagation(); setRenaming(s.id); setNewName(s.custom_name||''); }}>✏️</button><button className="btn btn-danger btn-sm" style={{padding:'8px'}} onClick={(e) => { e.stopPropagation(); doRelease(s.id); }}>🗑️</button></div>
-                </div>
-              </div>
-            );
-          })}
-        </div></div>
-      )}
-      {sendWorkSlave && workingSlave && jobs.length > 0 && <JobProbsModal jobs={jobs} vipLevel={user.vip_level} slaveName={workingSlave.custom_name || workingSlave.first_name} slavePrice={workingSlave.price} onClose={() => setSendWorkSlave(null)} onSend={() => doSendWork(sendWorkSlave)} />}
-      {storyPendingModal && (<div className="overlay" onClick={()=>setStoryPendingModal(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-title">📸 Вы опубликовали Story?</div><button className="btn btn-primary" onClick={claimStory}>✅ Да, я выложил</button></div></div>)}
-      {renaming && (<div className="overlay" onClick={() => setRenaming(null)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-title">✏️ Дать кличку</div><input className="input" placeholder="Кличка (до 32 символов)" value={newName} maxLength={32} onChange={e => setNewName(e.target.value)} /><button className="btn btn-primary mt16" onClick={doRename}>Сохранить</button></div></div>)}
+              );
+            })}
+          </div></div>
+        )}
+        {sendWorkSlave && workingSlave && jobs.length > 0 && <JobProbsModal jobs={jobs} vipLevel={user.vip_level} slaveName={workingSlave.custom_name || workingSlave.first_name} slavePrice={workingSlave.price} onClose={() => setSendWorkSlave(null)} onSend={() => doSendWork(sendWorkSlave)} />}
+        {storyPendingModal && (<div className="overlay" onClick={()=>setStoryPendingModal(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-title">📸 Вы опубликовали Story?</div><button className="btn btn-primary" onClick={claimStory}>✅ Да, я выложил</button></div></div>)}
+        {renaming && (<div className="overlay" onClick={() => setRenaming(null)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-title">✏️ Дать кличку</div><input className="input" placeholder="Кличка (до 32 символов)" value={newName} maxLength={32} onChange={e => setNewName(e.target.value)} /><button className="btn btn-primary mt16" onClick={doRename}>Сохранить</button></div></div>)}
+      </div>
     </div>
   );
 }
@@ -680,45 +699,186 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
   );
 }
 
-function SearchScreen({ user, onBuy, onViewProfile, showToast }) {
+function SearchScreen({ user, onBuy, onViewProfile, showToast, onBack }) {
   const [q, setQ] = useState(''); const [minP, setMinP] = useState(''); const [maxP, setMaxP] = useState(''); const [results, setResults] = useState([]); const [loading, setLoading] = useState(false); const [selected, setSelected] = useState(null);
   async function doSearch(random=false, newcomers=false) { setLoading(true); try { let url = '/api/search?'; if (random) url += 'random_pick=true'; else if (newcomers) url += 'newcomers=true'; else { if (q) url += `q=${encodeURIComponent(q)}&`; if (minP) url += `min_price=${minP}&`; if (maxP) url += `max_price=${maxP}&`; } const data = await get(url); setResults(Array.isArray(data) ? data : [data].filter(Boolean)); } catch(e) { showToast('❌ ' + e.message); } setLoading(false); }
   async function doBuy() { if (!selected) return; try { await post('/api/buy', { target_id: selected.id }); showToast('✅ Куплен!'); setSelected(null); doSearch(); onBuy(); } catch(e) { showToast('❌ ' + e.message); } }
   useEffect(() => { doSearch(false, true); }, []);
   return (
-    <div className="content">
-      <div className="section" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <input className="input" placeholder="Поиск по имени или UID" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key==='Enter' && doSearch()}/>
-        <div className="row" style={{ gap: '12px' }}><input className="input" placeholder="Мин RC" type="number" style={{flex:1}} value={minP} onChange={e => setMinP(e.target.value)}/><input className="input" placeholder="Макс RC" type="number" style={{flex:1}} value={maxP} onChange={e => setMaxP(e.target.value)}/></div>
-        <div className="row" style={{ gap: '12px' }}><button className="btn btn-primary" style={{flex:1}} onClick={() => doSearch()}>{loading ? <div className="spinner" style={{width:18,height:18,borderWidth:2,margin:'auto'}}/> : '🔍 Найти'}</button><button className="btn btn-ghost" style={{flex:1}} onClick={() => doSearch(true)}>🎲 Случайные</button></div>
-        <button className="btn btn-ghost" onClick={() => doSearch(false,true)}>🆕 Новые игроки</button>
+    <div className="screen">
+      <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button><div className="hdr-title">Поиск рабов</div><div style={{width:60}}></div></div>
+      <div className="content">
+        <div className="section" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <input className="input" placeholder="Поиск по имени или UID" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key==='Enter' && doSearch()}/>
+          <div className="row" style={{ gap: '12px' }}><input className="input" placeholder="Мин RC" type="number" style={{flex:1}} value={minP} onChange={e => setMinP(e.target.value)}/><input className="input" placeholder="Макс RC" type="number" style={{flex:1}} value={maxP} onChange={e => setMaxP(e.target.value)}/></div>
+          <div className="row" style={{ gap: '12px' }}><button className="btn btn-primary" style={{flex:1}} onClick={() => doSearch()}>{loading ? <div className="spinner" style={{width:18,height:18,borderWidth:2,margin:'auto'}}/> : '🔍 Найти'}</button><button className="btn btn-ghost" style={{flex:1}} onClick={() => doSearch(true)}>🎲 Случайные</button></div>
+          <button className="btn btn-ghost" onClick={() => doSearch(false,true)}>🆕 Новые игроки</button>
+        </div>
+        <div className="section mt20"><div className="section-title">Результаты ({results.length})</div><div className="gap12">{results.map(p => (<div className="player-card" key={p.id}><div onClick={() => onViewProfile(p.id)} style={{cursor:'pointer'}}><Avatar user={p} size={48}/></div><div className="pc-meta" onClick={() => p.owner_id !== user.id && setSelected(p)} style={{cursor:'pointer'}}><div className="pc-name"><PlayerName user={p}/></div><div className="pc-sub">UID: {p.uid}</div></div><div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}><div className="pc-price">{parseFloat(p.current_price).toFixed(0)} RC</div>{p.owner_id === user.id ? <span className="f11 fw7" style={{padding:'6px 12px',background:'var(--surface3)',borderRadius:8,color:'var(--text-3)'}}>⛓ Ваш</span> : <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>}</div></div>))}{results.length===0 && !loading && <div className="text-center text-muted" style={{padding:'40px 0'}}>Никого не найдено.</div>}</div></div>
+        {selected && (<div className="overlay" onClick={() => setSelected(null)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-handle"/><div className="modal-title">⛓ Купить игрока</div><div className="row mb16"><Avatar user={selected} size={56}/><div><div className="fw8 f13">{selected.first_name || selected.username || `#${selected.uid||selected.id}`}</div><div className="text-muted f12">@{selected.username || selected.uid}</div></div></div><div className="card mb20" style={{margin:0}}><div className="row-sb"><span className="text-muted f13">Текущая цена</span><span className="fw8 text-gold">{parseFloat(selected.current_price).toFixed(0)} RC</span></div><div className="row-sb mt12"><span className="text-muted f13">Ваш баланс</span><span className={`fw8 f13 ${user.balance >= parseFloat(selected.current_price) ? 'text-green' : 'text-red'}`}>{user.balance.toFixed(0)} RC</span></div><div className="row-sb mt12"><span className="text-muted f13">Налог системы</span><span className="text-red f13">10%</span></div><div className="row-sb mt12"><span className="text-muted f13">Цена после покупки</span><span className="text-muted f13">+50%</span></div></div><div className="mt16">{user.balance < parseFloat(selected.current_price) ? <button className="btn btn-ghost" disabled>❌ Недостаточно RC</button> : <button className="btn btn-primary" onClick={doBuy}>⛓ Купить за {parseFloat(selected.current_price).toFixed(0)} RC</button>}</div></div></div>)}
       </div>
-      <div className="section mt20"><div className="section-title">Результаты ({results.length})</div><div className="gap12">{results.map(p => (<div className="player-card" key={p.id}><div onClick={() => onViewProfile(p.id)} style={{cursor:'pointer'}}><Avatar user={p} size={48}/></div><div className="pc-meta" onClick={() => p.owner_id !== user.id && setSelected(p)} style={{cursor:'pointer'}}><div className="pc-name"><PlayerName user={p}/></div><div className="pc-sub">UID: {p.uid}</div></div><div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}><div className="pc-price">{parseFloat(p.current_price).toFixed(0)} RC</div>{p.owner_id === user.id ? <span className="f11 fw7" style={{padding:'6px 12px',background:'var(--surface3)',borderRadius:8,color:'var(--text-3)'}}>⛓ Ваш</span> : <button className="btn btn-primary btn-sm" onClick={() => setSelected(p)}>⛓ Купить</button>}</div></div>))}{results.length===0 && !loading && <div className="text-center text-muted" style={{padding:'40px 0'}}>Никого не найдено.</div>}</div></div>
-      {selected && (<div className="overlay" onClick={() => setSelected(null)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-handle"/><div className="modal-title">⛓ Купить игрока</div><div className="row mb16"><Avatar user={selected} size={56}/><div><div className="fw8 f13">{selected.first_name || selected.username || `#${selected.uid||selected.id}`}</div><div className="text-muted f12">@{selected.username || selected.uid}</div></div></div><div className="card mb20" style={{margin:0}}><div className="row-sb"><span className="text-muted f13">Текущая цена</span><span className="fw8 text-gold">{parseFloat(selected.current_price).toFixed(0)} RC</span></div><div className="row-sb mt12"><span className="text-muted f13">Ваш баланс</span><span className={`fw8 f13 ${user.balance >= parseFloat(selected.current_price) ? 'text-green' : 'text-red'}`}>{user.balance.toFixed(0)} RC</span></div><div className="row-sb mt12"><span className="text-muted f13">Налог системы</span><span className="text-red f13">10%</span></div><div className="row-sb mt12"><span className="text-muted f13">Цена после покупки</span><span className="text-muted f13">+50%</span></div></div><div className="mt16">{user.balance < parseFloat(selected.current_price) ? <button className="btn btn-ghost" disabled>❌ Недостаточно RC</button> : <button className="btn btn-primary" onClick={doBuy}>⛓ Купить за {parseFloat(selected.current_price).toFixed(0)} RC</button>}</div></div></div>)}
     </div>
   );
 }
 
-function TopScreen({ onViewProfile }) {
+function TopScreen({ onViewProfile, onNavSearch }) {
   const [tab, setTab] = useState('forbes'); const [rows, setRows] = useState([]); const [loading, setLoading] = useState(false);
   async function load(cat) { setTab(cat); setLoading(true); try { setRows(await get(`/api/top?cat=${cat}`)); } catch {} setLoading(false); }
   useEffect(() => { load('forbes'); }, []);
   const tabInfo = { forbes: { label:'💰 ФОРБС', desc:'Рейтинг по балансу RC', valSuffix:' RC' }, owners: { label:'👑 ХОЗЯЕВА', desc:'Рейтинг по количеству рабов', valSuffix:' раб.' }, legends: { label:'⚡ ЛЕГЕНДЫ', desc:'Самые дорогие персонажи', valSuffix:' RC' } };
   return (
-    <div className="content" style={{padding:0}}><div className="tabs-wrap"><div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div></div><div style={{padding:'4px 16px 12px', fontSize:12, color:'var(--text-3)'}}>{tabInfo[tab].desc}</div>{loading ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : (<div style={{padding: '0 16px 16px'}}><div className="card" style={{padding:0, margin:0}}>{rows.map((r, i) => { const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null; return (<div className="rank-item" key={r.id} style={{cursor:'pointer', borderBottom: i === rows.length-1 ? 'none' : '1px solid var(--border)', background:'transparent', marginBottom:0}} onClick={() => onViewProfile(r.id)}><div className="rank-num" style={{color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div><Avatar user={r} size={40}/><div className="rank-meta"><div className="rank-name"><PlayerName user={r}/></div><div className="rank-sub f11 text-muted">#{r.uid}</div></div><div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f11" style={{marginLeft:4}}>{tabInfo[tab].valSuffix}</span></div></div>); })}</div>{rows.length===0 && <div className="text-center text-muted" style={{padding:40}}>Рейтинг пуст</div>}</div>)}</div>
+    <div className="screen">
+      <div className="hdr"><div className="hdr-title">🏆 Рейтинги</div><button className="file-btn" onClick={onNavSearch}>🔍</button></div>
+      <div className="content" style={{padding:0}}>
+        <div className="tabs-wrap"><div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div></div><div style={{padding:'4px 16px 12px', fontSize:12, color:'var(--text-3)'}}>{tabInfo[tab].desc}</div>{loading ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : (<div style={{padding: '0 16px 16px'}}><div className="card" style={{padding:0, margin:0}}>{rows.map((r, i) => { const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null; return (<div className="rank-item" key={r.id} style={{cursor:'pointer', borderBottom: i === rows.length-1 ? 'none' : '1px solid var(--border)', background:'transparent', marginBottom:0}} onClick={() => onViewProfile(r.id)}><div className="rank-num" style={{color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div><Avatar user={r} size={40}/><div className="rank-meta"><div className="rank-name"><PlayerName user={r}/></div><div className="rank-sub f11 text-muted">#{r.uid}</div></div><div className="rank-val">{parseFloat(r.value||0).toFixed(0)}<span className="text-muted f11" style={{marginLeft:4}}>{tabInfo[tab].valSuffix}</span></div></div>); })}</div>{rows.length===0 && <div className="text-center text-muted" style={{padding:40}}>Рейтинг пуст</div>}</div>)}
+      </div>
+    </div>
   );
 }
 
-function ShopScreen({ user, onRefresh, showToast }) {
-  const [shop, setShop] = useState(null); const [tab, setTab] = useState('items'); const [selectedSlave, setSelectedSlave] = useState(''); const [promoCode, setPromoCode] = useState(''); const [loading, setLoading] = useState({}); const tg = window.Telegram?.WebApp;
-  async function load() { try { setShop(await get('/api/shop')); } catch {} } useEffect(() => { load(); }, []);
-  async function buyItemStars(itemType, cosmeticId=null) { const key = itemType + (cosmeticId||''); setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; if (cosmeticId) body.cosmetic_id = cosmeticId; if (itemType === 'chains') { if (!selectedSlave) { showToast('Выберите раба для оков'); setLoading(l => ({...l, [key]: false})); return; } body.target_slave_id = parseInt(selectedSlave); } const r = await post('/api/shop/invoice', body); if (r.invoice_link && tg?.openInvoice) { tg.openInvoice(r.invoice_link, (status) => { if (status === 'paid') { showToast('✅ Успешно! Предмет активирован.'); onRefresh(); load(); } else if (status === 'cancelled') { showToast('Платёж отменён'); } else { showToast('⚠️ Статус: ' + status); } }); } } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
-  async function buyItemRC(itemType) { const key = 'rc_' + itemType; setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; if (itemType === 'chains') { if (!selectedSlave) { showToast('Выберите раба для оков'); setLoading(l => ({...l,[key]: false})); return; } body.target_slave_id = parseInt(selectedSlave); } const r = await post('/api/shop/buy_rc', body); showToast(`✅ Куплено за ${r.spent_rc} RC!`); onRefresh(); load(); } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
+function ShopInventoryScreen({ user, onRefresh, showToast }) {
+  const [shop, setShop] = useState(null); const [inv, setInv] = useState(null); const [tab, setTab] = useState('inventory'); const [selectedSlave, setSelectedSlave] = useState(''); const [promoCode, setPromoCode] = useState(''); const [loading, setLoading] = useState({}); const [usingItem, setUsingItem] = useState(null);
+  const tg = window.Telegram?.WebApp;
+  async function loadShop() { try { setShop(await get('/api/shop')); } catch {} }
+  async function loadInv() { try { setInv(await get('/api/inventory')); } catch {} }
+  useEffect(() => { loadShop(); loadInv(); }, []);
+
+  async function buyItemStars(itemType, cosmeticId=null) { const key = itemType + (cosmeticId||''); setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; if (cosmeticId) body.cosmetic_id = cosmeticId; const r = await post('/api/shop/invoice', body); if (r.invoice_link && tg?.openInvoice) { tg.openInvoice(r.invoice_link, (status) => { if (status === 'paid') { showToast('✅ Предмет добавлен на Склад!'); onRefresh(); loadShop(); loadInv(); } else if (status === 'cancelled') { showToast('Платёж отменён'); } else { showToast('⚠️ Статус: ' + status); } }); } } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
+  async function buyItemRC(itemType) { const key = 'rc_' + itemType; setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; const r = await post('/api/shop/buy_rc', body); showToast(`✅ Куплено за ${r.spent_rc} RC! Добавлено на Склад.`); onRefresh(); loadShop(); loadInv(); } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
   async function usePromo() { if (!promoCode.trim()) return; try { const r = await post('/api/promo', { code: promoCode.trim() }); showToast(`🎁 +${r.reward} RC!`); setPromoCode(''); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } }
+
+  async function useInventoryItem(itemId, targetSlaveId=null) {
+    if(itemId === 'chains' && !targetSlaveId) { setUsingItem(itemId); return; }
+    try {
+      const r = await post('/api/inventory/use', { item_id: itemId, target_slave_id: targetSlaveId ? parseInt(targetSlaveId) : null });
+      showToast('✅ Успешно использовано!'); setUsingItem(null); setSelectedSlave(''); onRefresh(); loadInv();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
+  async function equipCosmetic(field, value) {
+    try {
+      await post('/api/inventory/equip_cosmetic', { field, value });
+      showToast('✅ Установлено!'); onRefresh(); loadInv();
+    } catch(e) { showToast('❌ ' + e.message); }
+  }
+
   const cosmByType = useMemo(() => shop ? { colors: shop.cosmetics.filter(c => c.type==='color'), frames: shop.cosmetics.filter(c => c.type==='frame'), emojis: shop.cosmetics.filter(c => c.type==='emoji') } : {}, [shop]);
-  const selfItems  = shop?.items.filter(i => i.id !== 'chains') || []; const slaveItems = shop?.items.filter(i => i.id === 'chains') || [];
+  const shopItems = shop?.items || [];
+  
+  const getInvItemInfo = (itemId) => shopItems.find(i => i.id === itemId) || { name: itemId, desc: '' };
+
   return (
-    <div className="content" style={{padding:0}}><div className="tabs-wrap"><div className="tabs">{['items','cosmetics','promo'].map(t => <button key={t} className={`tab${tab===t?' active':''}`} onClick={() => setTab(t)}>{t==='items'?'ПРЕДМЕТЫ':t==='cosmetics'?'КОСМЕТИКА (⭐)':'ПРОМОКОД'}</button>)}</div></div><div style={{padding:'0 16px 16px'}}>{!shop ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : tab==='items' ? (<div><div className="section-title mt8">Для вас</div><div className="gap12">{selfItems.map(item => (<div className="shop-item" key={item.id} style={{margin:0}}><div className="row-sb"><div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div><div style={{fontSize:36}}>{item.name.split(' ')[0]}</div></div><div className="si-foot mt8"><div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div><div style={{display:'flex',gap:8}}>{item.price_rc > 0 && <button className="btn btn-ghost" disabled={loading['rc_'+item.id]} onClick={() => buyItemRC(item.id)}>{loading['rc_'+item.id] ? '...' : `За RC`}</button>}<button className="btn btn-primary" disabled={loading[item.id]} onClick={() => buyItemStars(item.id)}>{loading[item.id] ? '...' : '⭐ Купить'}</button></div></div></div>))}</div>{user.slaves.length > 0 && (<div className="mt20"><div className="section-title">Для рабов</div><select className="input mb16" value={selectedSlave} onChange={e => setSelectedSlave(e.target.value)}><option value="">— Выберите раба —</option>{user.slaves.map(s => <option key={s.id} value={s.id}>{s.custom_name||s.first_name||s.username||s.id}</option>)}</select><div className="gap12">{slaveItems.map(item => (<div className="shop-item" key={item.id} style={{margin:0}}><div className="row-sb"><div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div><div style={{fontSize:36}}>{item.name.split(' ')[0]}</div></div><div className="si-foot mt8"><div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div><div style={{display:'flex',gap:8}}>{item.price_rc > 0 && <button className="btn btn-ghost" disabled={loading['rc_chains']} onClick={() => buyItemRC('chains')}>{loading['rc_chains'] ? '...' : 'За RC'}</button>}<button className="btn btn-primary" disabled={loading['chains']} onClick={() => buyItemStars('chains')}>{loading['chains'] ? '...' : '⭐ Купить'}</button></div></div></div>))}</div></div>)}</div>) : tab==='cosmetics' ? (<div className="mt8"><div className="f13 text-muted mb16" style={{lineHeight:1.5, padding:16, background:'rgba(232,197,71,0.05)', borderRadius:16, border:'1px solid rgba(232,197,71,0.2)'}}>🎨 Косметика навсегда сохраняется. Покупка только за Telegram Stars ⭐.</div><div className="section-title">🎨 Цвет имени</div><div className="gap8 mb20">{cosmByType.colors?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className={`fw7 ${c.css_class}`} style={{fontSize:16}}>Aa — {c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div><div className="section-title">🖼 Рамка аватара</div><div className="gap8 mb20">{cosmByType.frames?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="fw7" style={{fontSize:16}}>{c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div><div className="section-title">😀 Эмодзи-статус</div><div className="gap8">{cosmByType.emojis?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="row"><span style={{fontSize:26}}>{c.value}</span><div className="fw7" style={{fontSize:16}}>{c.name}</div></div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div></div>) : (<div className="mt8"><div className="section-title">Промокод</div><input className="input" placeholder="Введите код..." value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} onKeyDown={e => e.key==='Enter' && usePromo()}/><button className="btn btn-primary mt16" onClick={usePromo}>🎁 Применить код</button></div>)}</div></div>
+    <div className="screen">
+      <div className="hdr"><div className="hdr-title">🎒 Склад и Магазин</div></div>
+      <div className="content" style={{padding:0}}>
+        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='inventory'?' active':''}`} onClick={() => setTab('inventory')}>СКЛАД</button><button className={`tab${tab==='shop'?' active':''}`} onClick={() => setTab('shop')}>МАГАЗИН</button><button className={`tab${tab==='cosmetics'?' active':''}`} onClick={() => setTab('cosmetics')}>КОСМЕТИКА</button><button className={`tab${tab==='promo'?' active':''}`} onClick={() => setTab('promo')}>ПРОМОКОД</button></div></div>
+        <div style={{padding:'0 16px 16px'}}>
+          {!shop || !inv ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : 
+           tab === 'inventory' ? (
+             <div>
+               <div className="section-title mt8">Ваши предметы</div>
+               {inv.items.length === 0 && <div className="text-center text-muted p20">Склад пуст.</div>}
+               <div className="gap12">
+                 {inv.items.map(it => {
+                   const info = getInvItemInfo(it.item_id);
+                   return (
+                     <div className="shop-item" key={it.item_id} style={{margin:0}}>
+                       <div className="row-sb">
+                         <div>
+                           <div className="row"><div className="fw8" style={{fontSize:16}}>{info.name}</div> <span className="protection-badge" style={{background:'var(--surface3)', border:'none', color:'var(--text)'}}>x{it.quantity}</span></div>
+                           <div className="text-muted mt4" style={{fontSize:13}}>{info.desc}</div>
+                         </div>
+                         <div style={{fontSize:36}}>{info.name.split(' ')[0]}</div>
+                       </div>
+                       <button className="btn btn-primary mt12" onClick={() => useInventoryItem(it.item_id)}>Использовать</button>
+                     </div>
+                   );
+                 })}
+               </div>
+               
+               <div className="section-title mt20">Ваша косметика</div>
+               <div className="f12 text-muted mb12">Нажмите на купленную косметику, чтобы применить её.</div>
+               
+               <div className="fw7 mt12 mb8 text-muted">Цвет имени:</div>
+               <div className="row" style={{flexWrap:'wrap', gap: 8}}>
+                 <button className={`btn btn-ghost btn-sm ${user.name_color === 'default' ? 'active' : ''}`} style={user.name_color === 'default' ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('name_color', 'default')}>Aa Стандарт</button>
+                 {inv.cosmetics.filter(c => c.type === 'color').map(c => (
+                   <button key={c.id} className={`btn btn-ghost btn-sm ${user.name_color === c.value ? 'active' : ''}`} style={user.name_color === c.value ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('name_color', c.value)}><span className={c.css_class}>Aa {c.name}</span></button>
+                 ))}
+               </div>
+
+               <div className="fw7 mt16 mb8 text-muted">Рамка аватара:</div>
+               <div className="row" style={{flexWrap:'wrap', gap: 8}}>
+                 <button className={`btn btn-ghost btn-sm ${user.avatar_frame === 'none' ? 'active' : ''}`} style={user.avatar_frame === 'none' ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('avatar_frame', 'none')}>Нет</button>
+                 {inv.cosmetics.filter(c => c.type === 'frame').map(c => (
+                   <button key={c.id} className={`btn btn-ghost btn-sm ${user.avatar_frame === c.value ? 'active' : ''}`} style={user.avatar_frame === c.value ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('avatar_frame', c.value)}>{c.name}</button>
+                 ))}
+               </div>
+
+               <div className="fw7 mt16 mb8 text-muted">Эмодзи-статус:</div>
+               <div className="row" style={{flexWrap:'wrap', gap: 8}}>
+                 <button className={`btn btn-ghost btn-sm ${!user.emoji_status ? 'active' : ''}`} style={!user.emoji_status ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('emoji_status', '')}>Нет</button>
+                 {inv.cosmetics.filter(c => c.type === 'emoji').map(c => (
+                   <button key={c.id} className={`btn btn-ghost btn-sm ${user.emoji_status === c.value ? 'active' : ''}`} style={user.emoji_status === c.value ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('emoji_status', c.value)}>{c.value} {c.name}</button>
+                 ))}
+               </div>
+             </div>
+           ) : tab === 'shop' ? (
+             <div>
+               <div className="f12 text-muted mb12 text-center">Все купленные предметы отправляются на Склад.</div>
+               <div className="gap12">
+                 {shopItems.map(item => (
+                   <div className="shop-item" key={item.id} style={{margin:0}}>
+                     <div className="row-sb">
+                       <div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div>
+                       <div style={{fontSize:36}}>{item.name.split(' ')[0]}</div>
+                     </div>
+                     <div className="si-foot mt8">
+                       <div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
+                       <div style={{display:'flex',gap:8}}>
+                         {item.price_rc > 0 && <button className="btn btn-ghost" disabled={loading['rc_'+item.id]} onClick={() => buyItemRC(item.id)}>{loading['rc_'+item.id] ? '...' : `За RC`}</button>}
+                         <button className="btn btn-primary" disabled={loading[item.id]} onClick={() => buyItemStars(item.id)}>{loading[item.id] ? '...' : '⭐ Купить'}</button>
+                       </div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+           ) : tab === 'cosmetics' ? (
+             <div className="mt8">
+               <div className="f13 text-muted mb16" style={{lineHeight:1.5, padding:16, background:'rgba(232,197,71,0.05)', borderRadius:16, border:'1px solid rgba(232,197,71,0.2)'}}>🎨 Косметика навсегда сохраняется. Покупка только за Telegram Stars ⭐.</div>
+               <div className="section-title">🎨 Цвет имени</div>
+               <div className="gap8 mb20">{cosmByType.colors?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className={`fw7 ${c.css_class}`} style={{fontSize:16}}>Aa — {c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+               <div className="section-title">🖼 Рамка аватара</div>
+               <div className="gap8 mb20">{cosmByType.frames?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="fw7" style={{fontSize:16}}>{c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+               <div className="section-title">😀 Эмодзи-статус</div>
+               <div className="gap8">{cosmByType.emojis?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="row"><span style={{fontSize:26}}>{c.value}</span><div className="fw7" style={{fontSize:16}}>{c.name}</div></div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
+             </div>
+           ) : (
+             <div className="mt8"><div className="section-title">Промокод</div><input className="input" placeholder="Введите код..." value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} onKeyDown={e => e.key==='Enter' && usePromo()}/><button className="btn btn-primary mt16" onClick={usePromo}>🎁 Применить код</button></div>
+           )}
+        </div>
+      </div>
+      
+      {usingItem === 'chains' && (
+        <div className="overlay" onClick={() => setUsingItem(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">⛓ Использование: Оковы</div>
+            <div className="f13 text-muted mb16">Выберите вашего раба, чтобы повесить на него оковы. Его выкуп станет на 50% дороже на 7 дней.</div>
+            {user.slaves.length === 0 ? <div className="text-center p20 text-muted">У вас нет рабов.</div> : (
+              <div className="gap12">
+                <select className="input" value={selectedSlave} onChange={e => setSelectedSlave(e.target.value)}>
+                  <option value="">— Выберите раба —</option>
+                  {user.slaves.map(s => <option key={s.id} value={s.id}>{s.custom_name||s.first_name||s.username||s.id}</option>)}
+                </select>
+                <button className="btn btn-primary" onClick={() => useInventoryItem('chains', selectedSlave)} disabled={!selectedSlave}>Применить</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -730,18 +890,38 @@ function SupportScreen({ user, showToast }) {
   const handleFile = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], (b64) => setFileB64(b64)); }
   async function send() { if (!text.trim() && !fileB64) return; const body = { message: text.trim(), photo_b64: fileB64, reply_to_id: replyTo?.id }; const tempMsg = { id: 'temp_'+Date.now(), message: text.trim(), photo_b64: fileB64, is_from_admin: false, created_at: new Date().toISOString(), reply_text: replyTo?.message }; setMsgs(prev => [...prev, tempMsg]); setText(''); setFileB64(null); setReplyTo(null); try { await post('/api/support', body); load(); } catch(e) { showToast('❌ ' + e.message); load(); } }
   return (
-    <div className="content" style={{display:'flex', flexDirection:'column', padding:0}}><div style={{flex:1, overflowY:'auto'}}><div className="chat-area">{msgs.length===0 && <div className="text-center text-muted mt20">Напишите нам — мы поможем!</div>}{msgs.map(m => (<div key={m.id} className={`msg-wrap ${m.is_from_admin ? 'them' : 'me'}`} onClick={() => setReplyTo(m)}>{m.is_from_admin && <div className="msg-sender">Поддержка</div>}<div className={`msg-bubble ${m.is_from_admin ? 'them' : 'me'}`}>{m.reply_text && <div className="msg-reply-box">{m.reply_text.substring(0,40)}...</div>}{m.photo_b64 && <img src={m.photo_b64} className="msg-img" alt=""/>}{m.message && <div>{m.message}</div>}</div><div className="msg-time">{new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</div></div>))}<div ref={bottomRef}/></div></div><div className="chat-input-wrap">{replyTo && <div className="reply-preview-bar"><div>Ответ: {replyTo.message?.substring(0,30)||'Фото'}</div><button className="file-btn" onClick={()=>setReplyTo(null)}>✕</button></div>}{fileB64 && <div className="reply-preview-bar"><div>🖼 Изображение прикреплено</div><button className="file-btn" onClick={()=>setFileB64(null)}>✕</button></div>}<div className="row"><label className="file-btn">📎<input type="file" style={{display:'none'}} accept="image/*" onChange={handleFile}/></label><textarea className="chat-input" placeholder="Сообщение..." value={text} onChange={e => setText(e.target.value)} rows={1} onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}/><button className="btn btn-primary btn-sm" style={{borderRadius:20, width:44, height:44, padding:0}} onClick={send} disabled={!text.trim() && !fileB64}>➤</button></div></div></div>
+    <div style={{display:'flex', flexDirection:'column', height: '100%'}}>
+      <div style={{flex:1, overflowY:'auto', paddingBottom: 20}}><div className="chat-area">{msgs.length===0 && <div className="text-center text-muted mt20">Напишите нам — мы поможем!</div>}{msgs.map(m => (<div key={m.id} className={`msg-wrap ${m.is_from_admin ? 'them' : 'me'}`} onClick={() => setReplyTo(m)}>{m.is_from_admin && <div className="msg-sender">Поддержка</div>}<div className={`msg-bubble ${m.is_from_admin ? 'them' : 'me'}`}>{m.reply_text && <div className="msg-reply-box">{m.reply_text.substring(0,40)}...</div>}{m.photo_b64 && <img src={m.photo_b64} className="msg-img" alt=""/>}{m.message && <div>{m.message}</div>}</div><div className="msg-time">{new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</div></div>))}<div ref={bottomRef}/></div></div>
+      <div className="chat-input-wrap" style={{paddingBottom: 'env(safe-area-inset-bottom)'}}>{replyTo && <div className="reply-preview-bar"><div>Ответ: {replyTo.message?.substring(0,30)||'Фото'}</div><button className="file-btn" onClick={()=>setReplyTo(null)}>✕</button></div>}{fileB64 && <div className="reply-preview-bar"><div>🖼 Изображение прикреплено</div><button className="file-btn" onClick={()=>setFileB64(null)}>✕</button></div>}<div className="row"><label className="file-btn">📎<input type="file" style={{display:'none'}} accept="image/*" onChange={handleFile}/></label><textarea className="chat-input" placeholder="Сообщение..." value={text} onChange={e => setText(e.target.value)} rows={1} onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}/><button className="btn btn-primary btn-sm" style={{borderRadius:20, width:44, height:44, padding:0}} onClick={send} disabled={!text.trim() && !fileB64}>➤</button></div></div>
+    </div>
   );
 }
 
-function MessagesScreen({ onViewProfile, onOpenChat }) {
+function MessagesScreen({ onViewProfile, onOpenChat, onBack, user, showToast }) {
   const [chats, setChats] = useState([]);
-  useEffect(() => { get('/api/chat/list').then(setChats).catch(()=>{}); }, []);
+  const [tab, setTab] = useState('chats');
+  useEffect(() => { if (tab === 'chats') get('/api/chat/list').then(setChats).catch(()=>{}); }, [tab]);
   return (
-    <div className="content">
-      <div className="section-title mt16 px16">Мои диалоги</div>
-      {chats.length===0 && <div className="text-center text-muted mt20">Нет активных диалогов</div>}
-      <div className="gap8 mt8 px16">{chats.map(c => (<div className="card row-sb" key={c.user_id} onClick={() => onOpenChat(c.user_id, c.first_name || `Игрок #${c.user_id}`)} style={{cursor:'pointer', margin:0}}><div className="row"><Avatar user={c} size={44} /><div><div className="fw7">{c.first_name || `Игрок #${c.user_id}`} {c.is_admin_flag && '⚜️'}</div><div className="f12 text-muted mt4">Нажмите, чтобы открыть чат</div></div></div>{c.unread > 0 && <span className="vip-badge" style={{position:'static', background:'var(--red)', color:'#fff', border:'none'}}>{c.unread}</span>}</div>))}</div>
+    <div className="screen">
+      <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button><div className="hdr-title">Связь</div><div style={{width:60}}></div></div>
+      <div className="content" style={{padding:0, display:'flex', flexDirection:'column'}}>
+        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='chats'?' active':''}`} onClick={() => setTab('chats')}>ЛС Игроков</button><button className={`tab${tab==='support'?' active':''}`} onClick={() => setTab('support')}>Поддержка</button></div></div>
+        
+        {tab === 'chats' && (
+          <div style={{padding: '16px'}}>
+            {chats.length===0 && <div className="text-center text-muted mt20">Нет активных диалогов</div>}
+            <div className="gap8">
+              {chats.map(c => (<div className="card row-sb" key={c.user_id} onClick={() => onOpenChat(c.user_id, c.first_name || `Игрок #${c.user_id}`)} style={{cursor:'pointer', margin:0}}><div className="row"><Avatar user={c} size={44} /><div><div className="fw7">{c.first_name || `Игрок #${c.user_id}`} {c.is_admin_flag && '⚜️'}</div><div className="f12 text-muted mt4">Нажмите, чтобы открыть чат</div></div></div>{c.unread > 0 && <span className="vip-badge" style={{position:'static', background:'var(--red)', color:'#fff', border:'none'}}>{c.unread}</span>}</div>))}
+            </div>
+          </div>
+        )}
+        
+        {tab === 'support' && (
+          <div style={{flex: 1, overflow: 'hidden'}}>
+            <SupportScreen user={user} showToast={showToast} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -779,8 +959,24 @@ function AdminChatScreen({ conv, onBack, showToast }) {
   );
 }
 
+function SyndicateStub() {
+  return (
+    <div className="screen">
+      <div className="hdr"><div className="hdr-title">🛡 Синдикаты</div></div>
+      <div className="content" style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:32}}>
+        <div style={{fontSize:80, marginBottom:16}}>🏗</div>
+        <div className="fw8" style={{fontSize:24, marginBottom:12}}>В разработке!</div>
+        <div className="text-muted f13" style={{maxWidth:300, lineHeight:1.5}}>Скоро здесь появятся Синдикаты. Вы сможете создавать кланы, скидываться в Общак, прокачивать уровни и устраивать Клановые Войны!</div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  const [user, setUser] = useState(null); const [tasksData, setTasksData] = useState(null); const [tab, setTab] = useState('profile'); const [error, setError] = useState(null); const [viewingUid, setViewingUid] = useState(null); const [banSupportMode, setBanSupportMode] = useState(false); const [menuOpen, setMenuOpen] = useState(false); const [toasts, setToasts] = useState([]); const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [user, setUser] = useState(null); const [tasksData, setTasksData] = useState(null); 
+  const [mainTab, setMainTab] = useState('profile'); 
+  const [subTab, setSubTab] = useState(null); 
+  const [error, setError] = useState(null); const [viewingUid, setViewingUid] = useState(null); const [banSupportMode, setBanSupportMode] = useState(false); const [toasts, setToasts] = useState([]); const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [adminTab, setAdminTab] = useState('dash'); const [tickets, setTickets] = useState([]); const [openConv, setOpenConv] = useState(null); const [dash, setDash] = useState(null); const [users, setUsers] = useState([]); const [searchQ, setSearchQ] = useState(''); const [stories, setStories] = useState([]); const [sponsors, setSponsors] = useState([]); const [adminsData, setAdminsData] = useState(null); const [cIdent, setCIdent] = useState(''); const [cField, setCField] = useState('name_color'); const [cVal, setCVal] = useState(''); const [spId, setSpId] = useState(''); const [spTitle, setSpTitle] = useState(''); const [spUrl, setSpUrl] = useState(''); const [spRc, setSpRc] = useState('250'); const [newAdminId, setNewAdminId] = useState(''); const [broadcast, setBroadcast] = useState(''); const [seasonPass, setSeasonPass] = useState(''); const [promoCode, setPromoCode] = useState(''); const [promoRc, setPromoRc] = useState(''); const [promoMax, setPromoMax] = useState('1'); const [sysMaint, setSysMaint] = useState(false);
   const showToast = useToast(setToasts);
   
@@ -825,7 +1021,7 @@ function App() {
   if (!user || !tasksData) return <div className="overlay-full"><div className="spinner"/><div className="f13 text-muted mt16">Загружаем...</div></div>;
 
   if (maintenanceMode && !user.is_admin && !user.is_admin_flag) return (<div className="overlay-full"><div className="overlay-icon" style={{animation: 'spin 4s linear infinite'}}>🛠</div><div className="overlay-title amber">Технические работы</div><div className="overlay-desc">Платформа обновляется. Мы скоро вернемся! Пожалуйста, зайдите позже.</div><button className="btn btn-ghost" style={{width: 200}} onClick={init}>🔄 Обновить</button></div>);
-  if (user.is_banned) { if (banSupportMode) { return (<div className="app"><SupportScreen user={user} showToast={showToast}/><div className="section mt16" style={{paddingBottom: 20}}><button className="btn btn-ghost" onClick={() => setBanSupportMode(false)}>‹ Назад к блокировке</button></div></div>); } return (<div className="overlay-full"><div className="overlay-icon">🚫</div><div className="overlay-title red">Аккаунт Заблокирован</div><div className="overlay-desc">Ваш аккаунт был заблокирован за нарушение правил. Если вы считаете, что это ошибка, обратитесь в поддержку.</div>{user.ban_reason && <div className="ban-reason-box">Причина: {user.ban_reason}</div>}<button className="btn btn-primary" style={{width: '100%', maxWidth: '300px'}} onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button></div>); }
+  if (user.is_banned) { if (banSupportMode) { return (<div className="app"><div className="screen"><div className="hdr"><button className="back-btn" onClick={() => setBanSupportMode(false)}>‹ Назад</button></div><div className="content" style={{padding:0}}><SupportScreen user={user} showToast={showToast}/></div></div></div>); } return (<div className="overlay-full"><div className="overlay-icon">🚫</div><div className="overlay-title red">Аккаунт Заблокирован</div><div className="overlay-desc">Ваш аккаунт был заблокирован за нарушение правил. Если вы считаете, что это ошибка, обратитесь в поддержку.</div>{user.ban_reason && <div className="ban-reason-box">Причина: {user.ban_reason}</div>}<button className="btn btn-primary" style={{width: '100%', maxWidth: '300px'}} onClick={() => setBanSupportMode(true)}>💬 Написать в поддержку</button></div>); }
   
   if (tasksData.missing_main_sponsors && tasksData.missing_main_sponsors.length > 0) {
     return (
@@ -843,7 +1039,6 @@ function App() {
 
   if (viewingUid && viewingUid !== user.id) return <div className="app"><UserProfileScreen uid={viewingUid} currentUserId={user.id} onBack={() => setViewingUid(null)} onBuy={refreshUser} showToast={showToast} onViewProfile={setViewingUid} currentUser={user}/></div>;
 
-  const handleNav = (t) => { setTab(t); setMenuOpen(false); setDirectChatUid(null); if(t==='admin') { setAdminTab('dash'); loadAdminTab('dash'); } }
   async function loadAdminTab(t) { if(t==='dash') { get('/api/admin/dashboard').then(setDash).catch(()=>{}); } if(t==='users') { get('/api/admin/users').then(setUsers).catch(()=>{}); } if(t==='tickets') { get('/api/admin/tickets').then(setTickets).catch(()=>{}); } if(t==='stories') { get('/api/admin/stories').then(setStories).catch(()=>{}); } if(t==='sponsors') { get('/api/admin/sponsors').then(setSponsors).catch(()=>{}); } if(t==='admins') { get('/api/admin/admins_list').then(setAdminsData).catch(()=>{}); } }
   async function toggleMaint(state) { try { await post('/api/admin/maintenance', { state }); setSysMaint(state); showToast(`Тех. работы ${state ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ'}`); } catch(e) { showToast('❌ Ошибка', 'error'); } }
   const adminTitles = { 'dash':'📊 Дашборд', 'users':'👥 Юзеры', 'tickets':'💬 Тикеты', 'stories':'📸 Заявки Stories', 'sponsors':'📢 Спонсоры', 'system':'⚙️ Система', 'admins':'👑 Супер Админ' };
@@ -855,32 +1050,63 @@ function App() {
       {user.riot_active && !suppressingRiot && (<div className="riot-banner" onClick={() => setSuppressingRiot(true)}><span>🚨 ВАШИ РАБЫ БУНТУЮТ!</span><span style={{fontSize: 12, background:'rgba(0,0,0,0.3)', padding:'4px 8px', borderRadius:8}}>ПОДАВИТЬ ›</span></div>)}
       {suppressingRiot && <RiotModal onSuppress={handleSuppressRiot} />}
 
-      <div className="hdr"><div><div className="hdr-title">⛓ РАБСТВО</div><div className="hdr-sub">Социальная стратегия</div></div><button className="burger-btn" onClick={()=>setMenuOpen(true)}>☰</button></div>
-      {menuOpen && (<div className="sidebar-overlay" onClick={()=>setMenuOpen(false)}><div className="sidebar" onClick={e=>e.stopPropagation()}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><div className="fw8" style={{fontSize:22}}>Меню</div><button className="file-btn" onClick={()=>setMenuOpen(false)}>✕</button></div><button className={`menu-btn ${tab==='profile'?'active':''}`} onClick={()=>handleNav('profile')}><span className="menu-ico">👤</span> Мой профиль</button><button className={`menu-btn ${tab==='search'?'active':''}`} onClick={()=>handleNav('search')}><span className="menu-ico">🔍</span> Поиск рабов</button><button className={`menu-btn ${tab==='games'?'active':''}`} onClick={()=>handleNav('games')}><span className="menu-ico">🎮</span> Мини-игры</button><button className={`menu-btn ${tab==='tasks'?'active':''}`} onClick={()=>handleNav('tasks')}><span className="menu-ico">📋</span> Задания</button><button className={`menu-btn ${tab==='messages'?'active':''}`} onClick={()=>handleNav('messages')}><span className="menu-ico">✉️</span> Сообщения</button><button className={`menu-btn ${tab==='top'?'active':''}`} onClick={()=>handleNav('top')}><span className="menu-ico">🏆</span> Рейтинги</button><button className={`menu-btn ${tab==='shop'?'active':''}`} onClick={()=>handleNav('shop')}><span className="menu-ico">🛒</span> Магазин</button><button className={`menu-btn ${tab==='support'?'active':''}`} onClick={()=>handleNav('support')}><span className="menu-ico">💬</span> Поддержка</button><button className={`menu-btn ${tab==='settings'?'active':''}`} onClick={()=>handleNav('settings')}><span className="menu-ico">⚙️</span> Настройки</button>{user.is_admin && <div className="divider" style={{margin:'8px 0'}}/>}{user.is_admin && <button className={`menu-btn ${tab==='admin'?'active':''}`} onClick={()=>handleNav('admin')}><span className="menu-ico">⚙️</span> Панель Админа</button>}</div></div>)}
+      {/* Main Content Router */}
+      {!subTab && !directChatUid && !openConv && (
+        <>
+          {mainTab==='profile' && <ProfileScreen user={user} onRefresh={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} onNavSub={setSubTab} showToast={showToast}/>}
+          {mainTab==='games'   && <GamesScreen user={user} tasksData={tasksData} onRefresh={refreshUser} showToast={showToast}/>}
+          {mainTab==='syndicates' && <SyndicateStub />}
+          {mainTab==='shop'    && <ShopInventoryScreen user={user} onRefresh={refreshUser} showToast={showToast}/>}
+          {mainTab==='top'     && <TopScreen onViewProfile={(uid)=>setViewingUid(uid)} onNavSearch={() => setSubTab('search')}/>}
+
+          {/* Bottom Navigation */}
+          <div className="bottom-nav">
+            <button className={`nav-item ${mainTab==='profile' ? 'active' : ''}`} onClick={() => setMainTab('profile')}>
+              <span className="nav-item-ico">👤</span><span>Профиль</span>
+            </button>
+            <button className={`nav-item ${mainTab==='games' ? 'active' : ''}`} onClick={() => setMainTab('games')}>
+              <span className="nav-item-ico">🎮</span><span>Активности</span>
+            </button>
+            <button className={`nav-item ${mainTab==='syndicates' ? 'active' : ''}`} onClick={() => setMainTab('syndicates')}>
+              <span className="nav-item-ico">🛡</span><span>Синдикаты</span>
+            </button>
+            <button className={`nav-item ${mainTab==='shop' ? 'active' : ''}`} onClick={() => setMainTab('shop')}>
+              <span className="nav-item-ico">🎒</span><span>Склад</span>
+            </button>
+            <button className={`nav-item ${mainTab==='top' ? 'active' : ''}`} onClick={() => setMainTab('top')}>
+              <span className="nav-item-ico">🏆</span><span>Рейтинги</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Sub Screens (Modals overlaid) */}
+      {subTab==='settings' && !directChatUid && <SettingsScreen user={user} onRefresh={refreshUser} showToast={showToast} onBack={() => setSubTab(null)}/>}
+      {subTab==='messages' && !directChatUid && <MessagesScreen user={user} onViewProfile={(uid)=>setViewingUid(uid)} onOpenChat={window.openDirectChat} onBack={() => setSubTab(null)} showToast={showToast}/>}
+      {subTab==='search' && !directChatUid && <SearchScreen user={user} onBuy={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} showToast={showToast} onBack={() => setSubTab(null)}/>}
       
-      {tab==='profile' && <ProfileScreen user={user} onRefresh={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} showToast={showToast}/>}
-      {tab==='search'  && <SearchScreen user={user} onBuy={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} showToast={showToast}/>}
-      {tab==='games'   && <GamesScreen user={user} onRefresh={refreshUser} showToast={showToast}/>}
-      {tab==='tasks'   && <TasksScreen tasksData={tasksData} onRefresh={refreshUser} showToast={showToast}/>}
-      {tab==='top'     && <TopScreen onViewProfile={(uid)=>setViewingUid(uid)}/>}
-      {tab==='shop'    && <ShopScreen user={user} onRefresh={refreshUser} showToast={showToast}/>}
-      {tab==='support' && <SupportScreen user={user} showToast={showToast}/>}
-      {tab==='settings' && <SettingsScreen user={user} onRefresh={refreshUser} showToast={showToast}/>}
-      
-      {tab==='messages' && !directChatUid && <MessagesScreen onViewProfile={(uid)=>setViewingUid(uid)} onOpenChat={window.openDirectChat} />}
       {directChatUid && <DirectChatScreen targetUid={directChatUid} targetName={directChatName} currentUid={user.id} onBack={() => setDirectChatUid(null)} />}
 
-      {tab==='admin' && user.is_admin && !openConv && (
-        <div className="content">
-          <div className="tabs-wrap" style={{marginBottom:16}}><select className="input" style={{border:'none', borderRadius:16, fontWeight:700, fontSize:15, padding:'16px', background:'var(--bg3)', boxShadow:'0 4px 15px rgba(0,0,0,0.3)'}} value={adminTab} onChange={e=>{setAdminTab(e.target.value); loadAdminTab(e.target.value);}}>{Object.entries(adminTitles).map(([k,v]) => { if(k==='admins' && !user.is_super_admin) return null; return <option key={k} value={k}>{v}</option>; })}</select></div>
-          <div style={{padding:'0 16px'}}>
-            {adminTab==='dash' && dash && (<div className="gap8"><div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>{[['👥','Игроков', dash.total_users],['🆕','За сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Тикеты', dash.tickets],['📸','Сторис', dash.stories_pending]].map(([ico,lbl,val]) => <div className="admin-stat" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}</div><button className="btn btn-ghost mt12" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button></div>)}
-            {adminTab==='users' && (<div className="gap12"><div className="card gap12" style={{borderColor:'var(--gold)'}}><div className="fw8 text-gold" style={{fontSize:16}}>🎨 Выдать косметику</div><input className="input" placeholder="ID / @username" value={cIdent} onChange={e=>setCIdent(e.target.value)}/><select className="input" value={cField} onChange={e=>{setCField(e.target.value); setCVal('');}}><option value="name_color">Цвет ника</option><option value="avatar_frame">Рамка аватара</option><option value="emoji_status">Эмодзи</option></select>{cField==='name_color' && <div className="row" style={{flexWrap:'wrap'}}>{[['default','Стандарт'],['ruby','Рубин'],['gold','Золото'],['neon','Неон'],['blue','Синий'],['purple','Фиолет']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='avatar_frame' && <div className="row" style={{flexWrap:'wrap'}}>{[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='emoji_status' && <div className="row" style={{flexWrap:'wrap'}}>{['','💎','👑','🔥','⚡','🌟','💀','🏆'].map((e,i)=><button key={i} className="btn btn-ghost btn-sm" style={{borderColor:cVal===e?'var(--gold)':''}} onClick={()=>setCVal(e)}>{e||'✕'}</button>)}</div>}<button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button></div><div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div><div className="gap8">{users.map(u => <div className="card row-sb" key={u.id} style={{margin:0}}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id} | UID: {u.uid}</div></div><button className="btn btn-ghost btn-sm" onClick={() => setAdminEditingUser(u)}>✏️ Изменить</button></div>)}</div></div>)}
-            {adminTab==='tickets' && (<div className="gap8">{tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}{tickets.map(t => (<div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}><div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div><div className="fw7 text-muted" style={{fontSize:20}}>›</div></div>))}</div>)}
-            {adminTab==='stories' && (<div className="gap8">{stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}{stories.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div><div className="row"><button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Отклонить заявку?'))return; try{ await post(`/api/admin/stories/reject?claim_id=${s.id}`,''); showToast('🗑 Отклонено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>❌</button></div></div>))}</div>)}
-            {adminTab==='sponsors' && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Спонсора</div><div className="f12 text-muted mb8">Бот должен быть админом в канале!</div><input className="input" placeholder="ID Канала (-100123...)" value={spId} onChange={e=>setSpId(e.target.value)}/><input className="input" placeholder="Название (Для кнопки)" value={spTitle} onChange={e=>setSpTitle(e.target.value)}/><input className="input" placeholder="Ссылка (https://t.me/...)" value={spUrl} onChange={e=>setSpUrl(e.target.value)}/><input className="input" type="number" placeholder="Награда RC" value={spRc} onChange={e=>setSpRc(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ if(!spId||!spTitle||!spUrl||!spRc) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); setSpId(''); setSpTitle(''); setSpUrl(''); setSpRc('250'); }catch(e){showToast('❌ '+e.message);} }}>Добавить</button></div>{sponsors.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">{s.is_main ? '👑 Генеральный' : '📢 Обычный'}</div><div className="fw8 mt4" style={{fontSize:15}}>{s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div><div className="gap6"><button className="btn btn-ghost btn-sm" style={{borderColor: s.is_main ? 'var(--gold)' : 'var(--border2)'}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/toggle_main',{sponsor_id:s.id}); showToast('✅ Статус изменен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>{s.is_main ? 'Сделать обычным' : 'Сделать генеральным'}</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Удалить спонсора?'))return; try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑 Удалить</button></div></div>))}</div>)}
-            {adminTab==='admins' && adminsData && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Админа</div><input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button></div><div className="gap8">{adminsData.db_admins.map(a => (<div className="card row-sb" key={a.user_id} style={{margin:0}}><div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button></div>))}</div></div>)}
-            {adminTab==='system' && (<div className="gap16"><div className="card gap8"><div className="fw8 text-amber" style={{fontSize:16}}>🛠 Технические работы</div><div className="f13 text-muted">Закрывает доступ всем игрокам кроме админов.</div><div className="row mt8"><button className={`btn ${sysMaint ? 'btn-danger' : 'btn-ghost'}`} onClick={() => toggleMaint(true)}>ВКЛЮЧИТЬ</button><button className={`btn ${!sysMaint ? 'btn-green' : 'btn-ghost'}`} onClick={() => toggleMaint(false)}>ВЫКЛЮЧИТЬ</button></div></div><div className="card gap8"><div className="fw8" style={{fontSize:16}}>📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div><div className="card gap8"><div className="fw8" style={{fontSize:16}}>🎫 Создать промокод</div><input className="input" placeholder="КОД" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/><input className="input" type="number" placeholder="Награда RC" value={promoRc} onChange={e=>setPromoRc(e.target.value)}/><input className="input" type="number" placeholder="Кол-во использований" value={promoMax} onChange={e=>setPromoMax(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ if(!promoCode||!promoRc)return; try{ await post('/api/admin/promo/create',{code:promoCode,reward_rc:parseFloat(promoRc),max_uses:parseInt(promoMax)}); showToast('✅ Создан'); setPromoCode(''); setPromoRc(''); }catch(e){showToast('❌ '+e.message);} }}>Создать код</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Новый сезон</div><div className="f13 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются. Топ будет обнулен.</div><input className="input" type="password" placeholder="Пароль" value={seasonPass} onChange={e=>setSeasonPass(e.target.value)}/><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:seasonPass}); showToast('🔥 Сезон начат'); setSeasonPass(''); }catch(e){showToast('❌ '+e.message);} }}>Начать сезон</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Полный Wipe</div><div className="f13 text-muted">Полное удаление базы данных. Топ будет обнулен.</div><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('УДАЛИТЬ ВСЮ БАЗУ ДАННЫХ? Безвозвратно.'))return; try{ await post('/api/admin/db/clear'); showToast('💀 Очищено'); }catch(e){showToast('❌ '+e.message);} }}>Очистить базу</button></div></div>)}
+      {user.is_admin && mainTab === 'profile' && !subTab && !directChatUid && (
+        <div style={{position: 'absolute', top: 60, right: 16, zIndex: 100}}>
+           <button className="btn btn-danger btn-sm" onClick={() => { setSubTab('admin'); loadAdminTab('dash'); }}>Админ Панель</button>
+        </div>
+      )}
+
+      {subTab==='admin' && user.is_admin && !openConv && (
+        <div className="screen" style={{background: 'var(--bg)', zIndex: 1000}}>
+          <div className="hdr"><button className="back-btn" onClick={() => setSubTab(null)}>‹ Назад</button><div className="hdr-title">Админ Панель</div><div style={{width:60}}></div></div>
+          <div className="content">
+            <div className="tabs-wrap" style={{marginBottom:16}}><select className="input" style={{border:'none', borderRadius:16, fontWeight:700, fontSize:15, padding:'16px', background:'var(--bg3)', boxShadow:'0 4px 15px rgba(0,0,0,0.3)'}} value={adminTab} onChange={e=>{setAdminTab(e.target.value); loadAdminTab(e.target.value);}}>{Object.entries(adminTitles).map(([k,v]) => { if(k==='admins' && !user.is_super_admin) return null; return <option key={k} value={k}>{v}</option>; })}</select></div>
+            <div style={{padding:'0 16px'}}>
+              {adminTab==='dash' && dash && (<div className="gap8"><div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>{[['👥','Игроков', dash.total_users],['🆕','За сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Тикеты', dash.tickets],['📸','Сторис', dash.stories_pending]].map(([ico,lbl,val]) => <div className="admin-stat" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}</div><button className="btn btn-ghost mt12" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button></div>)}
+              {adminTab==='users' && (<div className="gap12"><div className="card gap12" style={{borderColor:'var(--gold)'}}><div className="fw8 text-gold" style={{fontSize:16}}>🎨 Выдать косметику</div><input className="input" placeholder="ID / @username" value={cIdent} onChange={e=>setCIdent(e.target.value)}/><select className="input" value={cField} onChange={e=>{setCField(e.target.value); setCVal('');}}><option value="name_color">Цвет ника</option><option value="avatar_frame">Рамка аватара</option><option value="emoji_status">Эмодзи</option></select>{cField==='name_color' && <div className="row" style={{flexWrap:'wrap'}}>{[['default','Стандарт'],['ruby','Рубин'],['gold','Золото'],['neon','Неон'],['blue','Синий'],['purple','Фиолет']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='avatar_frame' && <div className="row" style={{flexWrap:'wrap'}}>{[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='emoji_status' && <div className="row" style={{flexWrap:'wrap'}}>{['','💎','👑','🔥','⚡','🌟','💀','🏆'].map((e,i)=><button key={i} className="btn btn-ghost btn-sm" style={{borderColor:cVal===e?'var(--gold)':''}} onClick={()=>setCVal(e)}>{e||'✕'}</button>)}</div>}<button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button></div><div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div><div className="gap8">{users.map(u => <div className="card row-sb" key={u.id} style={{margin:0}}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id} | UID: {u.uid}</div></div><button className="btn btn-ghost btn-sm" onClick={() => setAdminEditingUser(u)}>✏️ Изменить</button></div>)}</div></div>)}
+              {adminTab==='tickets' && (<div className="gap8">{tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}{tickets.map(t => (<div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}><div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div><div className="fw7 text-muted" style={{fontSize:20}}>›</div></div>))}</div>)}
+              {adminTab==='stories' && (<div className="gap8">{stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}{stories.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div><div className="row"><button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Отклонить заявку?'))return; try{ await post(`/api/admin/stories/reject?claim_id=${s.id}`,''); showToast('🗑 Отклонено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>❌</button></div></div>))}</div>)}
+              {adminTab==='sponsors' && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Спонсора</div><div className="f12 text-muted mb8">Бот должен быть админом в канале!</div><input className="input" placeholder="ID Канала (-100123...)" value={spId} onChange={e=>setSpId(e.target.value)}/><input className="input" placeholder="Название (Для кнопки)" value={spTitle} onChange={e=>setSpTitle(e.target.value)}/><input className="input" placeholder="Ссылка (https://t.me/...)" value={spUrl} onChange={e=>setSpUrl(e.target.value)}/><input className="input" type="number" placeholder="Награда RC" value={spRc} onChange={e=>setSpRc(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ if(!spId||!spTitle||!spUrl||!spRc) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:spId,channel_title:spTitle,channel_url:spUrl,reward_rc:parseFloat(spRc),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); setSpId(''); setSpTitle(''); setSpUrl(''); setSpRc('250'); }catch(e){showToast('❌ '+e.message);} }}>Добавить</button></div>{sponsors.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">{s.is_main ? '👑 Генеральный' : '📢 Обычный'}</div><div className="fw8 mt4" style={{fontSize:15}}>{s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div><div className="gap6"><button className="btn btn-ghost btn-sm" style={{borderColor: s.is_main ? 'var(--gold)' : 'var(--border2)'}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/toggle_main',{sponsor_id:s.id}); showToast('✅ Статус изменен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>{s.is_main ? 'Сделать обычным' : 'Сделать генеральным'}</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Удалить спонсора?'))return; try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑 Удалить</button></div></div>))}</div>)}
+              {adminTab==='admins' && adminsData && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Админа</div><input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button></div><div className="gap8">{adminsData.db_admins.map(a => (<div className="card row-sb" key={a.user_id} style={{margin:0}}><div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button></div>))}</div></div>)}
+              {adminTab==='system' && (<div className="gap16"><div className="card gap8"><div className="fw8 text-amber" style={{fontSize:16}}>🛠 Технические работы</div><div className="f13 text-muted">Закрывает доступ всем игрокам кроме админов.</div><div className="row mt8"><button className={`btn ${sysMaint ? 'btn-danger' : 'btn-ghost'}`} onClick={() => toggleMaint(true)}>ВКЛЮЧИТЬ</button><button className={`btn ${!sysMaint ? 'btn-green' : 'btn-ghost'}`} onClick={() => toggleMaint(false)}>ВЫКЛЮЧИТЬ</button></div></div><div className="card gap8"><div className="fw8" style={{fontSize:16}}>📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div><div className="card gap8"><div className="fw8" style={{fontSize:16}}>🎫 Создать промокод</div><input className="input" placeholder="КОД" value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())}/><input className="input" type="number" placeholder="Награда RC" value={promoRc} onChange={e=>setPromoRc(e.target.value)}/><input className="input" type="number" placeholder="Кол-во использований" value={promoMax} onChange={e=>setPromoMax(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ if(!promoCode||!promoRc)return; try{ await post('/api/admin/promo/create',{code:promoCode,reward_rc:parseFloat(promoRc),max_uses:parseInt(promoMax)}); showToast('✅ Создан'); setPromoCode(''); setPromoRc(''); }catch(e){showToast('❌ '+e.message);} }}>Создать код</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Новый сезон</div><div className="f13 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются. Топ будет обнулен.</div><input className="input" type="password" placeholder="Пароль" value={seasonPass} onChange={e=>setSeasonPass(e.target.value)}/><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:seasonPass}); showToast('🔥 Сезон начат'); setSeasonPass(''); }catch(e){showToast('❌ '+e.message);} }}>Начать сезон</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Полный Wipe</div><div className="f13 text-muted">Полное удаление базы данных. Топ будет обнулен.</div><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('УДАЛИТЬ ВСЮ БАЗУ ДАННЫХ? Безвозвратно.'))return; try{ await post('/api/admin/db/clear'); showToast('💀 Очищено'); }catch(e){showToast('❌ '+e.message);} }}>Очистить базу</button></div></div>)}
+            </div>
           </div>
         </div>
       )}
@@ -908,7 +1134,7 @@ function App() {
         </div>
       )}
 
-      {tab==='admin' && openConv && <AdminChatScreen conv={openConv} onBack={()=>{setOpenConv(null); get('/api/admin/tickets').then(setTickets).catch(()=>{}); }} showToast={showToast}/>}
+      {subTab==='admin' && openConv && <AdminChatScreen conv={openConv} onBack={()=>{setOpenConv(null); get('/api/admin/tickets').then(setTickets).catch(()=>{}); }} showToast={showToast}/>}
     </div>
   );
 }
