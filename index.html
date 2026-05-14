@@ -79,7 +79,7 @@ input, textarea, select { font-size: 16px !important; }
 .pc-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
 .protection-badge { font-size: 10px; font-weight: 600; color: var(--blue); background: var(--blue-dim); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100000; display: flex; align-items: flex-end; justify-content: center; backdrop-filter: blur(8px); }
-.modal { background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(24px, env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp .3s ease; }
+.modal { background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(calc(65px + env(safe-area-inset-bottom) + 16px), env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp .3s ease; }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
 .modal-handle { width:40px; height:4px; border-radius:2px; background:var(--border2); margin:0 auto 20px; }
 .modal-title { font-size:20px; font-weight:800; margin-bottom:16px; letter-spacing: -0.5px; }
@@ -573,6 +573,12 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
                       <div className="card gap8" style={{margin:0, borderColor:'var(--blue)', background: 'var(--surface2)'}}>
                           <div className="fw7 text-blue">Сдать в аренду</div>
                           <div className="f11 text-muted mb4">Игрок получит раба на время. Вы не сможете его использовать, но вас не смогут перекупить в этот период.</div>
+                          {actionModal.item.is_listed_for_rent ? (
+                            <button className="btn btn-danger mt4" onClick={async () => {
+                              try { await post('/api/rent/cancel', {slave_id: actionModal.item.id}); showToast('✅ Аренда отменена!'); setActionModal(null); onRefresh(); } catch(e){ showToast('❌ '+e.message); }
+                            }}>❌ Снять с биржи аренды</button>
+                          ) : (
+                            <>
                           <div className="row">
                               <input className="input" type="number" id="rent_price" placeholder="Цена RC (50-50000)" style={{flex:2}}/>
                               <select className="input" id="rent_hours" style={{flex:1}}><option value="2">2 ч</option><option value="4">4 ч</option><option value="8">8 ч</option><option value="12">12 ч</option><option value="24">24 ч</option></select>
@@ -583,6 +589,8 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
                               if(isNaN(p) || p<50 || p>50000) return showToast('Цена должна быть от 50 до 50000 RC');
                               try { await post('/api/rent/list', {slave_id: actionModal.item.id, price: p, hours: h}); showToast('✅ Выставлен на биржу аренды!'); setActionModal(null); onRefresh(); } catch(e){ showToast('❌ '+e.message); }
                           }}>Выставить на биржу</button>
+                            </>
+                          )}
                       </div>
                   </>
               )}
@@ -792,7 +800,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
           </div></div>}
         </div>}
 
-        {tab === 'chat' && <div style={{display:'flex', flexDirection:'column', height:'calc(100vh - 130px)', position: 'relative'}}>
+        {tab === 'chat' && <div style={{display:'flex', flexDirection:'column', height:'calc(100vh - 130px - 65px - env(safe-area-inset-bottom))', position: 'relative'}}>
           {chatMsgs.find(m => m.is_pinned) && (
               <div className="px16 py8 bg-surface2 border-b border-border2 row-sb" style={{borderBottom:'1px solid var(--border)'}}>
                   <div style={{flex:1, minWidth:0}}><div className="f10 text-gold fw7 mb4">📌 Закрепленное сообщение</div><div className="f12 text-muted" style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{chatMsgs.find(m => m.is_pinned).text}</div></div>
@@ -830,21 +838,80 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
 
         {tab === 'map' && (
             <div className="p16 gap12">
-                <div className="card row-sb" style={{margin:0, borderColor:'var(--blue)', background:'rgba(59,130,246,0.1)'}}>
-                    <div><div className="fw8 text-blue mb4">Карта Территорий</div><div className="f12 text-muted">Захватывайте территории через войны, чтобы получать бонус к доходу клана!</div></div>
+                <div className="card row-sb" style={{margin:0, marginBottom:12, borderColor:'var(--blue)', background:'rgba(59,130,246,0.1)'}}>
+                    <div><div className="fw8 text-blue mb4">🗺 Карта России</div><div className="f12 text-muted">Захватывайте города через войны и получайте бонус к доходу клана!</div></div>
                 </div>
+                {/* SVG-карта России с городами */}
+                <div style={{width:'100%', overflowX:'auto', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', padding:12}}>
+                  <svg viewBox="0 0 420 260" width="100%" style={{display:'block', minWidth:320}}>
+                    {/* Упрощённый силуэт России */}
+                    <path d="M30,80 L50,60 L80,55 L110,45 L150,40 L180,35 L220,38 L260,32 L300,28 L340,30 L380,35 L400,50 L410,70 L405,95 L395,110 L385,130 L375,150 L360,165 L345,170 L330,175 L310,180 L290,185 L275,195 L260,205 L240,210 L220,215 L200,218 L175,215 L155,210 L135,215 L115,220 L95,215 L75,210 L55,200 L40,185 L25,165 L18,140 L20,110 L25,90 Z" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5"/>
+                    {/* Камчатка */}
+                    <path d="M380,35 L400,28 L415,40 L418,60 L410,70 L400,65 L390,55 Z" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5"/>
+                    {/* Сахалин */}
+                    <ellipse cx="408" cy="100" rx="6" ry="14" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" strokeWidth="1"/>
+
+                    {/* Города — точки и подписи */}
+                    {territories.map((t, idx) => {
+                      // Координаты городов на SVG-карте
+                      const cityCoords = {
+                        'Москва':       {x:185, y:120},
+                        'Санкт-Петербург': {x:155, y:75},
+                        'Новосибирск':  {x:290, y:120},
+                        'Екатеринбург': {x:255, y:105},
+                        'Казань':       {x:215, y:115},
+                        'Краснодар':    {x:175, y:175},
+                        'Владивосток':  {x:385, y:155},
+                        'Омск':         {x:270, y:118},
+                        'Красноярск':   {x:315, y:108},
+                        'Иркутск':      {x:340, y:125},
+                        'Волгоград':    {x:205, y:148},
+                        'Нижний Новгород': {x:205, y:112},
+                        'Уфа':          {x:240, y:115},
+                        'Ростов-на-Дону':{x:185, y:162},
+                        'Пермь':        {x:248, y:98},
+                        'Воронеж':      {x:195, y:135},
+                        'Самара':       {x:228, y:122},
+                        'Хабаровск':    {x:380, y:138},
+                        'Якутск':       {x:355, y:78},
+                        'Мурманск':     {x:170, y:50},
+                      };
+                      const name = t.name || `Город ${idx+1}`;
+                      const pos = cityCoords[name] || {x: 100 + (idx % 8)*35, y: 90 + Math.floor(idx/8)*30};
+                      const owned = t.owner_id === user.syndicate_id;
+                      const hasOwner = !!t.owner_id;
+                      const color = owned ? '#22c55e' : hasOwner ? '#ef4444' : '#6b7280';
+                      const fill = owned ? 'rgba(34,197,94,0.25)' : hasOwner ? 'rgba(239,68,68,0.18)' : 'rgba(107,114,128,0.15)';
+                      return (
+                        <g key={t.id}>
+                          <circle cx={pos.x} cy={pos.y} r={11} fill={fill} stroke={color} strokeWidth={owned ? 2 : 1.5}/>
+                          <text x={pos.x} y={pos.y+1} textAnchor="middle" dominantBaseline="middle" fontSize="8" fontWeight="700" fill={color}>{t.income_bonus ? `+${t.income_bonus}%` : '?'}</text>
+                          <text x={pos.x} y={pos.y+16} textAnchor="middle" fontSize="7" fill="var(--text-2)" fontWeight="600">{name.length > 8 ? name.slice(0,7)+'…' : name}</text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                  <div className="row mt8" style={{flexWrap:'wrap', gap:8}}>
+                    <div className="row gap4"><div style={{width:10,height:10,borderRadius:'50%',background:'#22c55e'}}/><span className="f11 text-muted">Ваш клан</span></div>
+                    <div className="row gap4"><div style={{width:10,height:10,borderRadius:'50%',background:'#ef4444'}}/><span className="f11 text-muted">Занят</span></div>
+                    <div className="row gap4"><div style={{width:10,height:10,borderRadius:'50%',background:'#6b7280'}}/><span className="f11 text-muted">Свободен</span></div>
+                  </div>
+                </div>
+
+                {/* Список городов */}
+                <div className="section-title mt16">Города ({territories.length})</div>
                 {territories.map(t => (
-                    <div className="card row-sb" key={t.id} style={{margin:0, borderColor: t.owner_id === user.syndicate_id ? 'var(--green)' : 'var(--border)'}}>
+                    <div className="card row-sb" key={t.id} style={{margin:0, marginBottom:8, borderColor: t.owner_id === user.syndicate_id ? 'var(--green)' : 'var(--border)'}}>
                         <div>
-                            <div className="fw8" style={{fontSize: 16}}>{t.name}</div>
+                            <div className="fw8">{t.name}</div>
                             <div className="f12 text-green fw7 mt4">+{t.income_bonus}% к доходу</div>
-                            <div className="f12 text-muted mt4">Владелец: {t.owner_name ? <span className={t.owner_id === user.syndicate_id ? 'text-green' : 'text-red'}>{t.owner_name} (Ур.{t.owner_level})</span> : 'Ничья'}</div>
+                            <div className="f12 text-muted mt4">Владелец: {t.owner_name ? <span className={t.owner_id === user.syndicate_id ? 'text-green' : 'text-red'}>{t.owner_name} (Ур.{t.owner_level})</span> : 'Нейтральный'}</div>
                         </div>
                         {['don','deputy'].includes(user.syndicate_role) && t.owner_id !== user.syndicate_id && t.owner_id && (
                             <button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm(`Напасть на ${t.owner_name} за территорию ${t.name}?`)) return; try{ await post('/api/syndicates/wars/declare', {target_id: t.owner_id, territory_id: t.id}); showToast('⚔️ Вызов отправлен!'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>Захватить</button>
                         )}
                         {['don','deputy'].includes(user.syndicate_role) && !t.owner_id && (
-                            <div className="f11 text-muted">Нужен ИИ бот</div>
+                            <button className="btn btn-primary btn-sm" onClick={async ()=>{ if(!confirm(`Захватить территорию ${t.name} для клана?`)) return; try{ await post('/api/syndicates/wars/declare', {target_id: null, territory_id: t.id}); showToast('✅ Территория захвачена!'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>⚡ Занять</button>
                         )}
                     </div>
                 ))}
@@ -993,12 +1060,14 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
     catch(e) { showToast('❌ ' + e.message); }
   };
 
+  const [robberyResult, setRobberyResult] = useState(null);
+
   const doRobbery = async (targetId) => {
-    try { const r = await post('/api/robbery/resolve', { target_id: targetId }); showToast(`✅ ${r.msg || 'Ограбление успешно!'}`); onRefresh(); setRobberyData(null); }
+    try { const r = await post('/api/robbery/resolve', { target_id: targetId }); setRobberyResult(r.msg || 'Ограбление выполнено!'); setRobberyData(null); onRefresh(); }
     catch(e) { showToast('❌ ' + e.message); }
   };
 
-  const loadRobbery = async () => { try { setRobberyData(await get('/api/robbery/targets')); } catch(e) { showToast('❌ ' + e.message); } };
+  const loadRobbery = async () => { setRobberyResult(null); try { setRobberyData(await get('/api/robbery/targets')); } catch(e) { showToast('❌ ' + e.message); } };
 
   const doArenaFight = async () => {
     try { const r = await post('/api/arena/fight'); showToast(`⚔️ ${r.msg || 'Бой завершен!'}`); onRefresh(); get('/api/arena/status').then(setArenaData).catch(()=>{}); }
@@ -1080,6 +1149,13 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
                 <button className="btn btn-primary" onClick={loadRobbery}>🎲 Найти жертву</button>
               )}
             </div>
+            {robberyResult && (
+              <div className="card text-center" style={{margin:0, background:'linear-gradient(135deg, #0a1a0a, #0a1a0a)', borderColor:'var(--green)'}}>
+                <div className="fw8 text-green" style={{fontSize:18}}>✅ Результат</div>
+                <div className="f13 mt8">{robberyResult}</div>
+                <button className="btn btn-ghost mt12" onClick={()=>setRobberyResult(null)}>Закрыть</button>
+              </div>
+            )}
             {robberyData && robberyData.targets && robberyData.targets.length > 0 && (
               <div className="gap8">
                 <div className="section-title">Выберите цель:</div>
@@ -1268,27 +1344,47 @@ function ShopInventoryScreen({ user, onRefresh, showToast, onBack }) {
             <>
               <div className="section-title">Расходники и VIP</div>
               {shopData.items.map(i => (
-                <div className="card row-sb" key={i.id} style={{margin:0}}>
-                  <div>
-                    <div className="fw7">{i.name}</div>
-                    <div className="f11 text-muted mt4">{i.desc}</div>
+                <div className="card" key={i.id} style={{margin:0}}>
+                  <div className="row-sb">
+                    <div>
+                      <div className="fw7">{i.name}</div>
+                      <div className="f11 text-muted mt4">{i.desc}</div>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" style={{color: i.price_rc ? 'var(--text)' : 'var(--gold)', borderColor: i.price_rc ? 'var(--border2)' : 'var(--gold)'}} onClick={()=>buyItem(i.id)}>
+                      {i.price_rc ? `${i.price_rc} RC` : `${i.price_stars} ⭐️`}
+                    </button>
                   </div>
-                  <button className="btn btn-primary btn-sm" onClick={()=>buyItem(i.id)}>
-                    {i.price_rc ? `${i.price_rc} RC` : `${i.price_stars} ⭐️`}
-                  </button>
+                  {/* Превью эффекта */}
+                  <div className="mt8 px12 py6" style={{background:'var(--surface2)', borderRadius:10, border:'1px solid var(--border2)'}}>
+                    <div className="f11 text-muted mb4">Пример:</div>
+                    {i.id === 'shield' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--gold)', background:'var(--gold-dim)', borderColor:'rgba(232,197,71,0.3)'}}>🛡 Щит активен</span><span className="f11 text-muted">Вас не смогут купить</span></div>}
+                    {i.id === 'stealth' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--text)', background:'var(--surface2)', borderColor:'var(--border2)'}}>👻 Стелс</span><span className="f11 text-muted">Вы скрыты из поиска</span></div>}
+                    {i.id === 'booster' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--green)', background:'var(--green-dim)', borderColor:'rgba(34,197,94,0.3)'}}>🚀 Буст ×2</span><span className="f11 text-muted">Двойной доход с работ</span></div>}
+                    {i.id === 'chains' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--red)', background:'var(--red-dim)', borderColor:'rgba(239,68,68,0.3)'}}>⛓ Оковы</span><span className="f11 text-muted">Раб не может сбежать</span></div>}
+                    {i.id === 'vip' && <div className="row gap8 f12"><span style={{color:'var(--gold)', fontWeight:700}}>👑 VIP</span><span className="f11 text-muted">+бонусы, эксклюзивные функции</span></div>}
+                    {!['shield','stealth','booster','chains','vip'].includes(i.id) && <div className="f11 text-muted">Активируется в инвентаре</div>}
+                  </div>
                 </div>
               ))}
               <div className="section-title mt20">Косметика (Навсегда)</div>
               {shopData.cosmetics.map(c => (
-                <div className="card row-sb" key={c.id} style={{margin:0}}>
-                  <div>
-                    <div className="fw7">{c.name}</div>
-                    <div className="f11 text-muted mt4">Тип: {c.type}</div>
+                <div className="card" key={c.id} style={{margin:0}}>
+                  <div className="row-sb">
+                    <div>
+                      <div className="fw7">{c.name}</div>
+                      <div className="f11 text-muted mt4">Тип: {c.type}</div>
+                    </div>
+                    {c.owned ? <span className="f12 fw7 text-green">Куплено</span> : 
+                    <button className="btn btn-ghost btn-sm" style={{color: 'var(--gold)', borderColor: 'var(--gold)'}} onClick={()=>buyItem('cosmetic', true, c.id)}>
+                      {c.price_stars} ⭐️
+                    </button>}
                   </div>
-                  {c.owned ? <span className="f12 fw7 text-green">Куплено</span> : 
-                  <button className="btn btn-ghost btn-sm" style={{color: 'var(--gold)', borderColor: 'var(--gold)'}} onClick={()=>buyItem('cosmetic', true, c.id)}>
-                    {c.price_stars} ⭐️
-                  </button>}
+                  <div className="mt8 px12 py6 row-sb" style={{background:'var(--surface2)', borderRadius:10, border:'1px solid var(--border2)'}}>
+                    <div className="f11 text-muted">Пример:</div>
+                    {c.type === 'color' && <span className="fw7 f13" style={{color: c.value === 'gold' ? 'var(--gold)' : c.value === 'ruby' ? '#ef4444' : c.value === 'neon' ? '#39ff14' : c.value === 'blue' ? 'var(--blue)' : c.value === 'purple' ? '#a855f7' : 'var(--text)'}}>Иван Иванов</span>}
+                    {c.type === 'frame' && <div className={`avatar-wrap ${c.value === 'rainbow' ? 'frame-rainbow' : c.value === 'gold' ? 'frame-gold' : c.value === 'fire' ? 'frame-fire' : c.value === 'diamond' ? 'frame-diamond' : ''}`} style={{width:32, height:32, borderRadius:'50%', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16}}>👤</div>}
+                    {c.type === 'emoji' && <span className="f20">{c.value}</span>}
+                  </div>
                 </div>
               ))}
             </>
