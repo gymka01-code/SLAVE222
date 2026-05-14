@@ -16,12 +16,12 @@ html, body, #root { height:100%; width:100%; overflow:hidden; background: var(--
 input, textarea, select { font-size: 16px !important; }
 .app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; background: var(--bg); overflow: hidden; position: relative; }
 .screen { flex:1; overflow:hidden; display:flex; flex-direction:column; background: var(--bg); z-index: 1; width: 100%; }
-.content { flex:1; overflow-y:auto; padding-bottom: max(16px, env(safe-area-inset-bottom)); scrollbar-width: none; }
+.content { flex:1; overflow-y:auto; padding-bottom: calc(80px + env(safe-area-inset-bottom)); scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 .hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
 .hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
 .hdr-sub { font-size: 10px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
-.bottom-nav { flex-shrink: 0; height: calc(65px + env(safe-area-inset-bottom)); background: rgba(10,10,10,1); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); width: 100%; z-index: 1000; position: relative; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); }
+.bottom-nav { flex-shrink: 0; height: calc(65px + env(safe-area-inset-bottom)); background: rgba(10,10,10,1); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); width: 100%; z-index: 10; position: absolute; bottom: 0; }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--text-3); font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; background: transparent; cursor: pointer; transition: 0.2s; letter-spacing: 0.05em; position: relative; }
 .nav-item.active { color: var(--gold); }
 .nav-item-ico { font-size: 22px; margin-bottom: 2px; transition: 0.2s; }
@@ -125,6 +125,20 @@ input, textarea, select { font-size: 16px !important; }
 .task-progress-bar { background: var(--gold); height: 100%; border-radius: 4px; transition: width 0.3s ease; box-shadow: 0 0 10px rgba(232,197,71,0.5); }
 .task-progress-text { font-size: 11px; font-weight: 600; color: var(--text-3); text-align: right; margin-top: 4px; }
 .admin-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; text-align: center;}
+/* Missing utility classes */
+.mx16 { margin-left:16px; margin-right:16px; }
+.ml4 { margin-left:4px; } .ml8 { margin-left:8px; } .ml12 { margin-left:12px; }
+.mr8 { margin-right:8px; }
+.mb4 { margin-bottom:4px; } .mb8 { margin-bottom:8px; } .mb12 { margin-bottom:12px; }
+.p12 { padding:12px; } .p16 { padding:16px; } .px12 { padding-left:12px; padding-right:12px; } .px16 { padding-left:16px; padding-right:16px; } .px20 { padding-left:20px; padding-right:20px; } .py4 { padding-top:4px; padding-bottom:4px; } .py6 { padding-top:6px; padding-bottom:6px; } .py8 { padding-top:8px; padding-bottom:8px; } .p0 { padding:0; } .m0 { margin:0; } .mt20 { margin-top:20px; } .mt40 { margin-top:40px; }
+.p20 { padding:20px; } .gap4 { display:flex; flex-direction:column; gap:4px; }
+.max-h-\[200px\] { max-height:200px; } .max-h-\[300px\] { max-height:300px; } .overflow-y-auto { overflow-y:auto; }
+.text-amber { color:#f59e0b; } .text-blue { color:var(--blue); }
+.bg-surface2 { background:var(--surface2); } .bg-bg { background:var(--bg); } .bg-bg2 { background:var(--bg2); }
+.border-b { border-bottom:1px solid var(--border); } .border-border2 { border-color:var(--border2); }
+.rounded-full { border-radius:9999px; } .rounded-lg { border-radius:12px; }
+.px8 { padding-left:8px; padding-right:8px; } .py4 { padding-top:4px; padding-bottom:4px; }
+.gap4 { gap:4px; }
 </style>
 </head>
 <body>
@@ -236,6 +250,7 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
   const [state, setState] = useState({ status: 'waiting', mult: 1.00, timeLeft: 10, history: [], bets: {}, startTime: 0 });
   const [betAmount, setBetAmount] = useState(''); const [autoCashout, setAutoCashout] = useState(''); 
   const wsRef = useRef(null); const reqRef = useRef(null); const multRef = useRef(1.00);
+  const multElRef = useRef(null); const runnerElRef = useRef(null); const pathElRef = useRef(null); const areaElRef = useRef(null);
 
   const animate = useCallback(() => {
     if (state.status === 'running' && state.startTime > 0) {
@@ -243,10 +258,10 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
       if (elapsed > 0) {
         const currentMult = Math.max(1.0, Math.exp(0.08 * elapsed));
         multRef.current = currentMult;
-        const multEl = document.getElementById('esc-mult'); if (multEl) multEl.innerText = `x${currentMult.toFixed(2)}`;
-        const runnerEl = document.getElementById('esc-runner');
+        const multEl = multElRef.current; if (multEl) multEl.innerText = `x${currentMult.toFixed(2)}`;
+        const runnerEl = runnerElRef.current;
         if (runnerEl) { const x = Math.min(90, (currentMult - 1) * 15); const y = Math.min(80, Math.pow(currentMult - 1, 1.2) * 5); runnerEl.style.left = `${x}%`; runnerEl.style.bottom = `${20 + y}%`; }
-        const pathEl = document.getElementById('esc-path'); const areaEl = document.getElementById('esc-area');
+        const pathEl = pathElRef.current; const areaEl = areaElRef.current;
         if (pathEl && areaEl) { const w = areaEl.clientWidth; const h = areaEl.clientHeight; const px = Math.min(w * 0.9, (currentMult - 1) * 0.15 * w); const py = h - 20 - Math.min(h * 0.8, Math.pow(currentMult - 1, 1.2) * 0.05 * h); pathEl.setAttribute('d', `M 0 ${h-20} Q ${px*0.5} ${h-20} ${px} ${py}`); }
       }
     }
@@ -256,19 +271,33 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
   useEffect(() => { reqRef.current = requestAnimationFrame(animate); return () => cancelAnimationFrame(reqRef.current); }, [animate]);
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/api/escape/ws?init_data=${encodeURIComponent(_initData)}`);
-    ws.onmessage = (e) => {
-      try {
-        const d = JSON.parse(e.data);
-        if (d.type === 'state') { setState(p => ({...p, status: d.status, timeLeft: d.time_left, history: d.history, bets: d.bets, startTime: d.start_time * 1000 || 0})); if (d.status !== 'running') { const multEl = document.getElementById('esc-mult'); if (multEl) multEl.innerText = d.status === 'crashed' ? `ПОЙМАН!` : `x1.00`; const pathEl = document.getElementById('esc-path'); if (pathEl) pathEl.setAttribute('d', ''); } }
-        else if (d.type === 'start') { setState(p => ({...p, status: 'running', startTime: d.start_time * 1000})); }
-        else if (d.type === 'tick') { setState(p => ({...p, bets: d.bets})); }
-        else if (d.type === 'crash') { setState(p => ({...p, status: 'crashed', history: d.history, bets: d.bets})); const multEl = document.getElementById('esc-mult'); if (multEl) multEl.innerText = `x${d.mult.toFixed(2)}`; multRef.current = d.mult; }
-        else if (d.type === 'bets_update') { setState(p => ({...p, bets: d.bets})); }
-      } catch(err) {}
-    };
-    wsRef.current = ws; return () => ws.close();
+    let retryCount = 0;
+    let ws;
+    let retryTimer;
+
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}/api/escape/ws?init_data=${encodeURIComponent(_initData)}`);
+      ws.onmessage = (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.type === 'state') { setState(p => ({...p, status: d.status, timeLeft: d.time_left, history: d.history, bets: d.bets, startTime: d.start_time * 1000 || 0})); if (d.status !== 'running') { multRef.current = 1.0; } }
+          else if (d.type === 'start') { setState(p => ({...p, status: 'running', startTime: d.start_time * 1000})); }
+          else if (d.type === 'tick') { setState(p => ({...p, bets: d.bets})); }
+          else if (d.type === 'crash') { setState(p => ({...p, status: 'crashed', history: d.history, bets: d.bets})); multRef.current = d.mult; }
+          else if (d.type === 'bets_update') { setState(p => ({...p, bets: d.bets})); }
+        } catch(err) {}
+      };
+      ws.onclose = () => {
+        retryCount++;
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+        retryTimer = setTimeout(connect, delay);
+      };
+      ws.onerror = () => ws.close();
+    }
+    connect();
+    wsRef.current = { close: () => { clearTimeout(retryTimer); if(ws) ws.close(); } };
+    return () => { clearTimeout(retryTimer); if(ws) ws.close(); };
   }, []);
 
   const doEscBet = async () => { 
@@ -283,11 +312,11 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
   return (
     <div style={{padding: 16}}>
       <div style={{display:'flex', gap:8, overflowX:'auto', padding:'4px 0', marginBottom:16, scrollbarWidth:'none'}}>{state.history.map((h, i) => <div key={i} style={{padding:'4px 10px', borderRadius:8, fontSize:12, fontWeight:700, background: h>=2.0?'var(--green-dim)':'var(--surface2)', color:h>=2.0?'var(--green)':'var(--text-2)', border:`1px solid ${h>=2.0?'rgba(34,197,94,0.3)':'var(--border2)'}`, flexShrink:0}}>x{h.toFixed(2)}</div>)}{state.history.length === 0 && <div className="text-muted f12">Нет истории...</div>}</div>
-      <div id="esc-area" className="escape-graph-area">
+      <div id="esc-area" className="escape-graph-area" ref={areaElRef}>
         {state.status === 'waiting' && <div className="f13 text-muted" style={{position:'absolute', top:20}}>Следующий побег через {state.timeLeft.toFixed(1)}с</div>}
-        <svg className="escape-line" xmlns="http://www.w3.org/2000/svg"><path id="esc-path" d="" fill="none" stroke="var(--gold)" strokeWidth="4" strokeLinecap="round" style={{filter: 'drop-shadow(0 0 8px var(--gold))'}} /></svg>
-        <div id="esc-mult" className={`escape-mult ${state.status === 'crashed' ? 'crashed' : ''}`}>x1.00</div>
-        {(state.status === 'running' || state.status === 'waiting') && (<div id="esc-runner" className="escape-runner" style={{left: '0%', bottom: '20%'}}>🏃‍♂️</div>)}
+        <svg className="escape-line" xmlns="http://www.w3.org/2000/svg"><path ref={pathElRef} id="esc-path" d="" fill="none" stroke="var(--gold)" strokeWidth="4" strokeLinecap="round" style={{filter: 'drop-shadow(0 0 8px var(--gold))'}} /></svg>
+        <div ref={multElRef} id="esc-mult" className={`escape-mult ${state.status === 'crashed' ? 'crashed' : ''}`}>{state.status === 'crashed' ? `ПОЙМАН!` : state.status === 'waiting' ? 'x1.00' : null}</div>
+        {(state.status === 'running' || state.status === 'waiting') && (<div ref={runnerElRef} id="esc-runner" className="escape-runner" style={{left: '0%', bottom: '20%'}}>🏃‍♂️</div>)}
         <div className="escape-ground"></div>
       </div>
       <div className="card" style={{margin:0, padding:16, boxShadow:'0 10px 30px rgba(0,0,0,0.3)'}}>
@@ -945,20 +974,55 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
 function GamesScreen({ user, tasksData, onRefresh, showToast }) {
   const [tab, setTab] = useState('tasks');
   const [localEnergy, setLocalEnergy] = useState(parseFloat(user.energy) || 0); const [unsyncedClicks, setUnsyncedClicks] = useState(0); const [floats, setFloats] = useState([]);
+  const [promoCode, setPromoCode] = useState('');
+  const [robberyData, setRobberyData] = useState(null);
+  const [arenaData, setArenaData] = useState(null);
   
   useEffect(() => { if (tab !== 'mine') return; const regenPerSec = user.max_energy / 7200; const int = setInterval(() => setLocalEnergy(e => Math.min(user.max_energy, e + regenPerSec)), 1000); return () => clearInterval(int); }, [tab, user.max_energy]);
   useEffect(() => { if (tab !== 'mine') return; const sync = async () => { if (unsyncedClicks > 0) { const clicks = unsyncedClicks; setUnsyncedClicks(0); try { await post('/api/mine/sync', { clicks }); onRefresh(); } catch(e) {} } }; const int = setInterval(sync, 3000); return () => { sync(); clearInterval(int); }; }, [unsyncedClicks, tab]);
+  useEffect(() => { if (tab === 'arena') get('/api/arena/status').then(setArenaData).catch(()=>{}); }, [tab]);
   
   const handleMineTap = (e) => { if (Math.floor(localEnergy) <= 0) return; setLocalEnergy(e => e - 1); setUnsyncedClicks(c => c + 1); const rect = e.currentTarget.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top; const id = Date.now() + Math.random(); setFloats(p => [...p, { id, x, y }]); setTimeout(() => setFloats(p => p.filter(f => f.id !== id)), 800); };
   const buyUpgrade = async (type) => { try { await post('/api/mine/upgrade', { type }); showToast('✅ Улучшено!'); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } };
 
   const displayBalance = user.balance + (unsyncedClicks * (user.click_power * 0.5));
 
+  const doPromo = async () => {
+    if (!promoCode.trim()) return;
+    try { const r = await post('/api/promo', { code: promoCode.trim().toUpperCase() }); showToast(`🎁 ${r.msg || 'Промокод активирован!'}`); setPromoCode(''); onRefresh(); }
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
+  const doRobbery = async (targetId) => {
+    try { const r = await post('/api/robbery/resolve', { target_id: targetId }); showToast(`✅ ${r.msg || 'Ограбление успешно!'}`); onRefresh(); setRobberyData(null); }
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
+  const loadRobbery = async () => { try { setRobberyData(await get('/api/robbery/targets')); } catch(e) { showToast('❌ ' + e.message); } };
+
+  const doArenaFight = async () => {
+    try { const r = await post('/api/arena/fight'); showToast(`⚔️ ${r.msg || 'Бой завершен!'}`); onRefresh(); get('/api/arena/status').then(setArenaData).catch(()=>{}); }
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
+  const doSelfbuy = async () => {
+    if (!confirm('Выкупить себя у хозяина? Это стоит ' + user.price.toFixed(0) + ' RC.')) return;
+    try { const r = await post('/api/selfbuy'); showToast(`✅ ${r.msg || 'Вы выкупили себя!'}`); onRefresh(); }
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
   return (
     <div className="screen">
       <div className="hdr"><div className="hdr-title">🎮 Активности</div></div>
       <div className="content p0">
-        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='tasks'?' active':''}`} onClick={() => setTab('tasks')}>📋 Задания</button><button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Шахта</button><button className={`tab${tab==='escape'?' active':''}`} onClick={() => setTab('escape')}>🏃 Побег</button></div></div>
+        <div className="tabs-wrap"><div className="tabs">
+          <button className={`tab${tab==='tasks'?' active':''}`} onClick={() => setTab('tasks')}>📋 Задания</button>
+          <button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Шахта</button>
+          <button className={`tab${tab==='arena'?' active':''}`} onClick={() => setTab('arena')}>⚔️ Арена</button>
+          <button className={`tab${tab==='robbery'?' active':''}`} onClick={() => { setTab('robbery'); if(!robberyData) loadRobbery(); }}>🔫 Грабёж</button>
+          <button className={`tab${tab==='escape'?' active':''}`} onClick={() => setTab('escape')}>🏃 Побег</button>
+          <button className={`tab${tab==='more'?' active':''}`} onClick={() => setTab('more')}>⋯ Ещё</button>
+        </div></div>
         
         {tab === 'tasks' && <TasksComp tasksData={tasksData} onRefresh={onRefresh} showToast={showToast} />}
 
@@ -972,8 +1036,113 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
             <div className="card row-sb" style={{margin:0}}><div><div className="fw7">Запас энергии ({user.max_energy})</div><div className="f12 text-muted mt4">+100 макс. энергии</div></div><button className="btn btn-primary btn-sm" onClick={() => buyUpgrade('energy')}>1500 RC</button></div>
           </div>
         )}
+
+        {tab === 'arena' && (
+          <div className="p16 gap12">
+            <div className="card" style={{margin:0, background:'linear-gradient(135deg, #1a0a0a, #0a0a1a)', borderColor:'var(--red)'}}>
+              <div className="fw8 text-red" style={{fontSize:20}}>⚔️ Арена Боёв</div>
+              <div className="f12 text-muted mt8 mb16">Сражайтесь с другими рабами. Победа приносит RC и опыт. Доступно несколько боёв в день.</div>
+              {arenaData ? (
+                <>
+                  <div className="row-sb mb12">
+                    <span className="f13 fw7 text-muted">Боёв сегодня:</span>
+                    <span className="fw8 text-gold">{arenaData.fights_today || 0} / {arenaData.max_fights || 5}</span>
+                  </div>
+                  <div className="row-sb mb16">
+                    <span className="f13 fw7 text-muted">Побед:</span>
+                    <span className="fw8 text-green">{arenaData.wins || 0}</span>
+                  </div>
+                  {arenaData.fights_today >= (arenaData.max_fights || 5) ? (
+                    <button className="btn btn-ghost" disabled>⏳ Лимит на сегодня исчерпан</button>
+                  ) : (
+                    <button className="btn btn-danger" style={{height:56, fontSize:18}} onClick={doArenaFight}>⚔️ СРАЖАТЬСЯ!</button>
+                  )}
+                </>
+              ) : (
+                <div className="spinner mt20"/>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'robbery' && (
+          <div className="p16 gap12">
+            <div className="card" style={{margin:0, background:'linear-gradient(135deg, #0a1a0a, #1a0a0a)', borderColor:'var(--gold)'}}>
+              <div className="fw8 text-gold" style={{fontSize:20}}>🔫 Ограбление</div>
+              <div className="f12 text-muted mt8 mb16">Ограбьте другого игрока и украдите часть его RC! Доступно 3 раза в день. Риск — взаимный.</div>
+              <div className="row-sb mb16">
+                <span className="f13 fw7 text-muted">Ограблений сегодня:</span>
+                <span className="fw8 text-gold">{user.robberies_count || 0} / 3</span>
+              </div>
+              {user.robberies_count >= 3 ? (
+                <button className="btn btn-ghost" disabled>⏳ Лимит на сегодня исчерпан</button>
+              ) : (
+                <button className="btn btn-primary" onClick={loadRobbery}>🎲 Найти жертву</button>
+              )}
+            </div>
+            {robberyData && robberyData.targets && robberyData.targets.length > 0 && (
+              <div className="gap8">
+                <div className="section-title">Выберите цель:</div>
+                {robberyData.targets.map(t => (
+                  <div className="player-card" key={t.id}>
+                    <Avatar user={t} size={44}/>
+                    <div className="pc-meta">
+                      <div className="pc-name"><PlayerName user={t}/></div>
+                      <div className="pc-sub">Баланс: {parseFloat(t.balance||0).toFixed(0)} RC</div>
+                    </div>
+                    <button className="btn btn-danger btn-sm" onClick={() => doRobbery(t.id)}>Ограбить</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {robberyData && (!robberyData.targets || robberyData.targets.length === 0) && (
+              <div className="text-center text-muted p20">Нет подходящих целей. Попробуйте позже.</div>
+            )}
+          </div>
+        )}
         
         {tab === 'escape' && <EscapeGameComp user={user} onRefresh={onRefresh} showToast={showToast} />}
+
+        {tab === 'more' && (
+          <div className="p16 gap12">
+            {/* Самовыкуп */}
+            {user.owner && (
+              <div className="card" style={{margin:0, borderColor:'var(--green)', background:'rgba(34,197,94,0.08)'}}>
+                <div className="fw8 text-green" style={{fontSize:18}}>🕊️ Самовыкуп</div>
+                <div className="f12 text-muted mt8 mb16">Вы можете выкупить себя из рабства, заплатив свою текущую цену.</div>
+                <div className="row-sb mb16">
+                  <span className="f13 fw7 text-muted">Стоимость выкупа:</span>
+                  <span className="fw8 text-gold">{user.price.toFixed(0)} RC</span>
+                </div>
+                <div className="row-sb mb16">
+                  <span className="f13 fw7 text-muted">Ваш баланс:</span>
+                  <span className={`fw8 ${user.balance >= user.price ? 'text-green' : 'text-red'}`}>{user.balance.toFixed(0)} RC</span>
+                </div>
+                {user.balance < user.price ? (
+                  <button className="btn btn-ghost" disabled>❌ Недостаточно RC ({(user.price - user.balance).toFixed(0)} не хватает)</button>
+                ) : (
+                  <button className="btn btn-green" style={{height:52}} onClick={doSelfbuy}>🕊️ Выкупить себя за {user.price.toFixed(0)} RC</button>
+                )}
+              </div>
+            )}
+            {!user.owner && (
+              <div className="card" style={{margin:0, borderColor:'var(--border)'}}>
+                <div className="fw8" style={{fontSize:16}}>🕊️ Самовыкуп</div>
+                <div className="f12 text-muted mt8">Вы уже свободны! Самовыкуп недоступен.</div>
+              </div>
+            )}
+
+            {/* Промокоды */}
+            <div className="card" style={{margin:0, borderColor:'var(--gold)', background:'linear-gradient(135deg, #111, #1a1a1a)'}}>
+              <div className="fw8 text-gold" style={{fontSize:18}}>🎟️ Промокод</div>
+              <div className="f12 text-muted mt8 mb16">Введите промокод, чтобы получить бонус RC или особый предмет.</div>
+              <div className="row">
+                <input className="input" placeholder="Введите промокод..." value={promoCode} onChange={e=>setPromoCode(e.target.value.toUpperCase())} onKeyDown={e=>e.key==='Enter'&&doPromo()}/>
+                <button className="btn btn-primary btn-sm" style={{width:'auto', padding:'12px 20px'}} onClick={doPromo}>Применить</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1365,10 +1534,16 @@ function App() {
 
   useEffect(() => {
     if(!user) return;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/api/ws/global?init_data=${encodeURIComponent(_initData)}`);
-    ws.onmessage = (e) => { try { const d = JSON.parse(e.data); if (d.action === 'refresh') refreshUser(); } catch(err) {} };
-    return () => ws.close();
+    let ws, retryTimer, retryCount = 0;
+    function connectGlobal() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}/api/ws/global?init_data=${encodeURIComponent(_initData)}`);
+      ws.onmessage = (e) => { try { const d = JSON.parse(e.data); if (d.action === 'refresh') refreshUser(); } catch(err) {} };
+      ws.onclose = () => { retryCount++; retryTimer = setTimeout(connectGlobal, Math.min(1000 * Math.pow(2, retryCount), 30000)); };
+      ws.onerror = () => ws.close();
+    }
+    connectGlobal();
+    return () => { clearTimeout(retryTimer); if(ws) ws.close(); };
   }, [user?.id]);
 
   if (!user || !tasksData) return <div className="app"><div className="spinner mt40"/></div>;
@@ -1377,92 +1552,86 @@ function App() {
   
   async function loadAdminTab(t) { if(t==='dash') { get('/api/admin/dashboard').then(setDash).catch(()=>{}); } if(t==='users') { get('/api/admin/users').then(setUsers).catch(()=>{}); } if(t==='tickets') { get('/api/admin/tickets').then(setTickets).catch(()=>{}); } if(t==='stories') { get('/api/admin/stories').then(setStories).catch(()=>{}); } if(t==='sponsors') { get('/api/admin/sponsors').then(setSponsors).catch(()=>{}); } if(t==='admins') { get('/api/admin/admins_list').then(setAdminsData).catch(()=>{}); } }
 
-  // Эта функция будет переключать вкладку и разом закрывать все открытые окна
-  const switchTab = (tab) => {
-    setMainTab(tab);
-    setSubTab(null);
-    setViewingUid(null);
-    setDirectChatUid(null);
-  };
-  
   return (
     <div className="app">
       <ToastContainer toasts={toasts}/>
-      
       {user.riot_active && (<div className="riot-banner" onClick={async ()=>{ try{ await post('/api/riot/suppress'); showToast('✅ Бунт подавлен'); refreshUser(); }catch(e){showToast('❌ '+e.message);} }}><span>🚨 РАБЫ БУНТУЮТ!</span><span style={{fontSize: 12, background:'rgba(0,0,0,0.3)', padding:'4px 8px', borderRadius:8}}>ПОДАВИТЬ ›</span></div>)}
 
       {showOnboarding && (
           <div className="overlay" style={{zIndex: 999999}} onClick={() => {}}>
               <div className="modal" style={{textAlign: 'center', background: 'var(--bg1)', border: '2px solid var(--gold)'}}>
                   <div className="fw8 text-gold mb12" style={{fontSize: 28}}>⛓ Добро пожаловать!</div>
-                  <div className="f13 text-muted mb16" style={{lineHeight: 1.6}}>Покупай других игроков, отправляй их на работу и собирай прибыль. Стань самым богатым рабовладельцем!</div>
-                  <button className="btn btn-primary" style={{height: 56, fontSize: 18, width: '100%'}} onClick={async () => { setShowOnboarding(false); try{await post('/api/onboarded');}catch(e){} }}>Начать игру 🚀</button>
+                  <div className="f13 text-muted mb16" style={{lineHeight: 1.6}}>
+                      Покупай других игроков, отправляй их на работу и собирай прибыль. Стань самым богатым рабовладельцем!
+                  </div>
+                  <div className="gap12 mb20 text-left">
+                      <div className="card row gap12" style={{margin:0, borderColor: 'var(--gold-dim)'}}>
+                          <div style={{fontSize: 30}}>🛒</div><div><div className="fw7">1. Купи раба</div><div className="f11 text-muted">Вкладка "Рынок"</div></div>
+                      </div>
+                      <div className="card row gap12" style={{margin:0, borderColor: 'var(--gold-dim)'}}>
+                          <div style={{fontSize: 30}}>💼</div><div><div className="fw7">2. Отправь работать</div><div className="f11 text-muted">Нажми ⚙️ на рабе в профиле</div></div>
+                      </div>
+                      <div className="card row gap12" style={{margin:0, borderColor: 'var(--gold-dim)'}}>
+                          <div style={{fontSize: 30}}>💰</div><div><div className="fw7">3. Собери прибыль</div><div className="f11 text-muted">Доход придет автоматически!</div></div>
+                      </div>
+                  </div>
+                  <button className="btn btn-primary" style={{height: 56, fontSize: 18}} onClick={async () => { setShowOnboarding(false); try{await post('/api/onboarded');}catch(e){} }}>Начать игру 🚀</button>
               </div>
           </div>
       )}
 
-      {/* РАБОЧАЯ ОБЛАСТЬ (ВСЕГДА НАД ПАНЕЛЬЮ) */}
-      <div style={{flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative'}}>
-        
-        {/* Главные вкладки */}
-        {!subTab && !directChatUid && !viewingUid && (
-          <>
-            {mainTab==='profile'    && <ProfileScreen user={user} tasksData={tasksData} onRefresh={refreshUser} onViewProfile={setViewingUid} onNavSub={setSubTab} showToast={showToast}/>}
-            {mainTab==='market'     && <MarketScreen user={user} onBuy={refreshUser} onViewProfile={setViewingUid} showToast={showToast}/>}
-            {mainTab==='games'      && <GamesScreen user={user} tasksData={tasksData} onRefresh={refreshUser} showToast={showToast}/>}
-            {mainTab==='syndicates' && <SyndicatesScreen user={user} onRefresh={refreshUser} showToast={showToast} onViewProfile={setViewingUid}/>}
-            {mainTab==='top'        && <TopScreen onViewProfile={setViewingUid} showToast={showToast} user={user}/>}
-          </>
-        )}
+      {!subTab && !directChatUid && !viewingUid && (
+        <>
+          {mainTab==='profile'    && <ProfileScreen user={user} tasksData={tasksData} onRefresh={refreshUser} onViewProfile={setViewingUid} onNavSub={setSubTab} showToast={showToast}/>}
+          {mainTab==='market'     && <MarketScreen user={user} onBuy={refreshUser} onViewProfile={setViewingUid} showToast={showToast}/>}
+          {mainTab==='games'      && <GamesScreen user={user} tasksData={tasksData} onRefresh={refreshUser} showToast={showToast}/>}
+          {mainTab==='syndicates' && <SyndicatesScreen user={user} onRefresh={refreshUser} showToast={showToast} onViewProfile={setViewingUid}/>}
+          {mainTab==='top'        && <TopScreen onViewProfile={setViewingUid} showToast={showToast} user={user}/>}
 
-        {/* Второстепенные экраны (открываются поверх главных вкладок, но не перекрывают нижнее меню) */}
-        {viewingUid && <UserProfileScreen uid={viewingUid} currentUserId={user.id} onBack={()=>setViewingUid(null)} showToast={showToast} onViewProfile={setViewingUid} currentUser={user}/>}
-        {subTab==='shop' && !directChatUid && <ShopInventoryScreen user={user} onRefresh={refreshUser} showToast={showToast} onBack={() => setSubTab(null)}/>}
-        {subTab==='settings' && !directChatUid && <SettingsScreen user={user} onRefresh={refreshUser} showToast={showToast} onBack={() => setSubTab(null)} onNavSub={setSubTab}/>}
-        {subTab==='support' && !directChatUid && <SupportScreen user={user} onBack={() => setSubTab(user.is_banned ? null : 'settings')} showToast={showToast}/>}
-        {subTab==='messages' && !directChatUid && <MessagesScreen user={user} onViewProfile={setViewingUid} onOpenChat={window.openDirectChat} onBack={() => setSubTab(null)} showToast={showToast}/>}
-        {subTab==='history' && !directChatUid && <HistoryScreen user={user} onBack={() => setSubTab(null)} />}
-        {directChatUid && <DirectChatScreen targetUid={directChatUid} targetName={directChatName} currentUid={user.id} onBack={() => setDirectChatUid(null)} />}
+          <div className="bottom-nav">
+            <button className={`nav-item ${mainTab==='profile' ? 'active' : ''}`} onClick={() => setMainTab('profile')}><span className="nav-item-ico">👤</span><span>Профиль</span></button>
+            <button className={`nav-item ${mainTab==='market' ? 'active' : ''}`} onClick={() => setMainTab('market')}><span className="nav-item-ico">🛒</span><span>Рынок</span></button>
+            <button className={`nav-item ${mainTab==='games' ? 'active' : ''}`} onClick={() => setMainTab('games')}><span className="nav-item-ico">🎮</span><span>Игры</span></button>
+            <button className={`nav-item ${mainTab==='syndicates' ? 'active' : ''}`} onClick={() => setMainTab('syndicates')}><span className="nav-item-ico">🛡</span><span>Кланы</span></button>
+            <button className={`nav-item ${mainTab==='top' ? 'active' : ''}`} onClick={() => setMainTab('top')}><span className="nav-item-ico">🏆</span><span>ТОП</span></button>
+          </div>
+        </>
+      )}
 
-        {/* Кнопка Админки */}
-        {user.is_admin && mainTab === 'profile' && !subTab && !directChatUid && !viewingUid && (
-          <div style={{position: 'absolute', top: 60, right: 16, zIndex: 100}}><button className="btn btn-danger btn-sm" onClick={() => { setSubTab('admin'); loadAdminTab('dash'); }}>Админ Панель</button></div>
-        )}
+      {viewingUid && <UserProfileScreen uid={viewingUid} currentUserId={user.id} onBack={()=>setViewingUid(null)} showToast={showToast} onViewProfile={setViewingUid} currentUser={user}/>}
+      {subTab==='shop' && !directChatUid && <ShopInventoryScreen user={user} onRefresh={refreshUser} showToast={showToast} onBack={() => setSubTab(null)}/>}
+      {subTab==='settings' && !directChatUid && <SettingsScreen user={user} onRefresh={refreshUser} showToast={showToast} onBack={() => setSubTab(null)} onNavSub={setSubTab}/>}
+      {subTab==='support' && !directChatUid && <SupportScreen user={user} onBack={() => setSubTab(user.is_banned ? null : 'settings')} showToast={showToast}/>}
+      {subTab==='messages' && !directChatUid && <MessagesScreen user={user} onViewProfile={setViewingUid} onOpenChat={window.openDirectChat} onBack={() => setSubTab(null)} showToast={showToast}/>}
+      {subTab==='history' && !directChatUid && <HistoryScreen user={user} onBack={() => setSubTab(null)} />}
+      {directChatUid && <DirectChatScreen targetUid={directChatUid} targetName={directChatName} currentUid={user.id} onBack={() => setDirectChatUid(null)} />}
 
-        {/* Админ-панель */}
-        {subTab==='admin' && user.is_admin && !openConv && (
-          <div className="screen" style={{background: 'var(--bg)', zIndex: 1000}}>
-            <div className="hdr"><button className="back-btn" onClick={() => setSubTab(null)}>‹ Назад</button><div className="hdr-title">Админ Панель</div><div style={{width:60}}></div></div>
-            <div className="content">
-              <div className="tabs-wrap" style={{marginBottom:16}}><select className="input" style={{border:'none', borderRadius:16, fontWeight:700, fontSize:15, padding:'16px', background:'var(--bg3)', boxShadow:'0 4px 15px rgba(0,0,0,0.3)'}} value={adminTab} onChange={e=>{setAdminTab(e.target.value); loadAdminTab(e.target.value);}}><option value="dash">📊 Дашборд</option><option value="users">👥 Юзеры</option><option value="tickets">💬 Тикеты</option><option value="stories">📸 Заявки Stories</option><option value="sponsors">📢 Спонсоры</option><option value="system">⚙️ Система</option>{user.is_super_admin && <option value="admins">👑 Супер Админ</option>}</select></div>
-              <div style={{padding:'0 16px'}}>
-                {adminTab==='dash' && dash && (<div className="gap8"><div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>{[['👥','Игроков', dash.total_users],['🆕','За сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Тикеты', dash.tickets],['📸','Сторис', dash.stories_pending]].map(([ico,lbl,val]) => <div className="admin-stat" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}</div><button className="btn btn-ghost mt12" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button></div>)}
-                {adminTab==='users' && (<div className="gap12"><div className="card gap12" style={{borderColor:'var(--gold)'}}><div className="fw8 text-gold" style={{fontSize:16}}>🎨 Выдать косметику</div><input className="input" placeholder="ID / @username" value={cIdent} onChange={e=>setCIdent(e.target.value)}/><select className="input" value={cField} onChange={e=>{setCField(e.target.value); setCVal('');}}><option value="name_color">Цвет ника</option><option value="avatar_frame">Рамка аватара</option><option value="emoji_status">Эмодзи</option></select>{cField==='name_color' && <div className="row" style={{flexWrap:'wrap'}}>{[['default','Стандарт'],['ruby','Рубин'],['gold','Золото'],['neon','Неон'],['blue','Синий'],['purple','Фиолет']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='avatar_frame' && <div className="row" style={{flexWrap:'wrap'}}>{[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='emoji_status' && <div className="row" style={{flexWrap:'wrap'}}>{['','💎','👑','🔥','⚡','🌟','💀','🏆','🌸'].map((e,i)=><button key={i} className="btn btn-ghost btn-sm" style={{borderColor:cVal===e?'var(--gold)':''}} onClick={()=>setCVal(e)}>{e||'✕'}</button>)}</div>}<button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button></div><div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div><div className="gap8">{users.map(u => <div className="card row-sb" key={u.id} style={{margin:0}}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id} | UID: {u.uid}</div></div><button className="btn btn-ghost btn-sm" onClick={() => setAdminEditingUser(u)}>✏️</button></div>)}</div></div>)}
-                {adminTab==='tickets' && (<div className="gap8">{tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}{tickets.map(t => (<div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}><div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div><div className="fw7 text-muted" style={{fontSize:20}}>›</div></div>))}</div>)}
-                {adminTab==='stories' && (<div className="gap8">{stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}{stories.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div><div className="row"><button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Отклонить заявку?'))return; try{ await post(`/api/admin/stories/reject?claim_id=${s.id}`,''); showToast('🗑 Отклонено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>❌</button></div></div>))}</div>)}
-                {adminTab==='sponsors' && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Спонсора</div><div className="f12 text-muted mb8">Бот должен быть админом в канале!</div><input className="input" placeholder="ID Канала (-100123...)" id="spId"/><input className="input" placeholder="Название (Для кнопки)" id="spTitle"/><input className="input" placeholder="Ссылка (https://t.me/...)" id="spUrl"/><input className="input" type="number" placeholder="Награда RC" id="spRc" defaultValue="250"/><button className="btn btn-primary mt8" onClick={async ()=>{ const id=document.getElementById('spId').value, t=document.getElementById('spTitle').value, u=document.getElementById('spUrl').value, r=document.getElementById('spRc').value; if(!id||!t||!u||!r) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:id,channel_title:t,channel_url:u,reward_rc:parseFloat(r),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Добавить</button></div>{sponsors.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">{s.is_main ? '👑 Генеральный' : '📢 Обычный'}</div><div className="fw8 mt4" style={{fontSize:15}}>{s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div><div className="gap6"><button className="btn btn-ghost btn-sm" style={{borderColor: s.is_main ? 'var(--gold)' : 'var(--border2)'}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/toggle_main',{sponsor_id:s.id}); showToast('✅ Статус изменен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>{s.is_main ? 'Сделать обычным' : 'Сделать генеральным'}</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Удалить спонсора?'))return; try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑 Удалить</button></div></div>))}</div>)}
-                {adminTab==='admins' && adminsData && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Админа</div><input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button></div><div className="gap8">{adminsData.db_admins.map(a => (<div className="card row-sb" key={a.user_id} style={{margin:0}}><div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button></div>))}</div></div>)}
-                {adminTab==='system' && (<div className="gap16"><div className="card gap8"><div className="fw8 text-amber" style={{fontSize:16}}>🛠 Технические работы</div><div className="f13 text-muted">Закрывает доступ всем игрокам кроме админов.</div><div className="row mt8"><button className={`btn ${sysMaint ? 'btn-danger' : 'btn-ghost'}`} onClick={async ()=>{ try{ await post('/api/admin/maintenance', { state:true }); setSysMaint(true); showToast('ВКЛЮЧЕНЫ'); }catch(e){} }}>ВКЛЮЧИТЬ</button><button className={`btn ${!sysMaint ? 'btn-green' : 'btn-ghost'}`} onClick={async ()=>{ try{ await post('/api/admin/maintenance', { state:false }); setSysMaint(false); showToast('ВЫКЛЮЧЕНЫ'); }catch(e){} }}>ВЫКЛЮЧИТЬ</button></div></div><div className="card gap8"><div className="fw8" style={{fontSize:16}}>📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Новый сезон</div><div className="f13 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются.</div><input className="input" type="password" id="s_pass" placeholder="Пароль"/><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:document.getElementById('s_pass').value}); showToast('🔥 Сезон начат'); }catch(e){showToast('❌ '+e.message);} }}>Начать сезон</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Полный Wipe</div><div className="f13 text-muted">Полное удаление базы данных. (Только для Супер-Админа)</div><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('УДАЛИТЬ ВСЮ БАЗУ ДАННЫХ? Безвозвратно.'))return; try{ await post('/api/admin/db/clear'); showToast('💀 Очищено'); }catch(e){showToast('❌ '+e.message);} }}>Очистить базу</button></div></div>)}
-              </div>
+      {/* ADMIN PANEL FULL */}
+      {user.is_admin && mainTab === 'profile' && !subTab && !directChatUid && !viewingUid && (<div style={{position: 'absolute', top: 60, right: 16, zIndex: 100}}><button className="btn btn-danger btn-sm" onClick={() => { setSubTab('admin'); loadAdminTab('dash'); }}>Админ Панель</button></div>)}
+      {subTab==='admin' && user.is_admin && !openConv && (
+        <div className="screen" style={{background: 'var(--bg)', zIndex: 1000}}>
+          <div className="hdr"><button className="back-btn" onClick={() => setSubTab(null)}>‹ Назад</button><div className="hdr-title">Админ Панель</div><div style={{width:60}}></div></div>
+          <div className="content">
+            <div className="tabs-wrap" style={{marginBottom:16}}><select className="input" style={{border:'none', borderRadius:16, fontWeight:700, fontSize:15, padding:'16px', background:'var(--bg3)', boxShadow:'0 4px 15px rgba(0,0,0,0.3)'}} value={adminTab} onChange={e=>{setAdminTab(e.target.value); loadAdminTab(e.target.value);}}><option value="dash">📊 Дашборд</option><option value="users">👥 Юзеры</option><option value="tickets">💬 Тикеты</option><option value="stories">📸 Заявки Stories</option><option value="sponsors">📢 Спонсоры</option><option value="system">⚙️ Система</option>{user.is_super_admin && <option value="admins">👑 Супер Админ</option>}</select></div>
+            <div style={{padding:'0 16px'}}>
+              {adminTab==='dash' && dash && (<div className="gap8"><div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>{[['👥','Игроков', dash.total_users],['🆕','За сегодня', dash.new_today],['💰','RC в игре', parseFloat(dash.total_rc||0).toFixed(0)],['💬','Тикеты', dash.tickets],['📸','Сторис', dash.stories_pending]].map(([ico,lbl,val]) => <div className="admin-stat" key={lbl}><div style={{fontSize:28, marginBottom:8}}>{ico}</div><div className="fw8" style={{fontSize:24}}>{val}</div><div className="f12 text-muted mt4">{lbl}</div></div>)}</div><button className="btn btn-ghost mt12" onClick={()=>loadAdminTab('dash')}>🔄 Обновить данные</button></div>)}
+              {adminTab==='users' && (<div className="gap12"><div className="card gap12" style={{borderColor:'var(--gold)'}}><div className="fw8 text-gold" style={{fontSize:16}}>🎨 Выдать косметику</div><input className="input" placeholder="ID / @username" value={cIdent} onChange={e=>setCIdent(e.target.value)}/><select className="input" value={cField} onChange={e=>{setCField(e.target.value); setCVal('');}}><option value="name_color">Цвет ника</option><option value="avatar_frame">Рамка аватара</option><option value="emoji_status">Эмодзи</option></select>{cField==='name_color' && <div className="row" style={{flexWrap:'wrap'}}>{[['default','Стандарт'],['ruby','Рубин'],['gold','Золото'],['neon','Неон'],['blue','Синий'],['purple','Фиолет']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='avatar_frame' && <div className="row" style={{flexWrap:'wrap'}}>{[['none','Нет'],['gold','Золотая'],['fire','Огонь 🔥'],['diamond','Алмаз 💎'],['rainbow','Радуга 🌈']].map(([v,l])=><button key={v} className="btn btn-ghost btn-sm" style={{borderColor:cVal===v?'var(--gold)':''}} onClick={()=>setCVal(v)}>{l}</button>)}</div>}{cField==='emoji_status' && <div className="row" style={{flexWrap:'wrap'}}>{['','💎','👑','🔥','⚡','🌟','💀','🏆','🌸'].map((e,i)=><button key={i} className="btn btn-ghost btn-sm" style={{borderColor:cVal===e?'var(--gold)':''}} onClick={()=>setCVal(e)}>{e||'✕'}</button>)}</div>}<button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/users/cosmetic',{identifier:cIdent, field:cField, value:cVal}); showToast('✅ Выдано'); setCIdent(''); }catch(e){showToast('❌ '+e.message);} }}>🎁 Выдать</button></div><div className="row mt8"><input className="input" placeholder="Поиск юзера..." value={searchQ} onChange={e=>setSearchQ(e.target.value)} onKeyDown={e=>e.key==='Enter' && get('/api/admin/users?q='+searchQ).then(setUsers)}/><button className="btn btn-primary btn-sm" style={{height:48, width:48}} onClick={()=>get('/api/admin/users?q='+searchQ).then(setUsers)}>🔍</button></div><div className="gap8">{users.map(u => <div className="card row-sb" key={u.id} style={{margin:0}}><div><div className="fw7">{u.first_name}</div><div className="f12 text-muted">ID: {u.id} | UID: {u.uid}</div></div><button className="btn btn-ghost btn-sm" onClick={() => setAdminEditingUser(u)}>✏️</button></div>)}</div></div>)}
+              {adminTab==='tickets' && (<div className="gap8">{tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}{tickets.map(t => (<div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}><div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div><div className="fw7 text-muted" style={{fontSize:20}}>›</div></div>))}</div>)}
+              {adminTab==='stories' && (<div className="gap8">{stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}{stories.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div><div className="row"><button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Отклонить заявку?'))return; try{ await post(`/api/admin/stories/reject?claim_id=${s.id}`,''); showToast('🗑 Отклонено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>❌</button></div></div>))}</div>)}
+              {adminTab==='sponsors' && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Спонсора</div><div className="f12 text-muted mb8">Бот должен быть админом в канале!</div><input className="input" placeholder="ID Канала (-100123...)" id="spId"/><input className="input" placeholder="Название (Для кнопки)" id="spTitle"/><input className="input" placeholder="Ссылка (https://t.me/...)" id="spUrl"/><input className="input" type="number" placeholder="Награда RC" id="spRc" defaultValue="250"/><button className="btn btn-primary mt8" onClick={async ()=>{ const id=document.getElementById('spId').value, t=document.getElementById('spTitle').value, u=document.getElementById('spUrl').value, r=document.getElementById('spRc').value; if(!id||!t||!u||!r) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:id,channel_title:t,channel_url:u,reward_rc:parseFloat(r),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Добавить</button></div>{sponsors.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">{s.is_main ? '👑 Генеральный' : '📢 Обычный'}</div><div className="fw8 mt4" style={{fontSize:15}}>{s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div><div className="gap6"><button className="btn btn-ghost btn-sm" style={{borderColor: s.is_main ? 'var(--gold)' : 'var(--border2)'}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/toggle_main',{sponsor_id:s.id}); showToast('✅ Статус изменен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>{s.is_main ? 'Сделать обычным' : 'Сделать генеральным'}</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Удалить спонсора?'))return; try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑 Удалить</button></div></div>))}</div>)}
+              {adminTab==='admins' && adminsData && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Админа</div><input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button></div><div className="gap8">{adminsData.db_admins.map(a => (<div className="card row-sb" key={a.user_id} style={{margin:0}}><div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button></div>))}</div></div>)}
+              {adminTab==='system' && (<div className="gap16"><div className="card gap8"><div className="fw8 text-amber" style={{fontSize:16}}>🛠 Технические работы</div><div className="f13 text-muted">Закрывает доступ всем игрокам кроме админов.</div><div className="row mt8"><button className={`btn ${sysMaint ? 'btn-danger' : 'btn-ghost'}`} onClick={async ()=>{ try{ await post('/api/admin/maintenance', { state:true }); setSysMaint(true); showToast('ВКЛЮЧЕНЫ'); }catch(e){} }}>ВКЛЮЧИТЬ</button><button className={`btn ${!sysMaint ? 'btn-green' : 'btn-ghost'}`} onClick={async ()=>{ try{ await post('/api/admin/maintenance', { state:false }); setSysMaint(false); showToast('ВЫКЛЮЧЕНЫ'); }catch(e){} }}>ВЫКЛЮЧИТЬ</button></div></div><div className="card gap8"><div className="fw8" style={{fontSize:16}}>📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Новый сезон</div><div className="f13 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются.</div><input className="input" type="password" id="s_pass" placeholder="Пароль"/><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:document.getElementById('s_pass').value}); showToast('🔥 Сезон начат'); }catch(e){showToast('❌ '+e.message);} }}>Начать сезон</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Полный Wipe</div><div className="f13 text-muted">Полное удаление базы данных. (Только для Супер-Админа)</div><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('УДАЛИТЬ ВСЮ БАЗУ ДАННЫХ? Безвозвратно.'))return; try{ await post('/api/admin/db/clear'); showToast('💀 Очищено'); }catch(e){showToast('❌ '+e.message);} }}>Очистить базу</button></div></div>)}
             </div>
           </div>
-        )}
-        {subTab==='admin' && openConv && <AdminChatScreen conv={openConv} onBack={()=>{setOpenConv(null); get('/api/admin/tickets').then(setTickets).catch(()=>{}); }} showToast={showToast}/>}
-        
-      </div> 
-      {/* КОНЕЦ РАБОЧЕЙ ОБЛАСТИ */}
-
-      {/* НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (ВСЕГДА ВИДНА) */}
-      <div className="bottom-nav">
-        <button className={`nav-item ${mainTab==='profile' ? 'active' : ''}`} onClick={() => switchTab('profile')}><span className="nav-item-ico">👤</span><span>Профиль</span></button>
-        <button className={`nav-item ${mainTab==='market' ? 'active' : ''}`} onClick={() => switchTab('market')}><span className="nav-item-ico">🛒</span><span>Рынок</span></button>
-        <button className={`nav-item ${mainTab==='games' ? 'active' : ''}`} onClick={() => switchTab('games')}><span className="nav-item-ico">🎮</span><span>Игры</span></button>
-        <button className={`nav-item ${mainTab==='syndicates' ? 'active' : ''}`} onClick={() => switchTab('syndicates')}><span className="nav-item-ico">🛡</span><span>Кланы</span></button>
-        <button className={`nav-item ${mainTab==='top' ? 'active' : ''}`} onClick={() => switchTab('top')}><span className="nav-item-ico">🏆</span><span>ТОП</span></button>
-      </div>
-
+        </div>
+      )}
+      {adminEditingUser && (
+        <div className="overlay" onClick={() => setAdminEditingUser(null)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-handle"/><div className="modal-title">⚙️ Редактирование: {adminEditingUser.first_name}</div><div className="gap12"><div><div className="f12 text-muted mb4">Баланс RC</div><input className="input" type="number" defaultValue={adminEditingUser.balance} id="adm_bal"/></div><div><div className="f12 text-muted mb4">Цена (RC)</div><input className="input" type="number" defaultValue={adminEditingUser.current_price} id="adm_price"/></div><div><div className="f12 text-muted mb4">VIP Уровень (0-3)</div><input className="input" type="number" defaultValue={adminEditingUser.vip_level} id="adm_vip"/></div><div><div className="f12 text-muted mb4">Слоты рабов (-1 = по умолчанию)</div><input className="input" type="number" defaultValue={adminEditingUser.max_slaves_override !== null ? adminEditingUser.max_slaves_override : -1} id="adm_slots"/></div><div className="row mt8"><button className="btn btn-primary" onClick={async () => { const b = parseFloat(document.getElementById('adm_bal').value); const p = parseFloat(document.getElementById('adm_price').value); const v = parseInt(document.getElementById('adm_vip').value); const s = parseInt(document.getElementById('adm_slots').value); try { await post('/api/admin/users/edit', { user_id: adminEditingUser.id, balance: isNaN(b) ? null : b, price: isNaN(p) ? null : p, vip_level: isNaN(v) ? null : v, max_slaves_override: isNaN(s) || s < 0 ? -1 : s }); showToast('✅ Сохранено'); setAdminEditingUser(null); loadAdminTab('users'); } catch(e) { showToast('❌ ' + e.message); } }}>Сохранить</button><button className={`btn ${adminEditingUser.is_banned ? 'btn-green' : 'btn-danger'}`} onClick={async () => { try { await post('/api/admin/users/edit', { user_id: adminEditingUser.id, is_banned: !adminEditingUser.is_banned }); setAdminEditingUser(null); loadAdminTab('users'); } catch(e) { showToast('❌ ' + e.message); } }}>{adminEditingUser.is_banned ? 'Разбанить' : 'Выдать БАН'}</button></div></div></div></div>
+      )}
+      {subTab==='admin' && openConv && <AdminChatScreen conv={openConv} onBack={()=>{setOpenConv(null); get('/api/admin/tickets').then(setTickets).catch(()=>{}); }} showToast={showToast}/>}
     </div>
   );
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
