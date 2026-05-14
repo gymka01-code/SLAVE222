@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS syndicates (id SERIAL PRIMARY KEY, name TEXT UNIQUE, 
 CREATE TABLE IF NOT EXISTS syndicate_messages (id SERIAL PRIMARY KEY, syndicate_id INT, user_id BIGINT, text TEXT, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS syndicate_requests (id SERIAL PRIMARY KEY, user_id BIGINT, syndicate_id INT, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS syndicate_wars (id SERIAL PRIMARY KEY, attacker_id INT, defender_id INT, status TEXT DEFAULT 'pending', fund_attacker DECIMAL DEFAULT 0, fund_defender DECIMAL DEFAULT 0, expires_at TIMESTAMP, winner_id INT);
-CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, uid INT UNIQUE DEFAULT nextval('user_uid_seq'), username TEXT, first_name TEXT, photo_url TEXT, balance DECIMAL DEFAULT 50, current_price DECIMAL DEFAULT 100, owner_id BIGINT, custom_name TEXT, job_id INT, job_assigned_at TIMESTAMP, shield_until TIMESTAMP, chains_until TIMESTAMP, booster_mult DECIMAL DEFAULT 1.0, booster_until TIMESTAMP, stealth_until TIMESTAMP, name_color TEXT DEFAULT 'default', avatar_frame TEXT DEFAULT 'none', emoji_status TEXT DEFAULT '', vip_level INT DEFAULT 0, vip_until TIMESTAMP, is_banned BOOLEAN DEFAULT FALSE, is_admin_flag BOOLEAN DEFAULT FALSE, admin_hidden BOOLEAN DEFAULT FALSE, purchase_protection_until TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), slaves_count INT DEFAULT 0, ban_reason TEXT DEFAULT NULL, login_streak INT DEFAULT 0, last_login_date TEXT, referrer_id BIGINT, energy DECIMAL DEFAULT 300, max_energy INT DEFAULT 300, click_power DECIMAL DEFAULT 1.0, last_energy_update TIMESTAMP DEFAULT NOW(), robberies_count INT DEFAULT 0, robbery_reset_at TIMESTAMP DEFAULT NOW(), riot_expires_at TIMESTAMP DEFAULT NULL, is_injured_until TIMESTAMP DEFAULT NULL, riots_today INT DEFAULT 0, last_riot_date TEXT, last_riot_time TIMESTAMP, last_tax_date TEXT DEFAULT '', syndicate_id INT DEFAULT NULL, syndicate_role TEXT DEFAULT NULL, max_slaves_override INT DEFAULT NULL, notify_prefs TEXT DEFAULT '{"all": true, "trade": true, "jobs": true, "messages": true, "support": true}', admin_god_mode BOOLEAN DEFAULT FALSE, last_vip_boost_claim TIMESTAMP);
+CREATE TABLE IF NOT EXISTS syndicate_donations (id SERIAL PRIMARY KEY, syndicate_id INT, user_id BIGINT, amount DECIMAL, created_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, uid INT UNIQUE DEFAULT nextval('user_uid_seq'), username TEXT, first_name TEXT, photo_url TEXT, balance DECIMAL DEFAULT 50, current_price DECIMAL DEFAULT 100, owner_id BIGINT, custom_name TEXT, job_id INT, job_assigned_at TIMESTAMP, shield_until TIMESTAMP, chains_until TIMESTAMP, booster_mult DECIMAL DEFAULT 1.0, booster_until TIMESTAMP, stealth_until TIMESTAMP, name_color TEXT DEFAULT 'default', avatar_frame TEXT DEFAULT 'none', emoji_status TEXT DEFAULT '', vip_level INT DEFAULT 0, vip_until TIMESTAMP, is_banned BOOLEAN DEFAULT FALSE, is_admin_flag BOOLEAN DEFAULT FALSE, admin_hidden BOOLEAN DEFAULT FALSE, purchase_protection_until TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), slaves_count INT DEFAULT 0, ban_reason TEXT DEFAULT NULL, login_streak INT DEFAULT 0, last_login_date TEXT, referrer_id BIGINT, energy DECIMAL DEFAULT 300, max_energy INT DEFAULT 300, click_power DECIMAL DEFAULT 1.0, last_energy_update TIMESTAMP DEFAULT NOW(), robberies_count INT DEFAULT 0, robbery_reset_at TIMESTAMP DEFAULT NOW(), riot_expires_at TIMESTAMP DEFAULT NULL, is_injured_until TIMESTAMP DEFAULT NULL, riots_today INT DEFAULT 0, last_riot_date TEXT, last_riot_time TIMESTAMP, last_tax_date TEXT DEFAULT '', syndicate_id INT DEFAULT NULL, syndicate_role TEXT DEFAULT NULL, max_slaves_override INT DEFAULT NULL, notify_prefs TEXT DEFAULT '{"all": true, "trade": true, "jobs": true, "messages": true, "support": true, "clan": true}', admin_god_mode BOOLEAN DEFAULT FALSE, last_vip_boost_claim TIMESTAMP);
 CREATE TABLE IF NOT EXISTS escape_rounds (id SERIAL PRIMARY KEY, crash_mult DECIMAL, status TEXT DEFAULT 'waiting', created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS escape_bets (id SERIAL PRIMARY KEY, round_id INT, user_id BIGINT, amount DECIMAL, cashout_mult DECIMAL DEFAULT NULL, win_amount DECIMAL DEFAULT 0, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS jobs (id SERIAL PRIMARY KEY, title TEXT UNIQUE, min_yield DECIMAL, max_yield DECIMAL, drop_chance INT, emoji TEXT);
@@ -181,7 +182,7 @@ async def push(uid: int, text: str, notif_type: str = "all", parse_mode: str = "
     if bot:
         try:
             prefs_str = await db.fetchval("SELECT notify_prefs FROM users WHERE id=$1", uid)
-            prefs = json.loads(prefs_str) if prefs_str else {"all": True, "trade": True, "jobs": True, "messages": True, "support": True}
+            prefs = json.loads(prefs_str) if prefs_str else {"all": True, "trade": True, "jobs": True, "messages": True, "support": True, "clan": True}
             if not prefs.get("all", True): return
             if notif_type != "all" and not prefs.get(notif_type, True): return
             if photo_path: await bot.send_photo(uid, photo=FSInputFile(photo_path), caption=text, parse_mode=parse_mode)
@@ -292,7 +293,7 @@ async def _full_profile(uid: int) -> dict:
         "is_banned": bool(u['is_banned']), "ban_reason": u.get('ban_reason'),
         "current_event": event, "energy": _calc_energy(u), "max_energy": u['max_energy'], "click_power": float(u['click_power']),
         "robberies_left": robberies_left, "riot_active": bool(u['riot_expires_at'] and u['riot_expires_at'] > now),
-        "notify_prefs": json.loads(u.get('notify_prefs') or '{"all":true,"trade":true,"jobs":true,"messages":true,"support":true}'),
+        "notify_prefs": json.loads(u.get('notify_prefs') or '{"all":true,"trade":true,"jobs":true,"messages":true,"support":true,"clan":true}'),
         "last_tax_date": u.get('last_tax_date', ''), "current_date_str": msk_time.strftime("%Y-%m-%d"),
         "syndicate_id": u['syndicate_id'], "syndicate_role": u['syndicate_role'], "syndicate_name": syndicate_name
     }
@@ -521,7 +522,7 @@ async def lifespan(app: FastAPI):
                     for m in await db.fetch("SELECT id FROM users WHERE syndicate_id=$1", winner_id):
                         await db.execute("INSERT INTO inventory (user_id, item_id, quantity) VALUES ($1, 'boost_20', 1) ON CONFLICT (user_id, item_id) DO UPDATE SET quantity = inventory.quantity + 1", m['id'])
                         asyncio.create_task(push(m['id'], f"🏆 <b>Победа в Войне!</b> Казна +{reward:.0f} RC. Вам выдан Буст x2.", notif_type="trade"))
-                    for m in await db.fetch("SELECT id FROM users WHERE syndicate_id=$1", loser_id): asyncio.create_task(push(m['id'], f"💀 <b>Поражение в Войне...</b> Все средства потеряны.", notif_type="trade"))
+                    for m in await db.fetch("SELECT id FROM users WHERE syndicate_id=$1", loser_id): asyncio.create_task(push(m['id'], f"💀 <b>Поражение в Войне...</b> Все средства потеряны.", notif_type="clan"))
             except Exception as e: pass
     asyncio.create_task(_system_cron()); asyncio.create_task(_escape_game_loop())
     yield
@@ -755,7 +756,7 @@ async def get_top(cat: str = "forbes"):
     elif cat == "clans": rows = await db.fetch("SELECT s.id, s.name as first_name, s.level as vip_level, (s.treasury + COALESCE((SELECT SUM(current_price) FROM users WHERE syndicate_id = s.id), 0) + (s.wars_won * 10000)) as value FROM syndicates s ORDER BY value DESC LIMIT 100")
     else: rows = await db.fetch(f"SELECT u.id, u.uid, u.username, u.first_name, u.current_price as value, u.vip_level, u.name_color, u.avatar_frame, u.emoji_status, u.photo_url, u.is_admin_flag FROM users u WHERE (u.stealth_until IS NULL OR u.stealth_until<$1) AND u.is_banned=FALSE {hf} ORDER BY u.current_price DESC LIMIT 100", now)
     result = [dict(r) for r in rows]
-    await rdb.setex(ck, 300, json.dumps(result, default=str))
+    await rdb.setex(ck, 60, json.dumps(result, default=str))
     return result
 
 @app.post("/api/mine/sync")
@@ -928,7 +929,15 @@ async def get_my_syndicate(user: dict = Depends(get_current_user)):
     now = datetime.utcnow()
     active_wars = await db.fetch("SELECT w.*, sa.name as attacker_name, sd.name as defender_name FROM syndicate_wars w JOIN syndicates sa ON sa.id=w.attacker_id JOIN syndicates sd ON sd.id=w.defender_id WHERE (w.attacker_id=$1 OR w.defender_id=$1) AND w.status='active'", s['id'])
     pending_wars = await db.fetch("SELECT w.*, sa.name as attacker_name, sd.name as defender_name FROM syndicate_wars w JOIN syndicates sa ON sa.id=w.attacker_id JOIN syndicates sd ON sd.id=w.defender_id WHERE (w.attacker_id=$1 OR w.defender_id=$1) AND w.status='pending'", s['id'])
-    return {"clan": dict(s), "members": [dict(m) for m in members], "requests": [dict(r) for r in requests], "wars": {"active": [{**dict(w), "expires_at": w['expires_at'].isoformat() + "Z"} for w in active_wars], "pending": [{**dict(w), "expires_at": w['expires_at'].isoformat() + "Z"} for w in pending_wars]}}
+    rank = await db.fetchval("SELECT rank FROM (SELECT id, RANK() OVER (ORDER BY (treasury + COALESCE((SELECT SUM(current_price) FROM users WHERE syndicate_id = syndicates.id), 0) + (wars_won * 10000)) DESC) as rank FROM syndicates) as ranks WHERE id=$1", s['id'])
+    return {"clan": dict(s), "rank": rank, "members": [dict(m) for m in members], "requests": [dict(r) for r in requests], "wars": {"active": [{**dict(w), "expires_at": w['expires_at'].isoformat() + "Z"} for w in active_wars], "pending": [{**dict(w), "expires_at": w['expires_at'].isoformat() + "Z"} for w in pending_wars]}}
+
+@app.get("/api/syndicates/treasury")
+async def get_clan_treasury(user: dict = Depends(get_current_user)):
+    if not user['syndicate_id']: raise HTTPException(403)
+    history = await db.fetch("SELECT sd.amount, sd.created_at, u.first_name, u.username FROM syndicate_donations sd JOIN users u ON u.id=sd.user_id WHERE sd.syndicate_id=$1 ORDER BY sd.created_at DESC LIMIT 50", user['syndicate_id'])
+    top = await db.fetch("SELECT SUM(sd.amount) as total, u.first_name, u.username FROM syndicate_donations sd JOIN users u ON u.id=sd.user_id WHERE sd.syndicate_id=$1 GROUP BY u.id, u.first_name, u.username ORDER BY total DESC LIMIT 10", user['syndicate_id'])
+    return {"history": [{**dict(r), "created_at": r['created_at'].isoformat() + "Z"} for r in history], "top": [dict(r) for r in top]}
 
 @app.post("/api/syndicates/create")
 async def create_syndicate(req: SyndicateCreateReq, user: dict = Depends(get_current_user)):
@@ -1016,6 +1025,7 @@ async def donate_syndicate(req: SyndicateDonateReq, user: dict = Depends(get_cur
     if not user['syndicate_id'] or req.amount <= 0: raise HTTPException(400)
     if await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2 AND balance >= $1::numeric", req.amount, user['id']) == "UPDATE 0": raise HTTPException(400, "Недостаточно средств.")
     await db.execute("UPDATE syndicates SET treasury=treasury+$1::numeric WHERE id=$2", req.amount, user['syndicate_id'])
+    await db.execute("INSERT INTO syndicate_donations (syndicate_id, user_id, amount) VALUES ($1, $2, $3)", user['syndicate_id'], user['id'], req.amount)
     await global_ws.send_to_user(user['id'], {"type": "action", "action": "refresh"})
     return {"ok": True}
 
@@ -1042,7 +1052,7 @@ async def declare_war(req: SyndicateWarDeclareReq, user: dict = Depends(get_curr
     await db.execute("INSERT INTO syndicate_wars (attacker_id, defender_id, status, expires_at) VALUES ($1, $2, 'pending', $3)", user['syndicate_id'], req.target_id, datetime.utcnow() + timedelta(hours=12))
     clan = await db.fetchval("SELECT name FROM syndicates WHERE id=$1", user['syndicate_id'])
     target_owner = await db.fetchval("SELECT owner_id FROM syndicates WHERE id=$1", req.target_id)
-    asyncio.create_task(push(target_owner, f"⚔️ <b>ВЫЗОВ НА ВОЙНУ!</b>\nКлан <b>{clan}</b> бросил вашему клану вызов. У вас есть 12 часов на принятие решения.", notif_type="trade"))
+    asyncio.create_task(push(target_owner, f"⚔️ <b>ВЫЗОВ НА ВОЙНУ!</b>\nКлан <b>{clan}</b> бросил вашему клану вызов. У вас есть 12 часов на принятие решения.", notif_type="clan"))
     return {"ok": True}
 
 @app.post("/api/syndicates/wars/resolve")
@@ -1457,7 +1467,7 @@ async def admin_broadcast(req: BroadcastReq, _: dict = Depends(get_admin_user)):
 async def season_start(req: SeasonReq, _: dict = Depends(get_admin_user)):
     if req.password != SEASON_PASS: raise HTTPException(403)
     await db.execute("UPDATE users SET balance=50,current_price=100,owner_id=NULL,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,shield_until=NULL,chains_until=NULL,booster_mult=1.0,booster_until=NULL,stealth_until=NULL,energy=300,max_energy=300,click_power=1.0,robberies_count=0,riot_expires_at=NULL,is_injured_until=NULL,last_tax_date='',syndicate_id=NULL,syndicate_role=NULL")
-    await db.execute("DELETE FROM syndicates"); await db.execute("DELETE FROM syndicate_wars"); await db.execute("DELETE FROM syndicate_requests")
+    await db.execute("DELETE FROM syndicates"); await db.execute("DELETE FROM syndicate_wars"); await db.execute("DELETE FROM syndicate_requests"); await db.execute("DELETE FROM syndicate_donations")
     await rdb.delete("top:forbes", "top:owners", "top:legends", "top:clans")
     return {"ok": True}
 
@@ -1465,7 +1475,7 @@ async def season_start(req: SeasonReq, _: dict = Depends(get_admin_user)):
 async def clear_database(_: dict = Depends(get_admin_user)):
     async with db.acquire() as conn:
         async with conn.transaction():
-            for t in ["pending_purchases", "promo_uses", "user_cosmetics", "user_sponsors", "stories_claims", "support_messages", "tickets", "transactions", "users", "escape_rounds", "escape_bets", "inventory", "syndicates", "syndicate_wars", "syndicate_requests", "blocked_users", "user_chats", "syndicate_messages"]:
+            for t in ["pending_purchases", "promo_uses", "user_cosmetics", "user_sponsors", "stories_claims", "support_messages", "tickets", "transactions", "users", "escape_rounds", "escape_bets", "inventory", "syndicate_donations", "syndicates", "syndicate_wars", "syndicate_requests", "blocked_users", "user_chats", "syndicate_messages"]:
                 try: await conn.execute(f"DELETE FROM {t}")
                 except: pass
     await rdb.delete("top:forbes", "top:owners", "top:legends", "top:clans")
