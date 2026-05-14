@@ -16,7 +16,7 @@ html, body, #root { height:100%; width:100%; overflow:hidden; background: var(--
 input, textarea, select { font-size: 16px !important; }
 .app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; position: relative; padding-bottom: calc(65px + env(safe-area-inset-bottom)); }
 .screen { flex:1; overflow:hidden; display:flex; flex-direction:column; height: 100%; position: absolute; inset:0; background: var(--bg); z-index: 1;}
-.content { flex:1; overflow-y:auto; padding:0 0 40px; scrollbar-width: none; }
+.content { flex:1; overflow-y:auto; padding-bottom: calc(95px + env(safe-area-inset-bottom)); scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 .hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
 .hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
@@ -73,6 +73,9 @@ input, textarea, select { font-size: 16px !important; }
 .li-sub { font-size: 12px; color: var(--text-3); }
 .li-price { font-size: 14px; font-weight: 800; color: var(--gold); flex-shrink: 0; }
 .player-card { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; cursor: pointer; transition: all .15s; margin-bottom: 8px;}
+.pc-meta { flex: 1; min-width: 0; padding-right: 8px; }
+.pc-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
 .protection-badge { font-size: 10px; font-weight: 600; color: var(--blue); background: var(--blue-dim); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100000; display: flex; align-items: flex-end; justify-content: center; backdrop-filter: blur(8px); }
 .modal { background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(24px, env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp .3s ease; }
@@ -148,21 +151,6 @@ let toastIdCount = 0;
 function ToastContainer({ toasts }) { return <div className="toast-container">{toasts.map(t => <div key={t.id} className="toast">{t.msg}</div>)}</div>; }
 function useToast(setToasts) { return useCallback((msg) => { const id = ++toastIdCount; setToasts(p => [...p, {id, msg}]); setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3000); }, [setToasts]); }
 
-function compressImage(file, callback) {
-  const reader = new FileReader(); reader.readAsDataURL(file);
-  reader.onload = event => {
-    const img = new Image(); img.src = event.target.result;
-    img.onload = () => {
-      const canvas = document.createElement('canvas'); const MAX_WIDTH = 800;
-      let width = img.width; let height = img.height;
-      if (width > MAX_WIDTH) { height = Math.round(height * (MAX_WIDTH / width)); width = MAX_WIDTH; }
-      canvas.width = width; canvas.height = height;
-      const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-      callback(canvas.toDataURL('image/jpeg', 0.7));
-    }
-  }
-}
-
 function Avatar({ user, size=44 }) {
   const [err, setErr] = useState(false);
   const initial = (user?.first_name || user?.name || user?.username || '?')[0].toUpperCase();
@@ -212,31 +200,6 @@ async function generateAndShareStory(user, showToast, onSetPending) {
     tg.shareToStory(r.url, { text: `💰 Моя цена в РАБСТВО: ${user.price.toFixed(0)} RC!\nПроверь у кого ты в рабстве 👇\n\n${refLink}`, widget_link: { url: refLink, name: "Играть" } });
     setTimeout(() => onSetPending(true), 2500);
   } catch(e) { showToast('❌ Ошибка генерации: ' + e.message); }
-}
-
-function RobberyGameModal({ targetId, onClose, onFinish }) {
-  const [timeLeft, setTimeLeft] = useState(10); const [score, setScore] = useState(0); const [items, setItems] = useState([]);
-  useEffect(() => {
-    const tId = setInterval(() => setTimeLeft(p => p - 1), 1000);
-    const iId = setInterval(() => {
-      const isBomb = Math.random() < 0.25;
-      const newItem = { id: Date.now() + Math.random(), type: isBomb ? 'bomb' : 'coin', x: Math.floor(Math.random() * 80) + 10, dur: isBomb ? 1.5 : (Math.random() * 1 + 1.5) };
-      setItems(p => [...p, newItem]); setTimeout(() => setItems(p => p.filter(i => i.id !== newItem.id)), newItem.dur * 1000);
-    }, 400);
-    return () => { clearInterval(tId); clearInterval(iId); };
-  }, []);
-  useEffect(() => { if (timeLeft === 0) { onFinish("success", score); setTimeLeft(-1); } }, [timeLeft, score, onFinish]);
-  const tap = (e, item) => { e.stopPropagation(); setItems(p => p.filter(i => i.id !== item.id)); if (item.type === 'bomb') { onFinish("caught", 0); } else { setScore(p => Math.min(5, p + 0.5)); } };
-  return (
-    <div className="overlay">
-      <div className="modal" style={{textAlign:'center'}}>
-        <div className="modal-title">🥷 Ограбление!</div>
-        <div className="f13 text-muted mb8">Каждый мешок = 0.5% казны (макс 5%). Не трогай полицию!</div>
-        <div className="row-sb mb8"><div className="fw8 text-gold">Собрано: {score.toFixed(1)}%</div><div className="fw8 text-red">⏳ {timeLeft}с</div></div>
-        <div className="robbery-area">{items.map(item => (<div key={item.id} className="robbery-item" style={{left: `${item.x}%`, animationDuration: `${item.dur}s`}} onPointerDown={(e) => tap(e, item)}>{item.type === 'coin' ? '💰' : '👮'}</div>))}</div>
-      </div>
-    </div>
-  );
 }
 
 function TaxBanner({ user, onRefresh, showToast }) {
@@ -345,18 +308,91 @@ function EscapeGameComp({ user, onRefresh, showToast }) {
 
 /* ===== SCREENS ===== */
 
+function UserProfileScreen({ uid, currentUserId, onBack, showToast, onViewProfile, currentUser }) {
+    const [data, setData] = useState(null);
+    const [buying, setBuying] = useState(false);
+
+    const load = () => get(`/api/profile/${uid}`).then(setData).catch(e => { showToast('❌ ' + e.message); onBack(); });
+    useEffect(() => { load(); }, [uid]);
+
+    if (!data) return <div className="screen" style={{zIndex: 300}}><div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button><div className="hdr-title">Профиль</div><div style={{width:60}}/></div><div className="spinner mt40"/></div>;
+
+    const doBuy = async () => {
+        setBuying(true);
+        try {
+            await post('/api/buy', { target_id: uid });
+            showToast('✅ Успешно куплен!');
+            load();
+        } catch(e) { showToast('❌ ' + e.message); }
+        setBuying(false);
+    };
+
+    return (
+        <div className="screen" style={{zIndex: 300}}>
+           <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button><div className="hdr-title">{data.first_name || 'Профиль'}</div><div style={{width:60}}/></div>
+           <div className="content">
+              <div className="hero mt16">
+                 <div className="hero-row">
+                    <div className="avatar-wrap"><Avatar user={data} size={68}/>{data.vip_level > 0 && <div className="vip-badge">{data.vip_level===3?'👑':data.vip_level===2?'🥈':'🥉'}</div>}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                       <div className="hero-name"><PlayerName user={data}/></div>
+                       <div className="f12 text-muted mt4">UID: {data.uid} {data.username ? `| @${data.username}` : ''}</div>
+                       <div className="f13 fw6 mt4">{data.owner ? <span className="text-red">⛓ Раб — <span style={{textDecoration:'underline'}} onClick={()=>onViewProfile(data.owner.id)}>{data.owner.first_name||'Владелец'}</span></span> : <span className="text-green">✅ Свободен</span>}</div>
+                    </div>
+                 </div>
+                 {data.syndicate_id && <div className="mt12 f12 text-muted fw6" style={{textAlign:'center', background:'var(--surface2)', padding:4, borderRadius:8}}>🛡 Клан: {data.syndicate_name}</div>}
+                 <div className="row mt16 pt16" style={{borderTop:'1px solid var(--border)'}}>
+                    <div style={{flex:1, textAlign:'center'}}><div className="fw8" style={{fontSize:18}}>{data.balance.toFixed(0)}</div><div className="f11 text-muted text-uppercase mt4">RC</div></div>
+                    <div style={{width:1, height:24, background:'var(--border2)'}} />
+                    <div style={{flex:1, textAlign:'center'}}><div className="fw8" style={{fontSize:18}}>{data.price.toFixed(0)}</div><div className="f11 text-muted text-uppercase mt4">Цена</div></div>
+                    <div style={{width:1, height:24, background:'var(--border2)'}} />
+                    <div style={{flex:1, textAlign:'center'}}><div className="fw8" style={{fontSize:18}}>{data.slaves_count}</div><div className="f11 text-muted text-uppercase mt4">Рабов</div></div>
+                 </div>
+              </div>
+
+              {data.owner?.id === currentUserId ? (
+                  <div className="mx16 mt16 text-center text-green fw7" style={{background:'var(--surface2)', padding: 12, borderRadius: 12, border: '1px solid rgba(34,197,94,0.3)'}}>✅ Это ваш раб</div>
+              ) : uid !== currentUserId ? (
+                  <div className="mx16 mt16 gap8">
+                      <button className="btn btn-primary" disabled={buying || currentUser.balance < data.price} onClick={doBuy}>{currentUser.balance < data.price ? `Недостаточно RC (${data.price.toFixed(0)})` : `Купить за ${data.price.toFixed(0)} RC`}</button>
+                      <button className="btn btn-ghost" onClick={() => window.openDirectChat(data.id, data.first_name)}>✉️ Написать в ЛС</button>
+                  </div>
+              ) : null}
+
+              {data.slaves.length > 0 && (
+                  <div className="section mt16"><div className="section-title">Рабы ({data.slaves_count}/{data.max_slaves})</div>
+                  <div className="card p0 m0">
+                     {data.slaves.map((s, idx) => (
+                         <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===data.slaves.length-1?'none':'1px solid var(--border)'}} onClick={()=>onViewProfile(s.id)}>
+                             <Avatar user={s} size={44}/>
+                             <div className="li-info"><div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name}</span> : s.first_name}</div><div className="row mt4"><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span></div></div>
+                         </div>
+                     ))}
+                  </div></div>
+              )}
+           </div>
+        </div>
+    );
+}
+
 function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, showToast }) {
   const [actionModal, setActionModal] = useState(null); 
   const [renameText, setRenameText] = useState('');
   const [storyPendingModal, setStoryPendingModal] = useState(false);
   const storiesCountdown = useCountdown(user.story_cooldown_until);
+  const [optimisticJobs, setOptimisticJobs] = useState({});
 
   const handleAction = async (action, slave) => {
     try {
-      if(action === 'work') { const r = await post('/api/slaves/send_to_work', { slave_id: slave.id }); showToast(`✅ ${r.job.emoji} ${r.job.title}`); } 
-      else if(action === 'heal') { if(!confirm('Вылечить раба за 500 RC?')) return; await post('/api/slaves/heal', { slave_id: slave.id }); showToast('✅ Здоров!'); } 
-      else if(action === 'release') { if(!confirm('Точно отпустить раба? Вы не получите RC.')) return; await post('/api/slaves/release', { slave_id: slave.id }); showToast('🕊️ Свободен!'); } 
-      else if(action === 'rename') { if(!renameText.trim()) return showToast('Введите кличку'); await post('/api/rename', { slave_id: slave.id, new_name: renameText.trim() }); showToast('✅ Сохранено'); }
+      if(action === 'work') { 
+          const r = await post('/api/slaves/send_to_work', { slave_id: slave.id }); 
+          showToast(`✅ ${r.job.emoji} ${r.job.title}`); 
+          setOptimisticJobs(p => ({...p, [slave.id]: { title: r.job.title, emoji: r.job.emoji, finish: Date.now() + 7200000 }}));
+          onRefresh();
+      } 
+      else if(action === 'heal') { if(!confirm('Вылечить раба за 500 RC?')) return; await post('/api/slaves/heal', { slave_id: slave.id }); showToast('✅ Здоров!'); onRefresh(); } 
+      else if(action === 'release') { if(!confirm('Точно отпустить раба? Вы не получите RC.')) return; await post('/api/slaves/release', { slave_id: slave.id }); showToast('🕊️ Свободен!'); onRefresh(); } 
+      else if(action === 'rename') { if(!renameText.trim()) return showToast('Введите кличку'); await post('/api/rename', { slave_id: slave.id, new_name: renameText.trim() }); showToast('✅ Сохранено'); onRefresh(); }
       setActionModal(null); setRenameText('');
     } catch(e) { showToast('❌ ' + e.message); }
   };
@@ -369,7 +405,6 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
       <div className="hdr">
         <div><div className="hdr-title">⛓ РАБСТВО</div><div className="hdr-sub">Социальная стратегия</div></div>
         <div className="row">
-          <button className="btn btn-ghost btn-sm" style={{padding:'8px 12px'}} onClick={() => onNavSub('shop')}>🎒</button>
           <button className="btn btn-ghost btn-sm" style={{padding:'8px 12px'}} onClick={() => onNavSub('messages')}>✉️</button>
           <button className="btn btn-ghost btn-sm" style={{padding:'8px 12px'}} onClick={() => onNavSub('settings')}>⚙️</button>
         </div>
@@ -398,6 +433,8 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
           {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (<div className="row mt12 pt12" style={{borderTop:'1px solid var(--border)', flexWrap:'wrap'}}>{user.shield_active && <span className="protection-badge" style={{color:'var(--gold)', background:'var(--gold-dim)', borderColor:'rgba(232,197,71,0.3)'}}>🛡 Щит</span>}{user.stealth_active && <span className="protection-badge" style={{color:'var(--text)', background:'var(--surface2)', borderColor:'var(--border2)'}}>👻 Стелс</span>}{user.booster_active && <span className="protection-badge" style={{color:'var(--green)', background:'var(--green-dim)', borderColor:'rgba(34,197,94,0.3)'}}>🚀 Буст ×{user.booster_mult}</span>}{user.chains_active && <span className="protection-badge" style={{color:'var(--red)', background:'var(--red-dim)', borderColor:'rgba(239,68,68,0.3)'}}>⛓ Оковы</span>}</div>)}
         </div>
 
+        <button className="btn mt16 mx16" style={{background: 'linear-gradient(135deg, #E8C547 0%, #F3D250 100%)', color: '#000', fontSize: 16, width: 'calc(100% - 32px)'}} onClick={() => onNavSub('shop')}>🛒 МАГАЗИН И СКЛАД</button>
+
         {user.vip_level > 0 && (
           <div className="section mt16"><div className="card row-sb" style={{margin:0, background:'linear-gradient(135deg, #1a1a1a, #000)', borderColor:'var(--gold)'}}><div><div className="fw7 text-gold">Ежедневный VIP Буст</div><div className="f11 text-muted mt4">{user.vip_level===1?'1.5x на 4 часа':user.vip_level===2?'2x на 4 часа':'2x на 4 часа + 1.25x пассивно'}</div></div><button className="btn btn-primary btn-sm" onClick={async ()=>{ try{ const r = await post('/api/vip/claim_boost'); showToast(`✅ ${r.msg}`); onRefresh(); }catch(e){showToast('❌ '+e.message);} }}>В инвентарь</button></div></div>
         )}
@@ -413,15 +450,20 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
         {user.slaves.length > 0 && (
           <div className="section"><div className="section-title">Рабы ({user.slaves_count}/{user.max_slaves})</div><div className="card" style={{padding:0, margin:0}}>
             {user.slaves.map((s, idx) => { 
-              const tl = s.job_finishes_at ? Math.max(0, Math.floor((new Date(s.job_finishes_at) - Date.now())/1000)) : 0;
+              const optJob = optimisticJobs[s.id];
               const ptl = s.purchase_protection_until ? Math.max(0, Math.floor((new Date(s.purchase_protection_until) - Date.now())/1000)) : 0;
+              
+              let jobEmoji = s.job_emoji; let jobTitle = s.job_title; let tl = s.job_finishes_at ? Math.max(0, Math.floor((new Date(s.job_finishes_at) - Date.now())/1000)) : 0;
+              if (optJob && optJob.finish > Date.now()) { jobEmoji = optJob.emoji; jobTitle = optJob.title; tl = Math.max(0, Math.floor((optJob.finish - Date.now())/1000)); }
+
               return (
                 <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===user.slaves.length-1?'none':'1px solid var(--border)'}}>
                   <div onClick={()=>onViewProfile(s.id)} style={{cursor:'pointer'}}><Avatar user={s} size={44}/></div>
                   <div className="li-info" onClick={()=>onViewProfile(s.id)} style={{cursor:'pointer'}}>
                     <div className="li-name">{s.custom_name ? <span className="text-gold">{s.custom_name} <span className="text-muted f11">({s.first_name||s.username})</span></span> : (s.first_name || s.username || `#${s.uid||s.id}`)}</div>
-                    <div className="li-sub mt4">{s.is_injured ? <span className="text-red fw6">🤕 Травма</span> : tl > 0 ? <span className="text-green fw6">{s.job_emoji} На работе ({fmtCountdown(tl)})</span> : <span>😴 Отдыхает</span>}</div>
+                    <div className="li-sub mt4">{s.is_injured ? <span className="text-red fw6">🤕 Травма</span> : tl > 0 ? <span className="text-green fw6">{jobEmoji} {jobTitle} ({fmtCountdown(tl)})</span> : <span>😴 Отдыхает</span>}</div>
                     <div className="row mt4"><span className="f12 fw7 text-muted">{s.price.toFixed(0)} RC</span>{ptl > 0 && <span className="protection-badge">🔒 {fmtCountdown(ptl)}</span>}</div>
+                    <div className="f11 text-gold mt4">Ожидаемый доход: {(s.price * (s.min_yield_perc/100)).toFixed(0)} - {(s.price * (s.max_yield_perc/100)).toFixed(0)} RC</div>
                   </div>
                   <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setActionModal({type:'slave', item:s}); }}>⚙️</button>
                 </div>
@@ -547,7 +589,7 @@ function ShopInventoryScreen({ user, onRefresh, showToast, onBack }) {
 }
 
 function SettingsScreen({ user, onRefresh, showToast, onBack, onNavSub }) {
-  const [prefs, setPrefs] = useState(user.notify_prefs || {all:true, trade:true, jobs:true, messages:true, support:true});
+  const [prefs, setPrefs] = useState(user.notify_prefs || {all:true, trade:true, jobs:true, messages:true, support:true, clan:true});
   async function toggle(key) {
     const np = { ...prefs, [key]: !prefs[key] }; setPrefs(np);
     try { await post('/api/settings/notifications', { prefs: np }); onRefresh(); } catch(e) { showToast('❌ ' + e.message); setPrefs(prefs); }
@@ -563,6 +605,7 @@ function SettingsScreen({ user, onRefresh, showToast, onBack, onNavSub }) {
             <div className="row-sb"><div><div className="fw6 f13">💰 Покупки и ограбления</div></div><div className={`toggle-switch ${prefs.trade ? 'on' : ''}`} onClick={() => toggle('trade')}/></div>
             <div className="row-sb"><div><div className="fw6 f13">💼 Работа и доход</div></div><div className={`toggle-switch ${prefs.jobs ? 'on' : ''}`} onClick={() => toggle('jobs')}/></div>
             <div className="row-sb"><div><div className="fw6 f13">✉️ Личные сообщения</div></div><div className={`toggle-switch ${prefs.messages ? 'on' : ''}`} onClick={() => toggle('messages')}/></div>
+            <div className="row-sb"><div><div className="fw6 f13">🛡 Клан (сообщения и войны)</div></div><div className={`toggle-switch ${prefs.clan ? 'on' : ''}`} onClick={() => toggle('clan')}/></div>
           </div>
         </div>
         <div className="text-center mt16"><div className="f13 text-muted mb4">Ваш игровой UID:</div><div className="fw8 text-gold" style={{fontSize: 24}}>{user.uid}</div></div>
@@ -645,6 +688,8 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
   const [tab, setTab] = useState('list'); const [clans, setClans] = useState([]); const [myClan, setMyClan] = useState(null); const [loading, setLoading] = useState(false);
   const [actionModal, setActionModal] = useState(null); const [chatMsgs, setChatMsgs] = useState([]); const [chatTxt, setChatTxt] = useState('');
   
+  const [showTreasury, setShowTreasury] = useState(false); const [treasuryData, setTreasuryData] = useState({ history: [], top: [] }); const [treasuryTab, setTreasuryTab] = useState('history');
+
   useEffect(() => { loadAll(); }, [user.syndicate_id]);
   async function loadAll() {
       setLoading(true);
@@ -697,6 +742,9 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
 
   if (!myClan) return <div className="screen"><div className="spinner mt40"/></div>;
 
+  const upgradeCosts = {1: 100000, 2: 500000, 3: 1000000};
+  const currentUpgradeCost = upgradeCosts[myClan.clan.level];
+
   return (
     <div className="screen">
       <div className="hdr">
@@ -710,11 +758,20 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
           <div className="card gap8" style={{margin:0, borderColor:'var(--gold)'}}>
              <div className="f12 text-muted text-center text-uppercase">Общак Клана</div>
              <div className="fw8 text-gold text-center" style={{fontSize:28}}>{parseFloat(myClan.clan.treasury).toFixed(0)} RC</div>
+             {myClan.rank && <div className="f12 text-gold text-center fw8 mt4">🏆 Место в топе: #{myClan.rank}</div>}
              <div className="row mt8">
                <input className="input" id="don_amt" type="number" placeholder="Сумма..."/>
                <button className="btn btn-primary" style={{width:'auto'}} onClick={()=>doDonate(document.getElementById('don_amt').value)}>Вкинуть</button>
              </div>
-             <div className="row"><button className="btn btn-ghost btn-sm" onClick={()=>doDonate(1000)}>+1k</button><button className="btn btn-ghost btn-sm" onClick={()=>doDonate(10000)}>+10k</button><button className="btn btn-ghost btn-sm" onClick={()=>doDonate(user.balance/2)}>1/2</button><button className="btn btn-ghost btn-sm" onClick={()=>doDonate(user.balance)}>MAX</button></div>
+             <button className="btn btn-ghost btn-sm mt8" onClick={async () => {
+                 const data = await get('/api/syndicates/treasury'); setTreasuryData(data); setShowTreasury(true);
+             }}>📊 Казна (История)</button>
+             {user.syndicate_role === 'don' && currentUpgradeCost && (
+                 <button className="btn btn-ghost mt8" style={{borderColor: 'var(--gold)', color: 'var(--gold)'}} onClick={async () => {
+                     if(!confirm(`Улучшить клан за ${currentUpgradeCost} RC?`)) return;
+                     try { await post('/api/syndicates/upgrade'); showToast('✅ Клан улучшен!'); loadAll(); onRefresh(); } catch(e){showToast('❌ '+e.message);}
+                 }}>🚀 Улучшить клан ({currentUpgradeCost >= 1000000 ? (currentUpgradeCost/1000000)+'M' : (currentUpgradeCost/1000)+'k'} RC)</button>
+             )}
           </div>
 
           <div className="section-title">Состав ({myClan.members.length})</div>
@@ -756,6 +813,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
         {tab === 'settings' && <div className="p16 gap12">
            <div className="card gap8" style={{margin:0}}>
               <div className="fw8">Настройки Клана</div>
+              <div className="f11 text-red fw6 mb8">⚠️ Внимание: Смена названия стоит 5,000 RC из казны</div>
               <input className="input" placeholder="Название (Смена 5000 RC)" value={sName} onChange={e=>setSName(e.target.value)}/>
               <textarea className="input" placeholder="Описание" value={sDesc} onChange={e=>setSDesc(e.target.value)} rows={3}/>
               <div className="row mt8"><div className="f12 text-muted" style={{flex:1}}>Тип входа</div><select className="input" style={{flex:2}} value={sJoin} onChange={e=>setSJoin(e.target.value)}><option value="open">Открытый</option><option value="closed">Закрытый</option></select></div>
@@ -776,6 +834,18 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
             </div>
           </div></div>
         )}
+
+        {showTreasury && (
+            <div className="overlay" onClick={() => setShowTreasury(false)}><div className="modal" onClick={e => e.stopPropagation()}><div className="modal-handle"/><div className="modal-title text-center">📊 Казна Клана</div>
+               <div className="tabs mb12"><button className={`tab ${treasuryTab==='history'?'active':''}`} onClick={()=>setTreasuryTab('history')}>История</button><button className={`tab ${treasuryTab==='top'?'active':''}`} onClick={()=>setTreasuryTab('top')}>Топ Донатеров</button></div>
+               <div className="gap8 max-h-[300px] overflow-y-auto">
+                   {treasuryTab === 'history' && treasuryData.history.length === 0 && <div className="text-muted text-center mt16">Нет истории</div>}
+                   {treasuryTab === 'history' && treasuryData.history.map((h, i) => <div className="row-sb bg-surface2 p12" style={{borderRadius: 12}} key={i}><div><div className="fw7">{h.first_name || h.username}</div><div className="f11 text-muted mt4">{new Date(h.created_at).toLocaleString('ru').slice(0, -3)}</div></div><div className="fw8 text-green">+{h.amount} RC</div></div>)}
+                   {treasuryTab === 'top' && treasuryData.top.length === 0 && <div className="text-muted text-center mt16">Нет донатеров</div>}
+                   {treasuryTab === 'top' && treasuryData.top.map((t, i) => <div className="row-sb bg-surface2 p12" style={{borderRadius: 12}} key={i}><div className="row"><div className="fw8 text-gold" style={{width: 24}}>{i+1}</div><div className="fw7">{t.first_name || t.username}</div></div><div className="fw8 text-gold">{t.total} RC</div></div>)}
+               </div>
+            </div></div>
+        )}
       </div>
     </div>
   )
@@ -791,6 +861,8 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
   const handleMineTap = (e) => { if (Math.floor(localEnergy) <= 0) return; setLocalEnergy(e => e - 1); setUnsyncedClicks(c => c + 1); const rect = e.currentTarget.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top; const id = Date.now() + Math.random(); setFloats(p => [...p, { id, x, y }]); setTimeout(() => setFloats(p => p.filter(f => f.id !== id)), 800); };
   const buyUpgrade = async (type) => { try { await post('/api/mine/upgrade', { type }); showToast('✅ Улучшено!'); } catch(e) { showToast('❌ ' + e.message); } };
 
+  const displayBalance = user.balance + (unsyncedClicks * (user.click_power * 0.5));
+
   return (
     <div className="screen">
       <div className="hdr"><div className="hdr-title">🎮 Активности</div></div>
@@ -801,7 +873,7 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
 
         {tab === 'mine' && (
           <div className="p16">
-            <div className="text-center mb16"><div className="fw8" style={{fontSize: 24}}>{user.balance.toFixed(1)} RC</div>{user.owner && <div className="f12 text-red mt4">⛓ 20% добычи уходит вашему хозяину</div>}{!user.owner && <div className="f12 text-green mt4">✅ Вы свободны. 100% добычи ваши.</div>}</div>
+            <div className="text-center mb16"><div className="fw8" style={{fontSize: 24}}>{displayBalance.toFixed(1)} RC</div>{user.owner && <div className="f12 text-red mt4">⛓ 20% добычи уходит вашему хозяину</div>}{!user.owner && <div className="f12 text-green mt4">✅ Вы свободны. 100% добычи ваши.</div>}</div>
             <div className="mine-rock" onPointerDown={handleMineTap}>🪨{floats.map(f => (<div key={f.id} className="floating-number" style={{left: f.x, top: f.y}}>+{(user.click_power * 0.5).toFixed(1)}</div>))}</div>
             <div className="mt20"><div className="row-sb mb8"><span className="fw7 f12 text-muted">Энергия</span><span className="fw8 f13">{Math.floor(localEnergy)} / {user.max_energy}</span></div><div className="energy-bar-wrap"><div className="energy-bar-fill" style={{width: `${(localEnergy/user.max_energy)*100}%`}}></div></div></div>
             <div className="section-title mt20">Прокачка кирки</div>
