@@ -249,7 +249,7 @@ function compressImage(file, callback) {
 
 function Avatar({ user, size=44 }) {
   const [err, setErr] = useState(false);
-  const initial = (user?.first_name || user?.username || '?')[0].toUpperCase();
+  const initial = (user?.first_name || user?.name || user?.username || '?')[0].toUpperCase();
   const cls = size >= 60 ? 'avatar' : 'avatar-sm';
   const frameClass = user?.avatar_frame && user.avatar_frame !== 'none' ? `frame-${user.avatar_frame}` : '';
   const style = size !== 44 && size !== 68 ? { width: size, height: size, fontSize: size * 0.4 } : {};
@@ -405,6 +405,28 @@ function RiotModal({ onClose, onSuppress }) {
   return (
     <div className="overlay"><div className="modal" style={{textAlign:'center', background: 'radial-gradient(circle at top, #3a0000, var(--bg2))'}}><div style={{fontSize: 60, marginBottom: 16}}>🚨</div><div className="modal-title text-red">РАБЫ БУНТУЮТ!</div><div className="f13 text-muted mb16">Жмите как можно быстрее, чтобы подавить восстание, иначе они разграбят вашу казну!</div><div className="energy-bar-wrap mb16" style={{height: 24, borderRadius: 12}}><div className="energy-bar-fill" style={{width: `${(clicks/target)*100}%`, background: 'var(--red)'}}></div></div><div className="fw8 mb20">{clicks} / {target} тапов</div><button className="btn btn-danger" style={{height: 80, fontSize: 24}} onPointerDown={handleTap}>👊 ПОДАВИТЬ</button></div></div>
   );
+}
+
+function TaxBanner({ user, onRefresh, showToast }) {
+   const count = user.slaves_count;
+   if (count <= 3) return null;
+   let tax = count <= 10 ? (count - 3) * 100 : 700 + (count - 10) * 200;
+   if (user.last_tax_date === user.current_date_str) return null; 
+   
+   const payTax = async () => {
+       try { const r = await post('/api/tax/pay'); showToast(r.msg); onRefresh(); }
+       catch(e) { showToast('❌ ' + e.message); }
+   };
+   
+   return (
+     <div className="card row-sb" style={{borderColor: 'var(--red)', background: 'rgba(239,68,68,0.1)', margin: '16px 16px 0'}}>
+        <div>
+           <div className="fw8 text-red">⚠️ Налог на рабов</div>
+           <div className="f12 mt4">К оплате: {tax} RC до 00:00 МСК</div>
+        </div>
+        <button className="btn btn-danger btn-sm" onClick={payTax}>Оплатить</button>
+     </div>
+   )
 }
 
 function EscapeGameComp({ user, onRefresh, showToast }) {
@@ -607,8 +629,11 @@ function ProfileScreen({ user, onRefresh, onViewProfile, onNavSub, showToast }) 
       </div>
       <div className="content">
         {ev.type !== 'normal' && (<div className={`event-banner ${ev.type}`}><div style={{fontSize: 24}}>{ev.type === 'crisis' ? '📉' : '📈'}</div><div className="event-info"><div className={`event-title ${ev.type === 'crisis' ? 'text-red' : 'text-green'}`}>{ev.name}</div><div className="event-desc">{ev.desc}</div></div></div>)}
+        <TaxBanner user={user} onRefresh={onRefresh} showToast={showToast} />
+        
         <div className="hero" style={{marginTop: ev.type !== 'normal' ? 4 : 16}}>
           <div className="hero-row"><div className="avatar-wrap"><Avatar user={user} size={68}/>{user.vip_level > 0 && <div className="vip-badge">{user.vip_level===3?'👑':user.vip_level===2?'🥈':'🥉'}</div>}</div><div style={{flex:1,minWidth:0}}><div className="hero-name"><PlayerName user={user}/></div><div className="hero-handle">UID: {user.uid} {user.username ? `| @${user.username}` : ''}</div><div className="hero-status">{user.owner ? (<span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(user.owner.id)}>{user.owner.first_name || 'Владелец'}</span></span>) : (<span className="text-green">✅ Свободен</span>)}</div></div></div>
+          {user.syndicate_id && <div className="mt12 f12 text-muted fw6" style={{textAlign:'center', background:'var(--surface2)', padding:4, borderRadius:8}}>🛡 Клан: {user.syndicate_name}</div>}
           <div className="hero-stats"><div className="stat"><div className="stat-val">{user.balance.toFixed(0)}</div><div className="stat-lbl">💰 Баланс RC</div></div><div className="stat"><div className="stat-val">{user.price.toFixed(0)}</div><div className="stat-lbl">🏷 Моя цена</div></div><div className="stat"><div className="stat-val">{user.slaves_count}<span className="text-muted f12">/{user.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div></div>
           {(user.shield_active || user.stealth_active || user.booster_active || user.chains_active) && (<div className="effects-row" style={{marginTop: 16, borderTop:'1px solid var(--border)', paddingTop:12}}>{user.shield_active  && <div className="effect-chip gold">🛡 Щит</div>}{user.stealth_active && <div className="effect-chip">👻 Стелс</div>}{user.booster_active && <div className="effect-chip green">🚀 Буст ×{user.booster_mult}</div>}{user.chains_active  && <div className="effect-chip red">⛓ Оковы</div>}</div>)}
         </div>
@@ -691,10 +716,39 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
     <div className="screen">
       <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button></div>
       <div className="content">
-        <div className="hero" style={{marginTop:16}}><div className="hero-row"><div className="avatar-wrap"><Avatar user={profile} size={68}/>{profile.vip_level > 0 && <div className="vip-badge">{profile.vip_level===3?'👑':profile.vip_level===2?'🥈':'🥉'}</div>}</div><div style={{flex:1,minWidth:0}}><div className="hero-name"><PlayerName user={profile}/></div><div className="hero-handle">UID: {profile.uid}</div><div className="hero-status">{profile.owner ? (<span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(profile.owner.id)}>{profile.owner.first_name || 'Владелец'}</span></span>) : (<span className="text-green">✅ Свободен</span>)}</div></div></div><div className="hero-stats"><div className="stat"><div className="stat-val">{profile.price.toFixed(0)}</div><div className="stat-lbl">🏷 Цена</div></div><div className="stat"><div className="stat-val">{profile.slaves_count}<span className="text-muted f12">/{profile.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div><div className="stat"><div className="stat-val">{profile.vip_level || '—'}</div><div className="stat-lbl">⭐ VIP</div></div></div></div>
+        <div className="hero" style={{marginTop:16}}>
+          <div className="hero-row">
+            <div className="avatar-wrap">
+              <Avatar user={profile} size={68}/>
+              {profile.vip_level > 0 && <div className="vip-badge">{profile.vip_level===3?'👑':profile.vip_level===2?'🥈':'🥉'}</div>}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div className="hero-name"><PlayerName user={profile}/></div>
+              <div className="hero-handle">UID: {profile.uid}</div>
+              <div className="hero-status">
+                {profile.owner ? (
+                  <span className="text-red">⛓ Раб — <span style={{textDecoration:'underline', cursor:'pointer'}} onClick={() => onViewProfile(profile.owner.id)}>{profile.owner.first_name || 'Владелец'}</span></span>
+                ) : (
+                  <span className="text-green">✅ Свободен</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {profile.syndicate_id && <div className="mt12 f12 text-muted fw6" style={{textAlign:'center', background:'var(--surface2)', padding:4, borderRadius:8}}>🛡 Клан: {profile.syndicate_name}</div>}
+          <div className="hero-stats">
+            <div className="stat"><div className="stat-val">{profile.price.toFixed(0)}</div><div className="stat-lbl">🏷 Цена</div></div>
+            <div className="stat"><div className="stat-val">{profile.slaves_count}<span className="text-muted f12">/{profile.max_slaves}</span></div><div className="stat-lbl">⛓ Рабов</div></div>
+            <div className="stat"><div className="stat-val">{profile.vip_level || '—'}</div><div className="stat-lbl">⭐ VIP</div></div>
+          </div>
+        </div>
+        
         {uid !== currentUserId && (
           <div className="section gap8">
-            {activeProtectTime > 0 ? <button className="btn btn-ghost" disabled>{protectLabel}: {fmtCountdown(activeProtectTime)}</button> : <button className="btn btn-primary" onClick={doBuy} disabled={buying}>{buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}</button>}
+            {activeProtectTime > 0 ? (
+              <button className="btn btn-ghost" disabled>{protectLabel}: {fmtCountdown(activeProtectTime)}</button>
+            ) : (
+              <button className="btn btn-primary" onClick={doBuy} disabled={buying}>{buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}</button>
+            )}
             <button className="btn btn-ghost" onClick={() => window.openDirectChat(uid, profile.first_name || 'Игрок')}>✉️ Написать в ЛС</button>
             {!profile.shield_active && profile.owner_id !== currentUserId && (
                <div>
@@ -704,7 +758,24 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
             )}
           </div>
         )}
-        {profile.slaves.length > 0 && (<div className="section"><div className="section-title">Рабы ({profile.slaves_count})</div><div className="card" style={{padding:0}}>{profile.slaves.map((s, idx) => (<div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===profile.slaves.length-1?'none':'1px solid var(--border)', cursor:'pointer'}} onClick={() => onViewProfile(s.id)}><Avatar user={s} size={44}/><div className="li-info"><div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.uid||s.id}`}</div><div className="li-sub mt4">{s.job_emoji} {s.job_title || 'Нет работы'}</div></div><div className="li-price">{s.price.toFixed(0)} RC</div></div>))}</div></div>)}
+        
+        {profile.slaves.length > 0 && (
+          <div className="section">
+            <div className="section-title">Рабы ({profile.slaves_count})</div>
+            <div className="card" style={{padding:0}}>
+              {profile.slaves.map((s, idx) => (
+                <div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===profile.slaves.length-1?'none':'1px solid var(--border)', cursor:'pointer'}} onClick={() => onViewProfile(s.id)}>
+                  <Avatar user={s} size={44}/>
+                  <div className="li-info">
+                    <div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.uid||s.id}`}</div>
+                    <div className="li-sub mt4">{s.job_emoji} {s.job_title || 'Нет работы'}</div>
+                  </div>
+                  <div className="li-price">{s.price.toFixed(0)} RC</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {robbing && <RobberyGameModal targetId={uid} onClose={() => setRobbing(false)} onFinish={finishRobbery} />}
     </div>
@@ -748,240 +819,373 @@ function TopScreen({ onViewProfile, onNavSearch }) {
   );
 }
 
-function ShopInventoryScreen({ user, onRefresh, showToast }) {
-  const [shop, setShop] = useState(null); const [inv, setInv] = useState(null); const [tab, setTab] = useState('inventory'); const [selectedSlave, setSelectedSlave] = useState(''); const [promoCode, setPromoCode] = useState(''); const [loading, setLoading] = useState({}); const [usingItem, setUsingItem] = useState(null);
-  const tg = window.Telegram?.WebApp;
-  async function loadShop() { try { setShop(await get('/api/shop')); } catch {} }
-  async function loadInv() { try { setInv(await get('/api/inventory')); } catch {} }
-  useEffect(() => { loadShop(); loadInv(); }, []);
+function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
+    const [tab, setTab] = useState('list');
+    const [clans, setClans] = useState([]);
+    const [myClan, setMyClan] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [createName, setCreateName] = useState('');
+    const [createDesc, setCreateDesc] = useState('');
+    const [donateAmt, setDonateAmt] = useState('');
+    const [warTargets, setWarTargets] = useState([]);
+    const [showWarModal, setShowWarModal] = useState(false);
+    const [warDonateAmt, setWarDonateAmt] = useState('');
+    const [activeWarDonateId, setActiveWarDonateId] = useState(null);
 
-  async function buyItemStars(itemType, cosmeticId=null) { const key = itemType + (cosmeticId||''); setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; if (cosmeticId) body.cosmetic_id = cosmeticId; const r = await post('/api/shop/invoice', body); if (r.invoice_link && tg?.openInvoice) { tg.openInvoice(r.invoice_link, (status) => { if (status === 'paid') { showToast('✅ Предмет добавлен на Склад!'); onRefresh(); loadShop(); loadInv(); } else if (status === 'cancelled') { showToast('Платёж отменён'); } else { showToast('⚠️ Статус: ' + status); } }); } } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
-  async function buyItemRC(itemType) { const key = 'rc_' + itemType; setLoading(l => ({...l, [key]: true})); try { const body = { item_type: itemType }; const r = await post('/api/shop/buy_rc', body); showToast(`✅ Куплено за ${r.spent_rc} RC! Добавлено на Склад.`); onRefresh(); loadShop(); loadInv(); } catch(e) { showToast('❌ ' + e.message); } setLoading(l => ({...l, [key]: false})); }
-  async function usePromo() { if (!promoCode.trim()) return; try { const r = await post('/api/promo', { code: promoCode.trim() }); showToast(`🎁 +${r.reward} RC!`); setPromoCode(''); onRefresh(); } catch(e) { showToast('❌ ' + e.message); } }
+    async function loadAll() {
+        setLoading(true);
+        try {
+            if (user.syndicate_id) {
+                setTab('my');
+                setMyClan(await get('/api/syndicates/my'));
+            } else {
+                setTab('list');
+                setClans(await get('/api/syndicates'));
+            }
+        } catch(e) {}
+        setLoading(false);
+    }
+    useEffect(() => { loadAll(); }, [user.syndicate_id]);
 
-  async function useInventoryItem(itemId, targetSlaveId=null) {
-    if(itemId === 'chains' && !targetSlaveId) { setUsingItem(itemId); return; }
-    try {
-      const r = await post('/api/inventory/use', { item_id: itemId, target_slave_id: targetSlaveId ? parseInt(targetSlaveId) : null });
-      showToast('✅ Успешно использовано!'); setUsingItem(null); setSelectedSlave(''); onRefresh(); loadInv();
-    } catch(e) { showToast('❌ ' + e.message); }
-  }
+    async function doCreate() {
+        if (!createName.trim()) return;
+        try {
+            await post('/api/syndicates/create', { name: createName, description: createDesc });
+            showToast('✅ Клан создан!');
+            onRefresh();
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
 
-  async function equipCosmetic(field, value) {
-    try {
-      await post('/api/inventory/equip_cosmetic', { field, value });
-      showToast('✅ Установлено!'); onRefresh(); loadInv();
-    } catch(e) { showToast('❌ ' + e.message); }
-  }
+    async function doJoin(id) {
+        try {
+            const r = await post('/api/syndicates/join', { syndicate_id: id });
+            showToast(r.msg);
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
 
-  const cosmByType = useMemo(() => shop ? { colors: shop.cosmetics.filter(c => c.type==='color'), frames: shop.cosmetics.filter(c => c.type==='frame'), emojis: shop.cosmetics.filter(c => c.type==='emoji') } : {}, [shop]);
-  const shopItems = shop?.items || [];
-  
-  const getInvItemInfo = (itemId) => shopItems.find(i => i.id === itemId) || { name: itemId, desc: '' };
+    async function doLeave() {
+        if(!confirm('Покинуть клан?')) return;
+        try {
+            await post('/api/syndicates/leave');
+            showToast('🚪 Вы покинули клан');
+            onRefresh();
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
 
-  return (
-    <div className="screen">
-      <div className="hdr"><div className="hdr-title">🎒 Склад и Магазин</div></div>
-      <div className="content" style={{padding:0}}>
-        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='inventory'?' active':''}`} onClick={() => setTab('inventory')}>СКЛАД</button><button className={`tab${tab==='shop'?' active':''}`} onClick={() => setTab('shop')}>МАГАЗИН</button><button className={`tab${tab==='cosmetics'?' active':''}`} onClick={() => setTab('cosmetics')}>КОСМЕТИКА</button><button className={`tab${tab==='promo'?' active':''}`} onClick={() => setTab('promo')}>ПРОМОКОД</button></div></div>
-        <div style={{padding:'0 16px 16px'}}>
-          {!shop || !inv ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : 
-           tab === 'inventory' ? (
-             <div>
-               <div className="section-title mt8">Ваши предметы</div>
-               {inv.items.length === 0 && <div className="text-center text-muted p20">Склад пуст.</div>}
-               <div className="gap12">
-                 {inv.items.map(it => {
-                   const info = getInvItemInfo(it.item_id);
-                   return (
-                     <div className="shop-item" key={it.item_id} style={{margin:0}}>
-                       <div className="row-sb">
-                         <div>
-                           <div className="row"><div className="fw8" style={{fontSize:16}}>{info.name}</div> <span className="protection-badge" style={{background:'var(--surface3)', border:'none', color:'var(--text)'}}>x{it.quantity}</span></div>
-                           <div className="text-muted mt4" style={{fontSize:13}}>{info.desc}</div>
-                         </div>
-                         <div style={{fontSize:36}}>{info.name.split(' ')[0]}</div>
-                       </div>
-                       <button className="btn btn-primary mt12" onClick={() => useInventoryItem(it.item_id)}>Использовать</button>
-                     </div>
-                   );
-                 })}
-               </div>
-               
-               <div className="section-title mt20">Ваша косметика</div>
-               <div className="f12 text-muted mb12">Нажмите на купленную косметику, чтобы применить её.</div>
-               
-               <div className="fw7 mt12 mb8 text-muted">Цвет имени:</div>
-               <div className="row" style={{flexWrap:'wrap', gap: 8}}>
-                 <button className={`btn btn-ghost btn-sm ${user.name_color === 'default' ? 'active' : ''}`} style={user.name_color === 'default' ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('name_color', 'default')}>Aa Стандарт</button>
-                 {inv.cosmetics.filter(c => c.type === 'color').map(c => (
-                   <button key={c.id} className={`btn btn-ghost btn-sm ${user.name_color === c.value ? 'active' : ''}`} style={user.name_color === c.value ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('name_color', c.value)}><span className={c.css_class}>Aa {c.name}</span></button>
-                 ))}
-               </div>
+    async function doResolve(reqId, action) {
+        try {
+            await post('/api/syndicates/requests/resolve', { request_id: reqId, action });
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('✅ Готово');
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
 
-               <div className="fw7 mt16 mb8 text-muted">Рамка аватара:</div>
-               <div className="row" style={{flexWrap:'wrap', gap: 8}}>
-                 <button className={`btn btn-ghost btn-sm ${user.avatar_frame === 'none' ? 'active' : ''}`} style={user.avatar_frame === 'none' ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('avatar_frame', 'none')}>Нет</button>
-                 {inv.cosmetics.filter(c => c.type === 'frame').map(c => (
-                   <button key={c.id} className={`btn btn-ghost btn-sm ${user.avatar_frame === c.value ? 'active' : ''}`} style={user.avatar_frame === c.value ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('avatar_frame', c.value)}>{c.name}</button>
-                 ))}
-               </div>
+    async function doKick(uid) {
+        if(!confirm('Исключить?')) return;
+        try {
+            await post('/api/syndicates/members/kick', { user_id: uid });
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('👢 Исключен');
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
 
-               <div className="fw7 mt16 mb8 text-muted">Эмодзи-статус:</div>
-               <div className="row" style={{flexWrap:'wrap', gap: 8}}>
-                 <button className={`btn btn-ghost btn-sm ${!user.emoji_status ? 'active' : ''}`} style={!user.emoji_status ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('emoji_status', '')}>Нет</button>
-                 {inv.cosmetics.filter(c => c.type === 'emoji').map(c => (
-                   <button key={c.id} className={`btn btn-ghost btn-sm ${user.emoji_status === c.value ? 'active' : ''}`} style={user.emoji_status === c.value ? {borderColor:'var(--gold)'} : {}} onClick={() => equipCosmetic('emoji_status', c.value)}>{c.value} {c.name}</button>
-                 ))}
-               </div>
-             </div>
-           ) : tab === 'shop' ? (
-             <div>
-               <div className="f12 text-muted mb12 text-center">Все купленные предметы отправляются на Склад.</div>
-               <div className="gap12">
-                 {shopItems.map(item => (
-                   <div className="shop-item" key={item.id} style={{margin:0}}>
-                     <div className="row-sb">
-                       <div><div className="fw8" style={{fontSize:16}}>{item.name}</div><div className="text-muted mt4" style={{fontSize:13}}>{item.desc}</div></div>
-                       <div style={{fontSize:36}}>{item.name.split(' ')[0]}</div>
-                     </div>
-                     <div className="si-foot mt8">
-                       <div><div className="fw8 text-gold" style={{fontSize:16}}>{item.price_stars} ⭐</div>{item.price_rc > 0 && <div className="f12 text-muted mt4">или {item.price_rc.toLocaleString()} RC</div>}</div>
-                       <div style={{display:'flex',gap:8}}>
-                         {item.price_rc > 0 && <button className="btn btn-ghost" disabled={loading['rc_'+item.id]} onClick={() => buyItemRC(item.id)}>{loading['rc_'+item.id] ? '...' : `За RC`}</button>}
-                         <button className="btn btn-primary" disabled={loading[item.id]} onClick={() => buyItemStars(item.id)}>{loading[item.id] ? '...' : '⭐ Купить'}</button>
-                       </div>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </div>
-           ) : tab === 'cosmetics' ? (
-             <div className="mt8">
-               <div className="f13 text-muted mb16" style={{lineHeight:1.5, padding:16, background:'rgba(232,197,71,0.05)', borderRadius:16, border:'1px solid rgba(232,197,71,0.2)'}}>🎨 Косметика навсегда сохраняется. Покупка только за Telegram Stars ⭐.</div>
-               <div className="section-title">🎨 Цвет имени</div>
-               <div className="gap8 mb20">{cosmByType.colors?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className={`fw7 ${c.css_class}`} style={{fontSize:16}}>Aa — {c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
-               <div className="section-title">🖼 Рамка аватара</div>
-               <div className="gap8 mb20">{cosmByType.frames?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="fw7" style={{fontSize:16}}>{c.name}</div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
-               <div className="section-title">😀 Эмодзи-статус</div>
-               <div className="gap8">{cosmByType.emojis?.map(c => <div className="card row-sb" style={{padding:'14px 16px', margin:0}} key={c.id}><div className="row"><span style={{fontSize:26}}>{c.value}</span><div className="fw7" style={{fontSize:16}}>{c.name}</div></div>{c.owned ? <span className="f13 text-green fw7">✓ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={() => buyItemStars('cosmetic',c.id)}>{c.price_stars} ⭐</button>}</div>)}</div>
-             </div>
-           ) : (
-             <div className="mt8"><div className="section-title">Промокод</div><input className="input" placeholder="Введите код..." value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} onKeyDown={e => e.key==='Enter' && usePromo()}/><button className="btn btn-primary mt16" onClick={usePromo}>🎁 Применить код</button></div>
-           )}
-        </div>
-      </div>
-      
-      {usingItem === 'chains' && (
-        <div className="overlay" onClick={() => setUsingItem(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">⛓ Использование: Оковы</div>
-            <div className="f13 text-muted mb16">Выберите вашего раба, чтобы повесить на него оковы. Его выкуп станет на 50% дороже на 7 дней.</div>
-            {user.slaves.length === 0 ? <div className="text-center p20 text-muted">У вас нет рабов.</div> : (
-              <div className="gap12">
-                <select className="input" value={selectedSlave} onChange={e => setSelectedSlave(e.target.value)}>
-                  <option value="">— Выберите раба —</option>
-                  {user.slaves.map(s => <option key={s.id} value={s.id}>{s.custom_name||s.first_name||s.username||s.id}</option>)}
-                </select>
-                <button className="btn btn-primary" onClick={() => useInventoryItem('chains', selectedSlave)} disabled={!selectedSlave}>Применить</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+    async function doPromote(uid) {
+        try {
+            await post('/api/syndicates/members/promote', { user_id: uid });
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('👑 Роль изменена');
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
 
-function SupportScreen({ user, showToast }) {
-  const [msgs, setMsgs] = useState([]); const [text, setText] = useState(''); const bottomRef = useRef(null); const [replyTo, setReplyTo] = useState(null); const [fileB64, setFileB64] = useState(null);
-  const load = () => get('/api/support/history').then(setMsgs).catch(()=>{});
-  useEffect(() => { load(); const id = setInterval(load, 5000); return () => clearInterval(id); }, []); 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [msgs]);
-  const handleFile = (e) => { if(e.target.files[0]) compressImage(e.target.files[0], (b64) => setFileB64(b64)); }
-  async function send() { if (!text.trim() && !fileB64) return; const body = { message: text.trim(), photo_b64: fileB64, reply_to_id: replyTo?.id }; const tempMsg = { id: 'temp_'+Date.now(), message: text.trim(), photo_b64: fileB64, is_from_admin: false, created_at: new Date().toISOString(), reply_text: replyTo?.message }; setMsgs(prev => [...prev, tempMsg]); setText(''); setFileB64(null); setReplyTo(null); try { await post('/api/support', body); load(); } catch(e) { showToast('❌ ' + e.message); load(); } }
-  return (
-    <div style={{display:'flex', flexDirection:'column', height: '100%'}}>
-      <div style={{flex:1, overflowY:'auto', paddingBottom: 20}}><div className="chat-area">{msgs.length===0 && <div className="text-center text-muted mt20">Напишите нам — мы поможем!</div>}{msgs.map(m => (<div key={m.id} className={`msg-wrap ${m.is_from_admin ? 'them' : 'me'}`} onClick={() => setReplyTo(m)}>{m.is_from_admin && <div className="msg-sender">Поддержка</div>}<div className={`msg-bubble ${m.is_from_admin ? 'them' : 'me'}`}>{m.reply_text && <div className="msg-reply-box">{m.reply_text.substring(0,40)}...</div>}{m.photo_b64 && <img src={m.photo_b64} className="msg-img" alt=""/>}{m.message && <div>{m.message}</div>}</div><div className="msg-time">{new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</div></div>))}<div ref={bottomRef}/></div></div>
-      <div className="chat-input-wrap" style={{paddingBottom: 'env(safe-area-inset-bottom)'}}>{replyTo && <div className="reply-preview-bar"><div>Ответ: {replyTo.message?.substring(0,30)||'Фото'}</div><button className="file-btn" onClick={()=>setReplyTo(null)}>✕</button></div>}{fileB64 && <div className="reply-preview-bar"><div>🖼 Изображение прикреплено</div><button className="file-btn" onClick={()=>setFileB64(null)}>✕</button></div>}<div className="row"><label className="file-btn">📎<input type="file" style={{display:'none'}} accept="image/*" onChange={handleFile}/></label><textarea className="chat-input" placeholder="Сообщение..." value={text} onChange={e => setText(e.target.value)} rows={1} onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}/><button className="btn btn-primary btn-sm" style={{borderRadius:20, width:44, height:44, padding:0}} onClick={send} disabled={!text.trim() && !fileB64}>➤</button></div></div>
-    </div>
-  );
-}
+    async function doDonate() {
+        if(!donateAmt) return;
+        try {
+            await post('/api/syndicates/donate', { amount: parseFloat(donateAmt) });
+            setDonateAmt('');
+            onRefresh();
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('💰 Взнос в Общак сделан!');
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
 
-function MessagesScreen({ onViewProfile, onOpenChat, onBack, user, showToast }) {
-  const [chats, setChats] = useState([]);
-  const [tab, setTab] = useState('chats');
-  useEffect(() => { if (tab === 'chats') get('/api/chat/list').then(setChats).catch(()=>{}); }, [tab]);
-  return (
-    <div className="screen">
-      <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button><div className="hdr-title">Связь</div><div style={{width:60}}></div></div>
-      <div className="content" style={{padding:0, display:'flex', flexDirection:'column'}}>
-        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='chats'?' active':''}`} onClick={() => setTab('chats')}>ЛС Игроков</button><button className={`tab${tab==='support'?' active':''}`} onClick={() => setTab('support')}>Поддержка</button></div></div>
-        
-        {tab === 'chats' && (
-          <div style={{padding: '16px'}}>
-            {chats.length===0 && <div className="text-center text-muted mt20">Нет активных диалогов</div>}
-            <div className="gap8">
-              {chats.map(c => (<div className="card row-sb" key={c.user_id} onClick={() => onOpenChat(c.user_id, c.first_name || `Игрок #${c.user_id}`)} style={{cursor:'pointer', margin:0}}><div className="row"><Avatar user={c} size={44} /><div><div className="fw7">{c.first_name || `Игрок #${c.user_id}`} {c.is_admin_flag && '⚜️'}</div><div className="f12 text-muted mt4">Нажмите, чтобы открыть чат</div></div></div>{c.unread > 0 && <span className="vip-badge" style={{position:'static', background:'var(--red)', color:'#fff', border:'none'}}>{c.unread}</span>}</div>))}
+    async function doUpgrade() {
+        if(!confirm('Улучшить клан за счет Общака?')) return;
+        try {
+            await post('/api/syndicates/upgrade');
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('⬆️ Клан улучшен!');
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
+
+    async function openWarTargets() {
+        try {
+            setWarTargets(await get('/api/syndicates/wars/targets'));
+            setShowWarModal(true);
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
+
+    async function doDeclareWar(targetId) {
+        try {
+            await post('/api/syndicates/wars/declare', { target_id: targetId });
+            setShowWarModal(false);
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('⚔️ Вызов отправлен!');
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
+
+    async function doResolveWar(warId, action) {
+        if (action === 'reject' && !confirm('Точно отказаться? Все в клане узнают об этом!')) return;
+        try {
+            const r = await post('/api/syndicates/wars/resolve', { war_id: warId, action });
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('✅ ' + r.msg);
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
+
+    async function doWarDonate() {
+        if(!warDonateAmt || !activeWarDonateId) return;
+        try {
+            await post('/api/syndicates/wars/donate', { war_id: activeWarDonateId, amount: parseFloat(warDonateAmt) });
+            setWarDonateAmt('');
+            setActiveWarDonateId(null);
+            onRefresh();
+            setMyClan(await get('/api/syndicates/my'));
+            showToast('💰 Фонд войны пополнен!');
+        } catch(e) { showToast('❌ ' + e.message); }
+    }
+
+    const limits = {1:5, 2:10, 3:20, 4:30};
+    const upgCosts = {1:100000, 2:500000, 3:1000000};
+    const roleColors = { 'don': 'var(--red)', 'deputy': 'var(--blue)', 'member': 'var(--text-3)' };
+    const roleNames = { 'don': 'Дон', 'deputy': 'Зам', 'member': 'Участник' };
+
+    return (
+        <div className="screen">
+            <div className="hdr">
+                <div className="hdr-title">🛡 Синдикаты</div>
+                {user.syndicate_id && <button className="btn btn-danger btn-sm" onClick={doLeave}>Выйти</button>}
             </div>
-          </div>
-        )}
-        
-        {tab === 'support' && (
-          <div style={{flex: 1, overflow: 'hidden'}}>
-            <SupportScreen user={user} showToast={showToast} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+            
+            <div className="content" style={{padding:0}}>
+                <div className="tabs-wrap">
+                    <div className="tabs">
+                        <button className={`tab${tab==='list'?' active':''}`} onClick={() => {setTab('list'); loadAll();}}>Все Кланы</button>
+                        <button className={`tab${tab==='my'?' active':''}`} onClick={() => {if(user.syndicate_id){setTab('my'); loadAll();}else{setTab('create');}}}>Мой Клан</button>
+                    </div>
+                </div>
 
-function DirectChatScreen({ targetUid, targetName, currentUid, onBack }) {
-  const [msgs, setMsgs] = useState([]); const [text, setText] = useState(''); const bottomRef = useRef(null);
-  const load = () => get(`/api/chat/messages/${targetUid}`).then(setMsgs).catch(()=>{});
-  useEffect(() => { load(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [targetUid]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [msgs]);
-  async function send() { if (!text.trim()) return; const tempMsg = { id: Date.now(), sender_id: currentUid, text: text.trim(), created_at: new Date().toISOString() }; setMsgs(p => [...p, tempMsg]); setText(''); await post('/api/chat/send', { target_uid: targetUid, text: tempMsg.text }); load(); }
-  return (
-    <div className="screen">
-      <div className="hdr"><button className="back-btn" onClick={onBack}>‹ Назад</button><div className="fw7">{targetName}</div><div style={{width:60}}></div></div>
-      <div className="content" style={{display:'flex', flexDirection:'column', padding:0}}>
-        <div style={{flex:1, overflowY:'auto'}}><div className="chat-area">{msgs.length===0 && <div className="text-center text-muted mt20">Напишите сообщение!</div>}{msgs.map(m => { const isMe = m.sender_id === currentUid; return (<div key={m.id} className={`msg-wrap ${isMe ? 'me' : 'them'}`}><div className={`msg-bubble ${isMe ? 'me' : 'them'}`}>{m.text}</div><div className="msg-time" style={{alignSelf: isMe ? 'flex-end' : 'flex-start'}}>{new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</div></div>); })}<div ref={bottomRef}/></div></div>
-        <div className="chat-input-wrap"><div className="row"><input className="chat-input" placeholder="Сообщение..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key==='Enter' && send()}/><button className="btn btn-primary btn-sm" style={{borderRadius:20, width:44, height:44, padding:0}} onClick={send} disabled={!text.trim()}>➤</button></div></div>
-      </div>
-    </div>
-  );
-}
+                {loading ? <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div> : null}
 
-function AdminChatScreen({ conv, onBack, showToast }) {
-  const [msgs, setMsgs] = useState([]); const [text, setText] = useState(''); const bottomRef = useRef(null); const [replyTo, setReplyTo] = useState(null);
-  async function load() { try { const data = await get(`/api/admin/chat/${conv.user_id}`); setMsgs(data.messages || []); } catch {} }
-  useEffect(() => { load(); const id = setInterval(load, 5000); return () => clearInterval(id); }, []);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [msgs]);
-  async function send() { if (!text.trim()) return; const body = { target_uid: conv.user_id, text: text.trim(), reply_to_id: replyTo?.id }; const tempMsg = { id: 'temp_'+Date.now(), message: text.trim(), is_from_admin: true, created_at: new Date().toISOString(), reply_text: replyTo?.message }; setMsgs(prev => [...prev, tempMsg]); setText(''); setReplyTo(null); try { await post('/api/admin/chat/send', body); load(); } catch(e) { showToast('❌ ' + e.message); } }
-  async function deleteChat() { if(!confirm('Удалить чат?')) return; try { await post(`/api/admin/chat/ticket/${conv.user_id}/delete`); showToast('🗑 Удалено'); onBack(); } catch(e) { showToast('❌ ' + e.message); } }
-  async function closeTicket() { try { await post(`/api/admin/chat/ticket/${conv.user_id}/close`); showToast('🔒 Закрыто'); load(); } catch(e) { showToast('❌ ' + e.message); } }
-  async function admEditMsg(id, oldText) { const nt = prompt("Редактировать:", oldText); if(nt !== null && nt !== oldText) { try { await post(`/api/admin/chat/msg/${id}/edit`, { text: nt }); load(); } catch(e) { showToast('❌ ' + e.message); } } }
-  async function admDelMsg(id) { if(!confirm("Удалить?")) return; try { await post(`/api/admin/chat/msg/${id}/delete`); load(); } catch(e) { showToast('❌ ' + e.message); } }
+                {!loading && tab === 'list' && (
+                    <div style={{padding: '16px'}}>
+                        <div className="f12 text-muted mb12">Вступайте в кланы, чтобы получать баффы к доходу и участвовать в войнах.</div>
+                        <div className="gap12">
+                            {clans.map(c => (
+                                <div className="card" key={c.id} style={{margin:0, padding:'16px'}}>
+                                    <div className="row-sb mb8">
+                                        <div className="fw8" style={{fontSize:18}}>{c.name}</div>
+                                        <div className="f12 fw7 text-gold">Ур. {c.level}</div>
+                                    </div>
+                                    <div className="f13 text-muted mb12">{c.description || 'Нет описания'}</div>
+                                    <div className="row-sb mb12">
+                                        <div className="f12">Дон: <span className="text-gold fw6">{c.owner_name||c.owner_username||c.owner_id}</span></div>
+                                        <div className="f12">Участники: {c.members_count}/{limits[c.level]}</div>
+                                    </div>
+                                    <div className="row-sb">
+                                        <div className="f12">Общак: <span className="fw7">{parseFloat(c.treasury).toFixed(0)} RC</span></div>
+                                        {!user.syndicate_id && <button className="btn btn-primary btn-sm" onClick={()=>doJoin(c.id)}>Вступить</button>}
+                                    </div>
+                                </div>
+                            ))}
+                            {clans.length === 0 && <div className="text-center p20 text-muted">Нет созданных кланов.</div>}
+                        </div>
+                    </div>
+                )}
 
-  return (
-    <div className="content" style={{display:'flex', flexDirection:'column', padding:0}}><div className="row-sb" style={{padding:'12px 16px',borderBottom:'1px solid var(--border)', background:'var(--bg2)'}}><div className="row"><button className="btn btn-ghost btn-sm" style={{border:'none', background:'transparent', padding:0}} onClick={onBack}>‹ Назад</button><div className="fw7">{conv.first_name||conv.username||`ID: ${conv.user_id}`}</div></div><div className="row"><button className="btn btn-ghost btn-sm" onClick={closeTicket}>🔒 Закрыть</button><button className="btn btn-danger btn-sm" onClick={deleteChat}>🗑 Удалить</button></div></div><div style={{flex:1, overflowY:'auto'}}><div className="chat-area">{msgs.map(m => { const isMe = m.is_from_admin; return (<div key={m.id} className={`msg-wrap ${isMe ? 'me' : 'them'}`}><div className={`msg-bubble ${isMe ? 'me' : 'them'}`}>{m.reply_text && <div className="msg-reply-box" onClick={() => setReplyTo(m)}>{m.reply_text.substring(0,40)}...</div>}{m.photo_b64 && <img src={m.photo_b64} className="msg-img" alt="" onClick={() => setReplyTo(m)}/>}{m.message && <div onClick={() => setReplyTo(m)}>{m.message}</div>}</div><div className="row" style={{alignSelf: isMe ? 'flex-end' : 'flex-start'}}><div className="msg-time">{new Date(m.created_at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</div>{isMe && m.message && (<div className="msg-actions"><button className="msg-act-btn" onClick={(e) => { e.stopPropagation(); admEditMsg(m.id, m.message); }}>✏️ Edit</button><button className="msg-act-btn del" onClick={(e) => { e.stopPropagation(); admDelMsg(m.id); }}>❌ Del</button></div>)}</div></div>); })}<div ref={bottomRef}/></div></div><div className="chat-input-wrap">{replyTo && <div className="reply-preview-bar"><div>Ответ: {replyTo.message?.substring(0,30)||'Фото'}</div><button className="file-btn" onClick={()=>setReplyTo(null)}>✕</button></div>}<div className="row"><textarea className="chat-input" placeholder="Ответ от админа..." value={text} onChange={e => setText(e.target.value)} rows={1} onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}/><button className="btn btn-primary btn-sm" style={{borderRadius:20, width:44, height:44, padding:0}} onClick={send} disabled={!text.trim()}>➤</button></div></div></div>
-  );
-}
+                {!loading && tab === 'create' && !user.syndicate_id && (
+                    <div style={{padding: '16px'}}>
+                        <div className="card gap12">
+                            <div className="fw8" style={{fontSize:18}}>Создать свой клан</div>
+                            <div className="f13 text-muted">Стоимость создания: 20,000 RC.</div>
+                            <input className="input" placeholder="Название клана (до 32 симв.)" value={createName} onChange={e=>setCreateName(e.target.value)} maxLength={32}/>
+                            <textarea className="input" placeholder="Описание..." value={createDesc} onChange={e=>setCreateDesc(e.target.value)} rows={3}/>
+                            <button className="btn btn-primary mt8" onClick={doCreate} disabled={user.balance < 20000}>Создать (20,000 RC)</button>
+                        </div>
+                    </div>
+                )}
 
-function SyndicateStub() {
-  return (
-    <div className="screen">
-      <div className="hdr"><div className="hdr-title">🛡 Синдикаты</div></div>
-      <div className="content" style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:32}}>
-        <div style={{fontSize:80, marginBottom:16}}>🏗</div>
-        <div className="fw8" style={{fontSize:24, marginBottom:12}}>В разработке!</div>
-        <div className="text-muted f13" style={{maxWidth:300, lineHeight:1.5}}>Скоро здесь появятся Синдикаты. Вы сможете создавать кланы, скидываться в Общак, прокачивать уровни и устраивать Клановые Войны!</div>
-      </div>
-    </div>
-  );
+                {!loading && tab === 'my' && myClan && (
+                    <div style={{padding: '16px'}}>
+                        {/* HERO КЛАНА */}
+                        <div className="card" style={{background:'linear-gradient(135deg, #1e1e1e, #111)', border:'1px solid var(--gold)', margin:0, marginBottom:16}}>
+                            <div className="row-sb mb8">
+                                <div className="fw8" style={{fontSize:22}}>{myClan.clan.name}</div>
+                                <div className="f13 fw8 text-gold" style={{background:'var(--gold-dim)', padding:'4px 10px', borderRadius:12}}>Ур. {myClan.clan.level}</div>
+                            </div>
+                            <div className="f13 text-muted mb16" style={{lineHeight:1.4}}>{myClan.clan.description}</div>
+                            
+                            <div className="row-sb pt12" style={{borderTop:'1px solid var(--border)'}}>
+                                <div>
+                                    <div className="f11 text-muted text-uppercase mb4">Общак</div>
+                                    <div className="fw8 text-gold" style={{fontSize:18}}>{parseFloat(myClan.clan.treasury).toFixed(0)} RC</div>
+                                </div>
+                                <div>
+                                    <div className="f11 text-muted text-uppercase mb4">Участники</div>
+                                    <div className="fw8" style={{fontSize:18}}>{myClan.members.length} <span className="f12 text-muted">/ {limits[myClan.clan.level]}</span></div>
+                                </div>
+                            </div>
+                            
+                            <div className="mt16 gap8">
+                                <div className="row">
+                                    <input className="input" type="number" placeholder="Сумма взноса..." value={donateAmt} onChange={e=>setDonateAmt(e.target.value)} style={{flex:1}}/>
+                                    <button className="btn btn-primary" onClick={doDonate}>Вкинуть</button>
+                                </div>
+                                {user.syndicate_role === 'don' && myClan.clan.level < 4 && (
+                                    <button className="btn btn-ghost mt8" onClick={doUpgrade}>
+                                        ⬆️ Улучшить до {myClan.clan.level + 1} ур. ({upgCosts[myClan.clan.level]} RC из Общака)
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* КЛАНОВЫЕ ВОЙНЫ */}
+                        <div className="section-title">⚔️ Войны</div>
+                        {user.syndicate_role in ('don', 'deputy') && myClan.wars.active.length === 0 && myClan.wars.pending.length === 0 && (
+                            <button className="btn btn-danger mb12" style={{width:'100%'}} onClick={openWarTargets}>🔪 ОБЪЯВИТЬ ВОЙНУ</button>
+                        )}
+                        <div className="gap8 mb16">
+                            {myClan.wars.pending.map(w => {
+                                const isAttacker = w.attacker_id === myClan.clan.id;
+                                const enemyName = isAttacker ? w.defender_name : w.attacker_name;
+                                return (
+                                    <div className="card" key={w.id} style={{borderColor:'var(--red)', margin:0}}>
+                                        <div className="fw8 text-red mb8">⏳ Ожидание ответа...</div>
+                                        <div className="f13">Враг: <span className="fw7">{enemyName}</span></div>
+                                        {!isAttacker && user.syndicate_role in ('don', 'deputy') && (
+                                            <div className="row mt12">
+                                                <button className="btn btn-danger" style={{flex:1}} onClick={()=>doResolveWar(w.id, 'accept')}>Принять бой</button>
+                                                <button className="btn btn-ghost" style={{flex:1}} onClick={()=>doResolveWar(w.id, 'reject')}>Струсить</button>
+                                            </div>
+                                        )}
+                                        {isAttacker && <div className="f12 text-muted mt8">Ждем, пока они примут вызов...</div>}
+                                    </div>
+                                )
+                            })}
+                            
+                            {myClan.wars.active.map(w => {
+                                const isAttacker = w.attacker_id === myClan.clan.id;
+                                const enemyName = isAttacker ? w.defender_name : w.attacker_name;
+                                const myFund = isAttacker ? parseFloat(w.fund_attacker) : parseFloat(w.fund_defender);
+                                const enemyFund = isAttacker ? parseFloat(w.fund_defender) : parseFloat(w.fund_attacker);
+                                const total = myFund + enemyFund || 1;
+                                const myPerc = (myFund / total) * 100;
+                                const timeLeft = Math.max(0, Math.floor((new Date(w.expires_at) - new Date()) / 1000));
+                                
+                                return (
+                                    <div className="card" key={w.id} style={{background:'linear-gradient(135deg, #3a0000, #111)', borderColor:'var(--red)', margin:0}}>
+                                        <div className="row-sb mb8">
+                                            <div className="fw8 text-red" style={{fontSize:18}}>⚔️ ВОЙНА!</div>
+                                            <div className="fw8 text-gold">⏳ {fmtCountdown(timeLeft)}</div>
+                                        </div>
+                                        <div className="f13 mb12">Цель: победить клан <span className="fw7">{enemyName}</span></div>
+                                        
+                                        <div className="row-sb mb4 f12 fw7">
+                                            <span style={{color:'var(--green)'}}>Мы: {myFund.toFixed(0)}</span>
+                                            <span style={{color:'var(--red)'}}>Враг: {enemyFund.toFixed(0)}</span>
+                                        </div>
+                                        <div className="energy-bar-wrap mb12" style={{height:16, borderRadius:8, background:'var(--red)'}}>
+                                            <div className="energy-bar-fill" style={{width:`${myPerc}%`, background:'var(--green)'}} />
+                                        </div>
+                                        
+                                        {activeWarDonateId === w.id ? (
+                                            <div className="row">
+                                                <input className="input" type="number" placeholder="RC на войну..." value={warDonateAmt} onChange={e=>setWarDonateAmt(e.target.value)} style={{flex:1}}/>
+                                                <button className="btn btn-green" onClick={doWarDonate}>Внести</button>
+                                                <button className="btn btn-ghost" onClick={()=>setActiveWarDonateId(null)}>✕</button>
+                                            </div>
+                                        ) : (
+                                            <button className="btn btn-danger" style={{width:'100%'}} onClick={()=>setActiveWarDonateId(w.id)}>💰 Влить деньги в Фонд</button>
+                                        )}
+                                        <div className="f11 text-muted text-center mt8">Победитель заберет все свои деньги обратно + 50% от фонда проигравших!</div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+
+                        {/* ЗАЯВКИ */}
+                        {myClan.requests.length > 0 && (
+                            <div className="mb20">
+                                <div className="section-title">Заявки ({myClan.requests.length})</div>
+                                <div className="gap8">
+                                    {myClan.requests.map(r => (
+                                        <div className="card row-sb" key={r.req_id} style={{margin:0, padding:'12px'}}>
+                                            <div className="row" onClick={()=>onViewProfile(r.id)} style={{cursor:'pointer'}}>
+                                                <Avatar user={r} size={36}/>
+                                                <div><div className="fw7 f13">{r.first_name||r.username}</div><div className="f11 text-gold">{parseFloat(r.balance).toFixed(0)} RC</div></div>
+                                            </div>
+                                            <div className="row">
+                                                <button className="btn btn-green btn-sm" onClick={()=>doResolve(r.req_id, 'accept')}>✓</button>
+                                                <button className="btn btn-danger btn-sm" onClick={()=>doResolve(r.req_id, 'reject')}>✕</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* СОСТАВ */}
+                        <div className="section-title">Состав ({myClan.members.length})</div>
+                        <div className="card" style={{padding:0, margin:0}}>
+                            {myClan.members.map((m, idx) => (
+                                <div className="list-item" key={m.id} style={{padding:'12px 16px', borderBottom: idx===myClan.members.length-1?'none':'1px solid var(--border)'}}>
+                                    <div onClick={()=>onViewProfile(m.id)} style={{cursor:'pointer'}}><Avatar user={m} size={40}/></div>
+                                    <div className="li-info" onClick={()=>onViewProfile(m.id)} style={{cursor:'pointer'}}>
+                                        <div className="row"><div className="li-name">{m.first_name||m.username||m.id}</div></div>
+                                        <div className="f11 mt4" style={{color: roleColors[m.syndicate_role], fontWeight:800}}>{roleNames[m.syndicate_role]}</div>
+                                    </div>
+                                    <div className="row gap8">
+                                        <div className="f13 fw7 text-gold" style={{textAlign:'right'}}>{parseFloat(m.balance).toFixed(0)}<span className="f10 text-muted" style={{display:'block'}}>RC</span></div>
+                                        {user.syndicate_role === 'don' && m.id !== user.id && (
+                                            <div className="gap6">
+                                                <button className="btn btn-ghost btn-sm" style={{padding:'4px 8px'}} onClick={()=>doPromote(m.id)}>👑</button>
+                                                <button className="btn btn-danger btn-sm" style={{padding:'4px 8px'}} onClick={()=>doKick(m.id)}>👢</button>
+                                            </div>
+                                        )}
+                                        {user.syndicate_role === 'deputy' && m.syndicate_role === 'member' && (
+                                            <button className="btn btn-danger btn-sm" style={{padding:'4px 8px'}} onClick={()=>doKick(m.id)}>👢</button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* МОДАЛКА ВЫБОРА ЦЕЛИ ДЛЯ ВОЙНЫ */}
+            {showWarModal && (
+                <div className="overlay" onClick={()=>setShowWarModal(false)}>
+                    <div className="modal" onClick={e=>e.stopPropagation()} style={{maxHeight:'80vh'}}>
+                        <div className="modal-handle"/>
+                        <div className="modal-title text-red">🔪 Выбор жертвы</div>
+                        <div className="f13 text-muted mb16">Выберите клан, которому хотите бросить вызов. Если они примут, начнется 24-часовая гонка кошельков.</div>
+                        <div className="gap8" style={{overflowY:'auto'}}>
+                            {warTargets.map(t => (
+                                <div className="card row-sb" key={t.id} style={{margin:0, padding:'12px'}}>
+                                    <div>
+                                        <div className="fw8" style={{fontSize:16}}>{t.name} <span className="f12 text-gold">(Ур. {t.level})</span></div>
+                                        <div className="f12 text-muted mt4">Общак: {parseFloat(t.treasury).toFixed(0)} RC</div>
+                                    </div>
+                                    <button className="btn btn-danger btn-sm" onClick={()=>doDeclareWar(t.id)}>Вызвать</button>
+                                </div>
+                            ))}
+                            {warTargets.length === 0 && <div className="text-center p20 text-muted">Нет доступных кланов для атаки.</div>}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
 }
 
 function App() {
@@ -997,7 +1201,6 @@ function App() {
   const [adminEditingUser, setAdminEditingUser] = useState(null);
   const [suppressingRiot, setSuppressingRiot] = useState(false);
 
-  // Исправленный свайп назад
   useEffect(() => {
     let touchStartX = 0; let touchStartY = 0;
     const handleTouchStart = (e) => { touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; };
@@ -1009,7 +1212,7 @@ function App() {
         setDirectChatUid(null); 
         setOpenConv(null); 
         setBanSupportMode(false); 
-        setSubTab(null); // Добавлено закрытие саб-табов (настройки, сообщения)
+        setSubTab(null);
       }
     };
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -1075,7 +1278,7 @@ function App() {
         <>
           {mainTab==='profile' && <ProfileScreen user={user} onRefresh={refreshUser} onViewProfile={(uid)=>setViewingUid(uid)} onNavSub={setSubTab} showToast={showToast}/>}
           {mainTab==='games'   && <GamesScreen user={user} tasksData={tasksData} onRefresh={refreshUser} showToast={showToast}/>}
-          {mainTab==='syndicates' && <SyndicateStub />}
+          {mainTab==='syndicates' && <SyndicatesScreen user={user} onRefresh={refreshUser} showToast={showToast} onViewProfile={(uid)=>setViewingUid(uid)}/>}
           {mainTab==='shop'    && <ShopInventoryScreen user={user} onRefresh={refreshUser} showToast={showToast}/>}
           {mainTab==='top'     && <TopScreen onViewProfile={(uid)=>setViewingUid(uid)} onNavSearch={() => setSubTab('search')}/>}
 
@@ -1088,7 +1291,7 @@ function App() {
               <span className="nav-item-ico">🎮</span><span>Активности</span>
             </button>
             <button className={`nav-item ${mainTab==='syndicates' ? 'active' : ''}`} onClick={() => setMainTab('syndicates')}>
-              <span className="nav-item-ico">🛡</span><span>Синдикаты</span>
+              <span className="nav-item-ico">🛡</span><span>Кланы</span>
             </button>
             <button className={`nav-item ${mainTab==='shop' ? 'active' : ''}`} onClick={() => setMainTab('shop')}>
               <span className="nav-item-ico">🎒</span><span>Склад</span>
