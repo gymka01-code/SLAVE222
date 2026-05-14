@@ -382,7 +382,7 @@ function RobberyGameModal({ targetId, onClose, onFinish }) {
     <div className="overlay">
       <div className="modal" style={{textAlign:'center'}}>
         <div className="modal-title">🥷 Ограбление!</div>
-        <div className="f13 text-muted mb8">Каждый мешок = 0.5% казны жертвы (макс 5%). Не трогай полицию!</div>
+        <div className="f13 text-muted mb8">Каждый мешок = 0.5% казны (макс 5%). Не трогай полицию!</div>
         <div className="row-sb mb8">
           <div className="fw8 text-gold">Собрано: {score.toFixed(1)}%</div>
           <div className="fw8 text-red">⏳ {timeLeft}с</div>
@@ -672,10 +672,17 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
   async function doBuy() { setBuying(true); try { await post('/api/buy', { target_id: uid }); showToast('✅ Куплен!'); onBuy(); setTimeout(onBack, 1500); } catch(e) { showToast('❌ ' + e.message); setBuying(false); } }
   async function finishRobbery(status, score) { setRobbing(false); try { const r = await post('/api/robbery/resolve', { target_id: uid, status, amount: score }); showToast(r.msg); onBuy(); get(`/api/profile/${uid}`).then(setProfile); } catch(e) { showToast('❌ ' + e.message); } }
   
- const shieldTime = useCountdown(profile?.shield_until);
+  const shieldTime = useCountdown(profile?.shield_until);
   const protTime = useCountdown(profile?.purchase_protection_until);
   const activeProtectTime = shieldTime > 0 ? shieldTime : (protTime > 0 ? protTime : 0);
   const protectLabel = shieldTime > 0 ? '🛡 Щит' : '🔒 Защита';
+
+  let robChance = 50; let robDesc = "Равный бой. Штраф до 50 RC.";
+  if (profile && currentUser) {
+      const K = profile.balance / (currentUser.balance || 1);
+      if (K >= 1.5) { robChance = 70; robDesc = "Робин Гуд! Легкая добыча (70%)."; }
+      if (K <= 0.5) { robChance = 15; robDesc = "ОПАСНО! Штраф 5% от вашего баланса при провале."; }
+  }
 
   if (loading) return <div className="screen"><div style={{display:'flex',justifyContent:'center',padding:60}}><div className="spinner"/></div></div>;
   if (!profile) return <div className="screen"><div className="section mt20 text-center text-muted">Профиль не найден</div></div>;
@@ -689,7 +696,12 @@ function UserProfileScreen({ uid, currentUserId, onBack, onBuy, showToast, onVie
           <div className="section gap8">
             {activeProtectTime > 0 ? <button className="btn btn-ghost" disabled>{protectLabel}: {fmtCountdown(activeProtectTime)}</button> : <button className="btn btn-primary" onClick={doBuy} disabled={buying}>{buying ? '...' : `⛓ Купить за ${profile.price.toFixed(0)} RC`}</button>}
             <button className="btn btn-ghost" onClick={() => window.openDirectChat(uid, profile.first_name || 'Игрок')}>✉️ Написать в ЛС</button>
-            {!profile.shield_active && profile.owner_id !== currentUserId && (<button className="btn" style={{background:'var(--surface2)', border:'1px solid var(--red)', color:'var(--red)'}} onClick={() => { if(currentUser.robberies_left <= 0) showToast('Лимит ограблений исчерпан!'); else setRobbing(true); }}>🥷 Ограбить (Осталось: {currentUser.robberies_left})</button>)}
+            {!profile.shield_active && profile.owner_id !== currentUserId && (
+               <div>
+                 <button className="btn" style={{background:'var(--surface2)', border:'1px solid var(--red)', color:'var(--red)'}} onClick={() => { if(currentUser.robberies_left <= 0) showToast('Лимит ограблений исчерпан!'); else setRobbing(true); }}>🥷 Ограбить (Осталось: {currentUser.robberies_left})</button>
+                 <div className="f11 text-muted mt4" style={{textAlign:'center'}}>Успех: {robChance}%. {robDesc}</div>
+               </div>
+            )}
           </div>
         )}
         {profile.slaves.length > 0 && (<div className="section"><div className="section-title">Рабы ({profile.slaves_count})</div><div className="card" style={{padding:0}}>{profile.slaves.map((s, idx) => (<div className="list-item" key={s.id} style={{padding:'12px 16px', borderBottom: idx===profile.slaves.length-1?'none':'1px solid var(--border)', cursor:'pointer'}} onClick={() => onViewProfile(s.id)}><Avatar user={s} size={44}/><div className="li-info"><div className="li-name">{s.custom_name || s.first_name || s.username || `#${s.uid||s.id}`}</div><div className="li-sub mt4">{s.job_emoji} {s.job_title || 'Нет работы'}</div></div><div className="li-price">{s.price.toFixed(0)} RC</div></div>))}</div></div>)}
@@ -985,12 +997,20 @@ function App() {
   const [adminEditingUser, setAdminEditingUser] = useState(null);
   const [suppressingRiot, setSuppressingRiot] = useState(false);
 
+  // Исправленный свайп назад
   useEffect(() => {
     let touchStartX = 0; let touchStartY = 0;
     const handleTouchStart = (e) => { touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; };
     const handleTouchEnd = (e) => {
-      const touchEndX = e.changedTouches[0].screenX; const touchEndY = e.changedTouches[0].screenY; const dx = touchEndX - touchStartX; const dy = Math.abs(touchEndY - touchStartY);
-      if (touchStartX <= 40 && dx > 70 && dx > dy) { setViewingUid(null); setDirectChatUid(null); setOpenConv(null); setBanSupportMode(false); }
+      const touchEndX = e.changedTouches[0].screenX; const touchEndY = e.changedTouches[0].screenY; 
+      const dx = touchEndX - touchStartX; const dy = Math.abs(touchEndY - touchStartY);
+      if (touchStartX <= 40 && dx > 70 && dx > dy) { 
+        setViewingUid(null); 
+        setDirectChatUid(null); 
+        setOpenConv(null); 
+        setBanSupportMode(false); 
+        setSubTab(null); // Добавлено закрытие саб-табов (настройки, сообщения)
+      }
     };
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
