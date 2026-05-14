@@ -366,7 +366,12 @@ function RobberyGameModal({ targetId, onClose, onFinish }) {
     return () => { clearInterval(tId); clearInterval(iId); };
   }, []);
   
-  useEffect(() => { if (timeLeft <= 0) onFinish("success", score); }, [timeLeft, score, onFinish]);
+  useEffect(() => { 
+      if (timeLeft === 0) { 
+          onFinish("success", score); 
+          setTimeLeft(-1); // Опускаем таймер ниже нуля, чтобы хук не сработал дважды
+      } 
+  }, [timeLeft, score, onFinish]);
   
   const tap = (e, item) => { 
     e.stopPropagation(); 
