@@ -132,6 +132,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_riot_date TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_riot_time TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_vip_boost_claim TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_god_mode BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_tax_date TEXT DEFAULT '';
 
 ALTER TABLE users ALTER COLUMN energy TYPE DECIMAL USING energy::DECIMAL;
 ALTER TABLE users ALTER COLUMN click_power TYPE DECIMAL USING click_power::DECIMAL;
@@ -290,13 +291,10 @@ async def collect_income(owner_id: int) -> float:
 
 async def _grant_shop_item(uid: int, item_type: str, cosmetic_id: Optional[int], slave_id: Optional[int] = None):
     now = datetime.utcnow()
-    # Consumables -> to Inventory
     if item_type in ("shield_6", "shield_12", "shield_24", "chains", "boost_15", "boost_20", "stealth_3", "stealth_7"):
         await db.execute("INSERT INTO inventory (user_id, item_id, quantity) VALUES ($1, $2, 1) ON CONFLICT (user_id, item_id) DO UPDATE SET quantity = inventory.quantity + 1", uid, item_type)
-    # VIP -> Applies instantly
     elif item_type in ("vip_1","vip_2","vip_3"):
         await db.execute("UPDATE users SET vip_level=$1,vip_until=$2 WHERE id=$3", int(item_type[-1]), now+timedelta(days=30), uid)
-    # Cosmetics -> to User Cosmetics, auto-equip
     elif item_type == "cosmetic" and cosmetic_id:
         c = await db.fetchrow("SELECT * FROM cosmetics WHERE id=$1", cosmetic_id)
         if c:
@@ -369,7 +367,6 @@ async def _escape_game_loop():
                     
                 escape_game.mult = current_mult
                 
-                # Auto cashout processing
                 for uid, bet in list(escape_game.bets.items()):
                     if not bet['cashed_out'] and bet.get('auto_cashout') and bet['auto_cashout'] <= current_mult:
                         bet['cashed_out'] = True
@@ -414,7 +411,6 @@ async def lifespan(app: FastAPI):
         await c.execute("UPDATE users SET uid = nextval('user_uid_seq') WHERE uid IS NULL")
         try: await c.execute("ALTER TABLE escape_rounds ADD COLUMN status TEXT DEFAULT 'waiting'")
         except: pass
-        
         await c.execute("UPDATE users SET max_energy = 300, energy = LEAST(energy, 300) WHERE max_energy > 300")
         
     for aid in ADMIN_IDS:
@@ -531,19 +527,59 @@ async def lifespan(app: FastAPI):
                 owners_to_collect = await db.fetch("SELECT DISTINCT owner_id FROM users WHERE job_assigned_at <= NOW() - INTERVAL '2 hours'")
                 for r in owners_to_collect:
                     if r['owner_id']: await collect_income(r['owner_id'])
+                
+                # --- ТАЙМЕР НАЛОГОВ ---
+                tax_users = await db.fetch("SELECT id, balance, slaves_count FROM users WHERE slaves_count > 3 AND COALESCE(last_tax_date, '') != $1", date_str)
+                for tu in tax_users:
+                    slaves_count = tu['slaves_count']
+                    tax = 0
+                    if slaves_count <= 10:
+                        tax = (slaves_count - 3) * 100
+                    else:
+                        tax = (7 * 100) + (slaves_count - 10) * 200
                     
-                if 10 <= msk_time.hour < 22:
-                    targets = await db.fetch("SELECT id FROM users WHERE slaves_count > 0 AND riot_expires_at IS NULL AND (last_riot_date != $1 OR riots_today < 2) AND (last_riot_time IS NULL OR last_riot_time < $2) AND random() < 0.02 LIMIT 30", date_str, now - timedelta(hours=2))
-                    for t in targets:
-                        await db.execute("UPDATE users SET riot_expires_at = $1, riots_today = CASE WHEN last_riot_date = $2 THEN riots_today + 1 ELSE 1 END, last_riot_date = $2, last_riot_time = $3 WHERE id = $4", now + timedelta(minutes=10), date_str, now, t['id'])
-                        asyncio.create_task(push(t['id'], "🚨 <b>ВНИМАНИЕ! БУНТ!</b>\nВаши рабы взбунтовались! Срочно зайдите в игру, чтобы подавить бунт, иначе через 10 минут они разграбят 10% вашей казны!", notif_type="trade"))
+                    current_bal = float(tu['balance'])
+                    if current_bal >= tax:
+                        await db.execute("UPDATE users SET balance = balance - $1::numeric, last_tax_date = $2 WHERE id = $3", tax, date_str, tu['id'])
+                    else:
+                        await db.execute("UPDATE users SET balance = 0, last_tax_date = $1 WHERE id = $2", date_str, tu['id'])
+                        cheapest_slave = await db.fetchrow("SELECT id, current_price FROM users WHERE owner_id = $1 ORDER BY current_price ASC LIMIT 1", tu['id'])
+                        if cheapest_slave:
+                            await db.execute("UPDATE users SET owner_id = NULL, custom_name = NULL, job_id = NULL, job_assigned_at = NULL WHERE id = $1", cheapest_slave['id'])
+                            asyncio.create_task(push(tu['id'], f"💸 <b>Налоговая инспекция!</b>\nУ вас не хватило денег на содержание рабов (Нужно {tax} RC). Ваш баланс обнулен, а самый дешевый раб сбежал!", notif_type="trade"))
+                            asyncio.create_task(push(cheapest_slave['id'], "🕊️ <b>Вы свободны!</b>\nВаш хозяин обанкротился и не смог платить налог за ваше содержание.", notif_type="trade"))
+                        else:
+                            asyncio.create_task(push(tu['id'], f"💸 <b>Налог уплачен (Банкрот)!</b>\nСписано всё до 0.", notif_type="trade"))
+
+                # --- ТАЙМЕР ЖЕСТКИХ БУНТОВ 2.0 ---
+                if now.minute == 0:
+                    riot_candidates = await db.fetch("SELECT id, slaves_count, (SELECT COALESCE(SUM(current_price), 0) FROM users u2 WHERE u2.owner_id = users.id) as total_value FROM users WHERE slaves_count > 0 AND riot_expires_at IS NULL")
+                    for rc in riot_candidates:
+                        slaves = rc['slaves_count']
+                        val = float(rc['total_value'])
+                        chance = 1.0 + (slaves // 10) * 1.0 + (val // 50000) * 2.0
+                        chance = min(chance, 50.0) 
+                        if random.random() * 100 < chance:
+                            await db.execute("UPDATE users SET riot_expires_at = $1 WHERE id = $2", now + timedelta(minutes=15), rc['id'])
+                            asyncio.create_task(push(rc['id'], "🚨 <b>ВНИМАНИЕ! БУНТ!</b>\nВаши рабы взбунтовались! У вас есть 15 минут, чтобы подавить бунт, иначе вы потеряете 10% казны и одного дорогого раба!", notif_type="trade"))
                         
                 expired_riots = await db.fetch("SELECT id, balance FROM users WHERE riot_expires_at IS NOT NULL AND riot_expires_at < $1", now)
                 for er in expired_riots:
                     penalty = float(er['balance']) * 0.10
                     await db.execute("UPDATE users SET balance = balance - $1::numeric, riot_expires_at = NULL WHERE id=$2", penalty, er['id'])
-                    asyncio.create_task(push(er['id'], f"🚨 <b>Ваши рабы устроили бунт!</b>\nВы не успели его подавить, они разграбили 10% вашей казны ({penalty:.0f} RC).", notif_type="trade"))
-            except: pass
+                    
+                    top_slaves = await db.fetch("SELECT id, username, first_name FROM users WHERE owner_id = $1 ORDER BY current_price DESC LIMIT 3", er['id'])
+                    escaped_slave_name = "Никто"
+                    if top_slaves:
+                        escapee = random.choice(top_slaves)
+                        await db.execute("UPDATE users SET owner_id = NULL, custom_name = NULL, job_id = NULL, job_assigned_at = NULL WHERE id = $1", escapee['id'])
+                        escaped_slave_name = escapee['first_name'] or escapee['username'] or f"ID:{escapee['id']}"
+                        asyncio.create_task(push(escapee['id'], "🕊️ <b>Свобода!</b>\nВы воспользовались бунтом и сбежали от хозяина!", notif_type="trade"))
+
+                    asyncio.create_task(push(er['id'], f"🚨 <b>Бунт завершился провалом!</b>\nВы не подавили бунт. Разграблено {penalty:.0f} RC. К тому же, раб {escaped_slave_name} сбежал на свободу!", notif_type="trade"))
+
+            except Exception as e:
+                print(f"Cron Error: {e}")
             
     asyncio.create_task(_system_cron())
     asyncio.create_task(_escape_game_loop())
@@ -582,7 +618,7 @@ class MaintToggleReq(BaseModel): state: bool
 class SupportMessageReq(BaseModel): message: str = ""; photo_b64: Optional[str] = None; reply_to_id: Optional[int] = None
 class MineSyncReq(BaseModel): clicks: int
 class MineUpgradeReq(BaseModel): type: str
-class RobberyReq(BaseModel): target_id: int; status: str; amount: int
+class RobberyReq(BaseModel): target_id: int; status: str; amount: float
 class ArenaFightReq(BaseModel): slave_id: int; bet: float
 class SendChatReq(BaseModel): target_uid: int; text: str
 class EscapeBetReq(BaseModel): amount: float; auto_cashout: Optional[float] = None
@@ -1113,8 +1149,6 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
     if robberies_count >= 3: 
         raise HTTPException(400, "Лимит ограблений (3 раза в 2 часа) исчерпан")
     
-    percent = max(0.0, min(float(req.amount), 5.0))
-    
     async with db.acquire() as conn:
         async with conn.transaction():
             target = await conn.fetchrow("SELECT balance, shield_until, admin_god_mode FROM users WHERE id=$1 FOR UPDATE", req.target_id)
@@ -1122,30 +1156,54 @@ async def robbery_resolve(req: RobberyReq, user: dict = Depends(get_current_user
             if target.get('admin_god_mode'): raise HTTPException(400, "Игрок под защитой богов")
             if target['shield_until'] and target['shield_until'] > now: raise HTTPException(400, "У игрока активирован Щит")
             
-            actual_amount = round(float(target['balance']) * (percent / 100.0), 2)
+            target_bal = float(target['balance'])
+            attacker_bal = float(user['balance'])
+            K = target_bal / attacker_bal if attacker_bal > 0 else 100.0
             
+            if K >= 1.5:
+                success_chance = 0.70
+                rob_type = "poor_robs_rich"
+            elif K <= 0.5:
+                success_chance = 0.15
+                rob_type = "rich_robs_poor"
+            else:
+                success_chance = 0.50
+                rob_type = "equal"
+
+            is_success = (req.status == "success") and (random.random() <= success_chance)
+            
+            if req.status == "success" and not is_success:
+                req.status = "caught"
+
             await conn.execute("UPDATE users SET robberies_count=robberies_count+1 WHERE id=$1", uid)
-            
-            if req.status == "success" and actual_amount > 0:
-                await conn.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", actual_amount, uid)
-                await conn.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", actual_amount, req.target_id)
-                msg = f"💸 Вы успешно украли {actual_amount:.0f} RC ({percent:.0f}% от казны)!"
-                asyncio.create_task(push(req.target_id, f"🥷 <b>Вас ограбили!</b>\nИгрок @{user['username'] or uid} пробрался к вам и украл {actual_amount:.0f} RC.", notif_type="trade"))
-                await add_task_progress(uid, 'robbery')
+
+            if req.status == "success":
+                percent = max(0.0, min(float(req.amount), 5.0))
+                actual_amount = round(target_bal * (percent / 100.0), 2)
                 
-            elif req.status == "caught":
-                penalty = min(50.0, float(user['balance']))
+                if rob_type == "poor_robs_rich" and actual_amount > attacker_bal * 2:
+                    actual_amount = attacker_bal * 2
+                    
+                if actual_amount > 0:
+                    await conn.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", actual_amount, uid)
+                    await conn.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", actual_amount, req.target_id)
+                    msg = f"💸 Успех! Украдено {actual_amount:.0f} RC."
+                    asyncio.create_task(push(req.target_id, f"🥷 <b>Вас ограбили!</b>\nИгрок @{user['username'] or uid} пробрался к вам и украл {actual_amount:.0f} RC.", notif_type="trade"))
+                    await add_task_progress(uid, 'robbery')
+                else:
+                    msg = "У жертвы пустые карманы. Ничего не украдено."
+                    
+            else:
+                if rob_type == "rich_robs_poor":
+                    penalty = round(attacker_bal * 0.05, 2)
+                else:
+                    penalty = min(50.0, attacker_bal)
+                    
                 await conn.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", penalty, uid)
                 await conn.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", penalty, req.target_id)
-                msg = f"👮 Вы попались! Штраф {penalty:.0f} RC переведен жертве."
+                msg = f"👮 Вы попались полиции! Штраф {penalty:.0f} RC переведен жертве."
                 asyncio.create_task(push(req.target_id, f"🛡 <b>Попытка ограбления!</b>\nИгрок @{user['username'] or uid} пытался вас ограбить, но попался полиции. Вы получаете компенсацию {penalty:.0f} RC.", notif_type="trade"))
-                
-            else: 
-                if float(target['balance']) <= 0:
-                    msg = "У жертвы пустые карманы (0 RC)! Ничего не украдено."
-                else:
-                    msg = "Ничего не украдено."
-                    
+
     return {"ok": True, "msg": msg}
 
 @app.post("/api/riot/suppress")
@@ -1354,7 +1412,7 @@ async def admin_broadcast(req: BroadcastReq, _: dict = Depends(get_admin_user)):
 @app.post("/api/admin/season/start")
 async def season_start(req: SeasonReq, _: dict = Depends(get_admin_user)):
     if req.password != SEASON_PASS: raise HTTPException(403)
-    await db.execute("UPDATE users SET balance=50,current_price=100,owner_id=NULL,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,shield_until=NULL,chains_until=NULL,booster_mult=1.0,booster_until=NULL,stealth_until=NULL,energy=300,max_energy=300,click_power=1.0,robberies_count=0,riot_expires_at=NULL,is_injured_until=NULL")
+    await db.execute("UPDATE users SET balance=50,current_price=100,owner_id=NULL,custom_name=NULL,job_id=NULL,job_assigned_at=NULL,shield_until=NULL,chains_until=NULL,booster_mult=1.0,booster_until=NULL,stealth_until=NULL,energy=300,max_energy=300,click_power=1.0,robberies_count=0,riot_expires_at=NULL,is_injured_until=NULL,last_tax_date=''")
     await rdb.delete("top:forbes", "top:owners", "top:legends")
     return {"ok": True}
 
