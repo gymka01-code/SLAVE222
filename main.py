@@ -154,15 +154,7 @@ ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS last_gathering TIMESTAMP;
 
 
 INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES ('Подметать полы', 0.15, 0.20, 70, '🧹'), ('Раздавать листовки', 0.175, 0.225, 70, '📄'), ('Майнить крипту', 0.225, 0.275, 25, '⛏'), ('Петь на улице', 0.20, 0.25, 25, '🎤'), ('Тапать хомяка', 0.30, 0.35, 5, '🐹'), ('Просить милостыню', 0.275, 0.325, 5, '🙏') ON CONFLICT (title) DO UPDATE SET min_yield=EXCLUDED.min_yield, max_yield=EXCLUDED.max_yield, drop_chance=EXCLUDED.drop_chance, emoji=EXCLUDED.emoji;
-CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
 -- Индексы на горячих колонках (critical for performance)
-CREATE INDEX IF NOT EXISTS idx_users_owner_id        ON users(owner_id) WHERE owner_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_users_rented_by       ON users(rented_by) WHERE rented_by IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_users_job_assigned_at ON users(job_assigned_at) WHERE job_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_users_syndicate_id    ON users(syndicate_id) WHERE syndicate_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_users_balance         ON users(balance DESC) WHERE is_banned = FALSE;
-CREATE INDEX IF NOT EXISTS idx_transactions_user     ON transactions(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_syn_wars_status       ON syndicate_wars(status) WHERE status IN ('pending','active');
 INSERT INTO cosmetics (type, name, value, price_stars, css_class, price_rc) VALUES ('color', 'Рубиновый', 'ruby', 10, 'clr-ruby', 0), ('color', 'Золотой', 'gold', 15, 'clr-gold', 0), ('color', 'Неоновый', 'neon', 20, 'clr-neon', 0), ('frame', 'Пламя', 'fire', 25, 'frame-fire', 0), ('frame', 'Алмаз', 'diamond', 30, 'frame-diamond', 0), ('frame', 'Радуга 🌈', 'rainbow', 40, 'frame-rainbow', 0), ('emoji', 'Корона', '👑', 40, '', 0), ('emoji', 'Бриллиант', '💎', 25, '', 0), ('emoji', 'Молния', '⚡', 15, '', 0), ('emoji', 'Цветочек 🌸', '🌸', 15, '', 0) ON CONFLICT (name) DO UPDATE SET price_stars=EXCLUDED.price_stars, price_rc=0;
 
 -- Инициализация территорий
@@ -500,12 +492,22 @@ async def lifespan(app: FastAPI):
         await c.execute(SCHEMA)
     # Миграции выполняются отдельно - ALTER TABLE должен примениться до CREATE INDEX
     _migrations = [
+        # Колонки которых может не быть в старых БД
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS user_id BIGINT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS photo_b64 TEXT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS direction TEXT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS reply_to_id INT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE",
         "ALTER TABLE user_chats ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE",
+        # Все индексы — отдельно, после ALTER TABLE
+        "CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name)",
+        "CREATE INDEX IF NOT EXISTS idx_users_owner_id ON users(owner_id) WHERE owner_id IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS idx_users_rented_by ON users(rented_by) WHERE rented_by IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS idx_users_job_assigned_at ON users(job_assigned_at) WHERE job_id IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS idx_users_syndicate_id ON users(syndicate_id) WHERE syndicate_id IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS idx_users_balance ON users(balance DESC) WHERE is_banned = FALSE",
+        "CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_syn_wars_status ON syndicate_wars(status) WHERE status IN ('pending','active')",
         "CREATE INDEX IF NOT EXISTS idx_support_messages_user ON support_messages(user_id, created_at)",
         "CREATE INDEX IF NOT EXISTS idx_user_chats_receiver ON user_chats(receiver_id, is_read, created_at DESC)",
         "UPDATE users SET uid = nextval('user_uid_seq') WHERE uid IS NULL",
