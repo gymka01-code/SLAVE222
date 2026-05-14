@@ -67,6 +67,11 @@ class WSManager:
 global_ws = WSManager()
 clan_ws = WSManager()
 
+def get_crash_point() -> float:
+    r = random.random()
+    if r < 0.05: return 1.00
+    return round(max(1.0, 0.95 / (1.0 - r)), 2)
+
 class EscapeGame:
     def __init__(self):
         self.round_id = 0; self.status = "waiting"; self.mult = 1.00; self.start_time = 0.0; self.crash_point = 1.00; self.history = []; self.bets = {}
@@ -122,6 +127,14 @@ CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS daily_progress (user_id BIGINT, task_id TEXT, date_str TEXT, progress INT DEFAULT 0, claimed BOOLEAN DEFAULT FALSE, PRIMARY KEY (user_id, task_id, date_str));
 CREATE TABLE IF NOT EXISTS inventory (user_id BIGINT, item_id TEXT, quantity INT DEFAULT 0, PRIMARY KEY (user_id, item_id));
 INSERT INTO global_settings (key, value) VALUES ('maintenance', '0') ON CONFLICT DO NOTHING;
+
+-- ПРИМЕНЕНИЕ MIGRATIONS
+ALTER TABLE users ADD COLUMN IF NOT EXISTS rent_price DECIMAL DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS rent_duration INT DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS rented_by BIGINT DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS rented_until TIMESTAMP DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_wallet DECIMAL DEFAULT 0;
 
 INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES ('Подметать полы', 0.15, 0.20, 70, '🧹'), ('Раздавать листовки', 0.175, 0.225, 70, '📄'), ('Майнить крипту', 0.225, 0.275, 25, '⛏'), ('Петь на улице', 0.20, 0.25, 25, '🎤'), ('Тапать хомяка', 0.30, 0.35, 5, '🐹'), ('Просить милостыню', 0.275, 0.325, 5, '🙏') ON CONFLICT (title) DO UPDATE SET min_yield=EXCLUDED.min_yield, max_yield=EXCLUDED.max_yield, drop_chance=EXCLUDED.drop_chance, emoji=EXCLUDED.emoji;
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
@@ -285,7 +298,7 @@ async def _full_profile(uid: int) -> dict:
         })
         if s['job_id']:
             avg_yield = (float(s['min_yield'] or 0) + float(s['max_yield'] or 0)) / 2.0
-            rc_per_hour += (float(s['current_price']) * avg_yield) / 2.0  # Job is 2 hours
+            rc_per_hour += (float(s['current_price']) * avg_yield) / 2.0
 
     await db.execute("UPDATE users SET slaves_count=$1 WHERE id=$2", len([s for s in slaves if not s['is_rented']]), uid)
     max_slaves = u['max_slaves_override'] if u.get('max_slaves_override') is not None else (50 if u['vip_level'] >= 3 else 30 if u['vip_level'] == 2 else 20 if u['vip_level'] == 1 else 15)
@@ -823,7 +836,7 @@ async def send_to_work(req: SendWorkReq, user: dict = Depends(get_current_user))
     if not s or (s['owner_id'] != user['id'] and s['rented_by'] != user['id']): raise HTTPException(403)
     if s['job_assigned_at'] and (datetime.utcnow() - s['job_assigned_at']).total_seconds() < 7200: raise HTTPException(400, "Уже работает")
     if s['is_injured_until'] and s['is_injured_until'] > datetime.utcnow(): raise HTTPException(400, "Раб травмирован")
-    new_job = pick_job(user['vip_level'], await get_jobs_list())
+    new_job = random.choice([{"id":1, "title":"Подметать полы", "min_yield":0.15, "max_yield":0.20, "emoji":"🧹"}, {"id":2, "title":"Раздавать листовки", "min_yield":0.175, "max_yield":0.225, "emoji":"📄"}])
     await db.execute("UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3", new_job['id'], datetime.utcnow(), req.slave_id)
     asyncio.create_task(push(req.slave_id, f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b> на 2 часа!", notif_type="jobs"))
     await add_task_progress(user['id'], 'send_work')
