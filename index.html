@@ -14,14 +14,14 @@
 * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
 html, body, #root { height:100%; width:100%; overflow:hidden; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
 input, textarea, select { font-size: 16px !important; }
-.app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; position: relative; padding-bottom: calc(65px + env(safe-area-inset-bottom)); }
-.screen { flex:1; overflow:hidden; display:flex; flex-direction:column; height: 100%; position: absolute; inset:0; background: var(--bg); z-index: 1;}
-.content { flex:1; overflow-y:auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); scrollbar-width: none; }
+.app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; background: var(--bg); overflow: hidden; }
+.screen { flex:1; overflow:hidden; display:flex; flex-direction:column; background: var(--bg); z-index: 1; width: 100%; }
+.content { flex:1; overflow-y:auto; padding-bottom: 24px; scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 .hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
 .hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
 .hdr-sub { font-size: 10px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
-.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(65px + env(safe-area-inset-bottom)); background: rgba(10,10,10,0.95); backdrop-filter: blur(10px); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 10000; max-width: 480px; margin: 0 auto; }
+.bottom-nav { flex-shrink: 0; height: calc(65px + env(safe-area-inset-bottom)); background: rgba(10,10,10,1); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); width: 100%; z-index: 10; }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--text-3); font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; background: transparent; cursor: pointer; transition: 0.2s; letter-spacing: 0.05em; }
 .nav-item.active { color: var(--gold); }
 .nav-item-ico { font-size: 22px; margin-bottom: 2px; transition: 0.2s; }
@@ -92,7 +92,7 @@ input, textarea, select { font-size: 16px !important; }
 .msg-bubble.me { background: var(--gold); color: #000; border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(232,197,71,0.15); }
 .msg-bubble.them { background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
 .msg-time { font-size: 10px; opacity: 0.5; margin-top: 4px; font-weight: 500; padding: 0 4px; }
-.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; align-items:center; gap: 8px; position: absolute; bottom: 0; left: 0; right: 0; z-index: 100; }
+.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.95); border-top: 1px solid var(--border); display: flex; align-items:center; gap: 8px; flex-shrink: 0; }
 .chat-area { padding-bottom: 80px !important; }
 .chat-input { flex: 1; background: var(--bg1); border: 1px solid var(--border2); border-radius: 20px; color: var(--text); padding: 12px 16px; outline: none; font-family: var(--font); }
 .mine-rock { font-size: 120px; display:flex; align-items:center; justify-content:center; width: 200px; height: 200px; margin: 40px auto; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.1), transparent); cursor: pointer; user-select: none; transition: transform 0.05s; position: relative; }
@@ -553,7 +553,15 @@ function ShopInventoryScreen({ user, onRefresh, showToast, onBack }) {
           <div className="fw8 text-gold mt16">Косметика (Навсегда)</div>
           {data.cosmetics.map(c => (
             <div className="card row-sb" key={c.id} style={{margin:0}}>
-              <div><div className="fw7">{c.name}</div><div className="f12 text-muted mt4">Тип: {c.type==='color'?'Цвет ника':c.type==='frame'?'Рамка аватара':'Эмодзи статуса'}</div></div>
+              <div>
+                <div className="fw7">{c.name}</div>
+                <div className="f12 text-muted mt4 mb8">Тип: {c.type==='color'?'Цвет ника':c.type==='frame'?'Рамка аватара':'Эмодзи статуса'}</div>
+                <div style={{background:'var(--bg)', padding:'6px 10px', borderRadius:'8px', display:'inline-block'}}>
+                   {c.type === 'color' && <span className={`fw7 clr-${c.value}`}>Ваше Имя</span>}
+                   {c.type === 'frame' && <div className="row"><div className={`avatar-sm frame-${c.value}`} style={{width:24,height:24,fontSize:10}}>👤</div> <span className="fw7 f12">Ваше Имя</span></div>}
+                   {c.type === 'emoji' && <span className="fw7 f12">{c.value} Ваше Имя</span>}
+                </div>
+              </div>
               {c.owned ? <span className="f12 text-green fw7">✅ Куплено</span> : <button className="btn btn-primary btn-sm" onClick={()=>doBuyStars('cosmetic', c.id)}>⭐️ {c.price_stars}</button>}
             </div>
           ))}
@@ -976,7 +984,7 @@ function TopScreen({ onViewProfile, showToast, user }) {
   const [tab, setTab] = useState('forbes'); const [rows, setRows] = useState([]); const [loading, setLoading] = useState(false);
   async function load(cat) { setTab(cat); setLoading(true); try { setRows(await get(`/api/top?cat=${cat}`)); } catch {} setLoading(false); }
   useEffect(() => { load('forbes'); }, []);
-  const tabInfo = { forbes: { label:'💰 ФОРБС', suffix:' RC' }, owners: { label:'👑 ХОЗЯЕВА', suffix:' раб.' }, legends: { label:'⚡ ЛЕГЕНДЫ', suffix:' RC' } };
+  const tabInfo = { forbes: { label:'💰 ФОРБС', suffix:' RC' }, owners: { label:'👑 ХОЗЯЕВА', suffix:' раб.' }, legends: { label:'⚡ ЛЕГЕНДЫ', suffix:' RC' }, clans: { label:'🛡 КЛАНЫ', suffix:' Очков' } };
   
   async function doWar(targetId) {
      if(!confirm('Объявить войну клану? Это начнет гонку кошельков на 24ч!')) return;
@@ -988,7 +996,21 @@ function TopScreen({ onViewProfile, showToast, user }) {
       <div className="hdr"><div className="hdr-title">🏆 Рейтинги</div></div>
       <div className="content" style={{padding:0}}>
         <div className="tabs-wrap"><div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div></div>
-        {loading ? <div className="spinner mt40"/> : (<div className="p16"><div className="card p0 m0">{rows.map((r, i) => { const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null; return (<div className="list-item p16" key={r.id} style={{cursor:'pointer', borderBottom: i === rows.length-1 ? 'none' : '1px solid var(--border)'}} onClick={() => {if(tab!=='clans') onViewProfile(r.id)}}><div className="fw8 text-muted" style={{width:28, textAlign:'center', color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div>{tab!=='clans' && <Avatar user={r} size={40}/>}<div className="li-info"><div className="pc-name"><PlayerName user={r}/></div>{tab==='clans' ? <div className="f11 text-gold mt4">Ур. {r.vip_level}</div> : <div className="f11 text-muted mt4">#{r.uid}</div>}</div>{tab==='clans' && ['don','deputy'].includes(user.syndicate_role) && r.id !== user.syndicate_id ? <button className="btn btn-danger btn-sm mr8" onClick={(e)=>{e.stopPropagation(); doWar(r.id);}}>⚔️ Напасть</button> : null}<div className="fw8 text-gold">{parseFloat(r.value||0).toFixed(0)} <span className="f10 text-muted">{tabInfo[tab].suffix}</span></div></div>); })}</div></div>)}
+        {loading ? <div className="spinner mt40"/> : (<div className="p16"><div className="card p0 m0">{rows.map((r, i) => { 
+            const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null; 
+            return (
+              <div className="list-item p16" key={r.id} style={{cursor:'pointer', borderBottom: i === rows.length-1 ? 'none' : '1px solid var(--border)'}} onClick={() => {if(tab!=='clans') onViewProfile(r.id)}}>
+                <div className="fw8 text-muted" style={{width:28, textAlign:'center', color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div>
+                {tab!=='clans' && <Avatar user={r} size={40}/>}
+                <div className="li-info">
+                  {tab==='clans' ? <div className="fw8" style={{fontSize:16}}>{r.first_name}</div> : <div className="pc-name"><PlayerName user={r}/></div>}
+                  {tab==='clans' ? <div className="f12 text-gold mt4">Уровень {r.vip_level}</div> : <div className="f11 text-muted mt4">#{r.uid}</div>}
+                </div>
+                {tab==='clans' && ['don','deputy'].includes(user.syndicate_role) && r.id !== user.syndicate_id ? <button className="btn btn-danger btn-sm mr8" onClick={(e)=>{e.stopPropagation(); doWar(r.id);}}>⚔️ Напасть</button> : null}
+                <div className="fw8 text-gold">{parseFloat(r.value||0).toFixed(0)} <span className="f10 text-muted">{tabInfo[tab].suffix}</span></div>
+              </div>
+            ); 
+        })}</div></div>)}
       </div>
     </div>
   );
@@ -1049,7 +1071,7 @@ function App() {
 
   if (!user || !tasksData) return <div className="app"><div className="spinner mt40"/></div>;
   if (user.is_banned && !subTab) return <div className="app"><div className="screen"><div className="p20 text-center"><div className="text-red fw8 mb8" style={{fontSize:24}}>🚫 ВЫ ЗАБАНЕНЫ</div><div className="f12 text-muted mb20">{user.ban_reason}</div><button className="btn btn-primary" onClick={()=>setSubTab('support')}>Написать в поддержку</button></div></div></div>;
-
+  if (user.maintenance && !user.is_admin) return <div className="app"><div className="screen" style={{justifyContent:'center', alignItems:'center', zIndex:999999}}><div className="text-amber fw8 mb8" style={{fontSize:24}}>🛠 ТЕХРАБОТЫ</div><div className="f13 text-muted text-center px20">В данный момент сервер обновляется. Пожалуйста, подождите немного!</div></div></div>;
   async function loadAdminTab(t) { if(t==='dash') { get('/api/admin/dashboard').then(setDash).catch(()=>{}); } if(t==='users') { get('/api/admin/users').then(setUsers).catch(()=>{}); } if(t==='tickets') { get('/api/admin/tickets').then(setTickets).catch(()=>{}); } if(t==='stories') { get('/api/admin/stories').then(setStories).catch(()=>{}); } if(t==='sponsors') { get('/api/admin/sponsors').then(setSponsors).catch(()=>{}); } if(t==='admins') { get('/api/admin/admins_list').then(setAdminsData).catch(()=>{}); } }
 
   return (
