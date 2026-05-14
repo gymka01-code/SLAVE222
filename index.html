@@ -1031,6 +1031,307 @@ function AdminChatScreen({ conv, onBack, showToast }) {
   )
 }
 
+function ShopInventoryScreen({ user, onRefresh, showToast, onBack }) {
+  const [tab, setTab] = useState('shop'); 
+  const [shopData, setShopData] = useState({ items: [], cosmetics: [] });
+  const [invData, setInvData] = useState({ items: [], cosmetics: [] });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { loadData(); }, [tab]);
+
+  async function loadData() {
+    setLoading(true);
+    try {
+      if (tab === 'shop') setShopData(await get('/api/shop'));
+      else setInvData(await get('/api/inventory'));
+    } catch(e) { showToast('❌ ' + e.message); }
+    setLoading(false);
+  }
+
+  async function buyItem(itemType, isCosmetic = false, cosmeticId = null) {
+    try {
+      if (isCosmetic) {
+        const r = await post('/api/shop/invoice', { item_type: 'cosmetic', cosmetic_id: cosmeticId });
+        window.Telegram.WebApp.openInvoice(r.invoice_link, (status) => {
+          if (status === 'paid') { showToast('✅ Куплено!'); loadData(); onRefresh(); }
+        });
+      } else {
+        await post('/api/shop/buy_rc', { item_type: itemType });
+        showToast('✅ Куплено за RC!'); loadData(); onRefresh();
+      }
+    } catch (e) { showToast('❌ ' + e.message); }
+  }
+
+  async function useItem(itemId) {
+    try {
+      await post('/api/inventory/use', { item_id: itemId });
+      showToast('✅ Предмет активирован!'); loadData(); onRefresh();
+    } catch (e) { showToast('❌ ' + e.message); }
+  }
+
+  async function equipCosmetic(field, value) {
+    try {
+      await post('/api/inventory/equip_cosmetic', { field, value });
+      showToast('✅ Косметика надета!'); onRefresh();
+    } catch (e) { showToast('❌ ' + e.message); }
+  }
+
+  return (
+    <div className="screen" style={{zIndex: 200}}>
+      <div className="hdr">
+        <button className="back-btn" onClick={onBack}>‹ Назад</button>
+        <div className="hdr-title">Склад и Магазин</div>
+        <div style={{width: 60}}></div>
+      </div>
+      <div className="content p0">
+        <div className="tabs-wrap">
+          <div className="tabs">
+            <button className={`tab${tab==='shop'?' active':''}`} onClick={()=>setTab('shop')}>🛒 Магазин</button>
+            <button className={`tab${tab==='inv'?' active':''}`} onClick={()=>setTab('inv')}>🎒 Мой Склад</button>
+          </div>
+        </div>
+
+        <div className="p16 gap12">
+          {loading && <div className="spinner mt20"/>}
+          
+          {/* МАГАЗИН */}
+          {!loading && tab === 'shop' && (
+            <>
+              <div className="section-title">Расходники и VIP</div>
+              {shopData.items.map(i => (
+                <div className="card row-sb" key={i.id} style={{margin:0}}>
+                  <div>
+                    <div className="fw7">{i.name}</div>
+                    <div className="f11 text-muted mt4">{i.desc}</div>
+                  </div>
+                  <button className="btn btn-primary btn-sm" onClick={()=>buyItem(i.id)}>
+                    {i.price_rc ? `${i.price_rc} RC` : `${i.price_stars} ⭐️`}
+                  </button>
+                </div>
+              ))}
+              <div className="section-title mt20">Косметика (Навсегда)</div>
+              {shopData.cosmetics.map(c => (
+                <div className="card row-sb" key={c.id} style={{margin:0}}>
+                  <div>
+                    <div className="fw7">{c.name}</div>
+                    <div className="f11 text-muted mt4">Тип: {c.type}</div>
+                  </div>
+                  {c.owned ? <span className="f12 fw7 text-green">Куплено</span> : 
+                  <button className="btn btn-ghost btn-sm" style={{color: 'var(--gold)', borderColor: 'var(--gold)'}} onClick={()=>buyItem('cosmetic', true, c.id)}>
+                    {c.price_stars} ⭐️
+                  </button>}
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* ИНВЕНТАРЬ */}
+          {!loading && tab === 'inv' && (
+            <>
+              <div className="section-title">Мои предметы</div>
+              {invData.items.length === 0 && <div className="text-muted text-center">Пусто</div>}
+              {invData.items.map(i => (
+                <div className="card row-sb" key={i.item_id} style={{margin:0}}>
+                  <div><div className="fw7">{i.item_id}</div><div className="f11 text-muted mt4">Кол-во: {i.quantity} шт.</div></div>
+                  <button className="btn btn-green btn-sm" onClick={()=>useItem(i.item_id)}>Использовать</button>
+                </div>
+              ))}
+              
+              <div className="section-title mt20">Моя косметика</div>
+              {invData.cosmetics.length === 0 && <div className="text-muted text-center">Нет косметики</div>}
+              {invData.cosmetics.map(c => {
+                const fieldMap = { 'color': 'name_color', 'frame': 'avatar_frame', 'emoji': 'emoji_status' };
+                const field = fieldMap[c.type];
+                const isEquipped = user[field] === c.value;
+                return (
+                  <div className="card row-sb" key={c.id} style={{margin:0}}>
+                    <div><div className="fw7">{c.name}</div></div>
+                    {isEquipped ? 
+                      <button className="btn btn-ghost btn-sm" onClick={()=>equipCosmetic(field, 'default')}>Снять</button> : 
+                      <button className="btn btn-primary btn-sm" onClick={()=>equipCosmetic(field, c.value)}>Надеть</button>
+                    }
+                  </div>
+                )
+              })}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsScreen({ user, showToast, onBack, onNavSub, onRefresh }) {
+  const [prefs, setPrefs] = useState(user.notify_prefs || {all: true, trade: true, jobs: true, messages: true, support: true, clan: true});
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (key) => setPrefs(p => ({...p, [key]: !p[key]}));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await post('/api/settings/notifications', { prefs });
+      showToast('✅ Настройки сохранены!'); onRefresh();
+    } catch(e) { showToast('❌ ' + e.message); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="screen" style={{zIndex: 200}}>
+      <div className="hdr">
+        <button className="back-btn" onClick={onBack}>‹ Назад</button>
+        <div className="hdr-title">Настройки</div>
+        <div style={{width: 60}}></div>
+      </div>
+      <div className="content p16 gap16">
+        <div className="card gap12" style={{margin:0}}>
+           <div className="fw8" style={{fontSize: 16}}>🔔 Уведомления бота</div>
+           <div className="f12 text-muted mb8">Выберите, какие сообщения вы хотите получать в Telegram.</div>
+           
+           <div className="row-sb"><div><div className="fw7">Все уведомления</div></div><div className={`toggle-switch ${prefs.all ? 'on' : ''}`} onClick={()=>toggle('all')}/></div>
+           <div className="row-sb" style={{opacity: prefs.all ? 1 : 0.5, pointerEvents: prefs.all ? 'auto' : 'none'}}><div><div className="fw6">Торговля и Аренда</div></div><div className={`toggle-switch ${prefs.trade ? 'on' : ''}`} onClick={()=>toggle('trade')}/></div>
+           <div className="row-sb" style={{opacity: prefs.all ? 1 : 0.5, pointerEvents: prefs.all ? 'auto' : 'none'}}><div><div className="fw6">Окончание работы</div></div><div className={`toggle-switch ${prefs.jobs ? 'on' : ''}`} onClick={()=>toggle('jobs')}/></div>
+           <div className="row-sb" style={{opacity: prefs.all ? 1 : 0.5, pointerEvents: prefs.all ? 'auto' : 'none'}}><div><div className="fw6">Личные сообщения</div></div><div className={`toggle-switch ${prefs.messages ? 'on' : ''}`} onClick={()=>toggle('messages')}/></div>
+           <div className="row-sb" style={{opacity: prefs.all ? 1 : 0.5, pointerEvents: prefs.all ? 'auto' : 'none'}}><div><div className="fw6">События Клана</div></div><div className={`toggle-switch ${prefs.clan ? 'on' : ''}`} onClick={()=>toggle('clan')}/></div>
+           
+           <button className="btn btn-primary mt8" onClick={save} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить изменения'}</button>
+        </div>
+
+        <div className="card gap8" style={{margin:0}}>
+           <div className="fw8" style={{fontSize: 16}}>💬 Помощь</div>
+           <div className="f12 text-muted">Если вы нашли баг или у вас есть вопрос, напишите нашим агентам поддержки.</div>
+           <button className="btn btn-ghost mt8" onClick={() => onNavSub('support')}>Связаться с поддержкой</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SupportScreen({ user, onBack, showToast }) {
+  const [msgs, setMsgs] = useState([]);
+  const [txt, setTxt] = useState('');
+
+  const load = useCallback(() => get('/api/support/history').then(setMsgs).catch(()=>{}), []);
+  
+  useEffect(() => { load(); const int = setInterval(load, 5000); return () => clearInterval(int); }, [load]);
+
+  const send = async () => {
+    if (!txt.trim()) return;
+    try { await post('/api/support', { message: txt.trim() }); setTxt(''); load(); } 
+    catch(e) { showToast('❌ ' + e.message); }
+  };
+
+  return (
+    <div className="screen" style={{zIndex: 300}}>
+      <div className="hdr">
+        <button className="back-btn" onClick={onBack}>‹ Назад</button>
+        <div className="hdr-title">Служба поддержки</div>
+        <div style={{width: 60}}></div>
+      </div>
+      <div className="content chat-area">
+        {msgs.length === 0 && <div className="text-center text-muted mt40">Здесь вы можете задать вопрос Администрации.</div>}
+        {msgs.map(m => (
+          <div key={m.id} className={`msg-wrap ${!m.is_from_admin ? 'me' : 'them'}`}>
+            <div className={`msg-bubble ${!m.is_from_admin ? 'me' : 'them'}`}>{m.message}</div>
+          </div>
+        ))}
+      </div>
+      <div className="chat-input-wrap">
+        <input className="chat-input" placeholder="Опишите проблему..." value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()}/>
+        <button className="btn btn-primary btn-sm" onClick={send}>➤</button>
+      </div>
+    </div>
+  );
+}
+
+function MessagesScreen({ user, onBack, onOpenChat, onViewProfile }) {
+  const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    get('/api/chat/list').then(data => { setChats(data); setLoading(false); }).catch(()=>setLoading(false));
+  }, []);
+
+  return (
+    <div className="screen" style={{zIndex: 200}}>
+      <div className="hdr">
+        <button className="back-btn" onClick={onBack}>‹ Назад</button>
+        <div className="hdr-title">Сообщения</div>
+        <div style={{width: 60}}></div>
+      </div>
+      <div className="content p0">
+        {loading ? <div className="spinner mt40"/> : chats.length === 0 ? <div className="text-center text-muted p20 mt20">У вас пока нет диалогов. Начните общаться через профиль игрока.</div> : (
+          <div className="card p0 m0" style={{borderRadius: 0, border: 'none', borderTop: '1px solid var(--border)'}}>
+            {chats.map(c => (
+              <div className="list-item" key={c.user_id} style={{padding: '16px', cursor: 'pointer', borderBottom: '1px solid var(--border)'}} onClick={() => onOpenChat(c.user_id, c.first_name)}>
+                <div onClick={(e)=>{e.stopPropagation(); onViewProfile(c.user_id);}}><Avatar user={{photo_url: c.photo_url, first_name: c.first_name}} size={50}/></div>
+                <div className="li-info ml12">
+                  <div className="li-name row">{c.is_admin_flag && '⚜️ '} {c.first_name || 'Аноним'}</div>
+                  <div className="f12 text-muted mt4">Нажмите, чтобы открыть чат...</div>
+                </div>
+                {c.unread > 0 && <div className="badge" style={{position:'static'}}>{c.unread}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DirectChatScreen({ targetUid, targetName, currentUid, onBack, showToast }) {
+  const [msgs, setMsgs] = useState([]);
+  const [txt, setTxt] = useState('');
+  const [meta, setMeta] = useState({ isBlocked: false, imBlocked: false });
+
+  const load = useCallback(() => {
+    get(`/api/chat/messages/${targetUid}`).then(d => { setMsgs(d.messages); setMeta({isBlocked: d.is_blocked, imBlocked: d.im_blocked}); }).catch(()=>{});
+  }, [targetUid]);
+
+  useEffect(() => { load(); const int = setInterval(load, 3000); return () => clearInterval(int); }, [load]);
+
+  const send = async () => {
+    if (!txt.trim() || meta.imBlocked) return;
+    try { await post('/api/chat/send', { target_uid: targetUid, text: txt.trim() }); setTxt(''); load(); } 
+    catch(e) { }
+  };
+
+  const toggleBlock = async () => {
+    try {
+      if (meta.isBlocked) await post('/api/chat/unblock', { target_uid: targetUid });
+      else await post('/api/chat/block', { target_uid: targetUid });
+      load();
+    } catch(e) {}
+  }
+
+  return (
+    <div className="screen" style={{zIndex: 300}}>
+      <div className="hdr">
+        <button className="back-btn" onClick={onBack}>‹ Назад</button>
+        <div className="hdr-title">{targetName}</div>
+        <button className="btn btn-ghost btn-sm" style={{color: meta.isBlocked ? 'var(--green)' : 'var(--red)', border: 'none'}} onClick={toggleBlock}>{meta.isBlocked ? 'Разблокировать' : 'Заблокировать'}</button>
+      </div>
+      
+      <div className="content chat-area" style={{display: 'flex', flexDirection: 'column'}}>
+        {meta.imBlocked && <div className="text-center text-red f12 fw7 mb16 bg-surface2 p12 rounded-lg" style={{borderRadius: 12}}>Пользователь ограничил вам доступ к сообщениям.</div>}
+        {msgs.map(m => (
+          <div key={m.id} className={`msg-wrap ${m.sender_id === currentUid ? 'me' : 'them'}`}>
+            <div className={`msg-bubble ${m.sender_id === currentUid ? 'me' : 'them'}`}>{m.text}</div>
+            <div className="msg-time">{new Date(m.created_at).toLocaleString('ru').slice(12, 17)}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="chat-input-wrap">
+        <input className="chat-input" placeholder={meta.isBlocked ? "Вы заблокировали юзера" : "Сообщение..."} value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} disabled={meta.isBlocked || meta.imBlocked}/>
+        <button className="btn btn-primary btn-sm" onClick={send} disabled={meta.isBlocked || meta.imBlocked}>➤</button>
+      </div>
+    </div>
+  );
+}
+
+
+  
 function App() {
   const [user, setUser] = useState(null); const [tasksData, setTasksData] = useState(null);
   const [mainTab, setMainTab] = useState('profile'); 
