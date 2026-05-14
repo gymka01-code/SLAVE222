@@ -16,7 +16,7 @@ html, body, #root { height:100%; width:100%; overflow:hidden; background: var(--
 input, textarea, select { font-size: 16px !important; }
 .app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; position: relative; padding-bottom: calc(65px + env(safe-area-inset-bottom)); }
 .screen { flex:1; overflow:hidden; display:flex; flex-direction:column; height: 100%; position: absolute; inset:0; background: var(--bg); z-index: 1;}
-.content { flex:1; overflow-y:auto; padding-bottom: calc(95px + env(safe-area-inset-bottom)); scrollbar-width: none; }
+.content { flex:1; overflow-y:auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 .hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
 .hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
@@ -92,7 +92,8 @@ input, textarea, select { font-size: 16px !important; }
 .msg-bubble.me { background: var(--gold); color: #000; border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(232,197,71,0.15); }
 .msg-bubble.them { background: var(--surface2); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
 .msg-time { font-size: 10px; opacity: 0.5; margin-top: 4px; font-weight: 500; padding: 0 4px; }
-.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; align-items:center; gap: 8px; position: sticky; bottom: 0; }
+.chat-input-wrap { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: rgba(5,5,5,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; align-items:center; gap: 8px; position: absolute; bottom: 0; left: 0; right: 0; z-index: 100; }
+.chat-area { padding-bottom: 80px !important; }
 .chat-input { flex: 1; background: var(--bg1); border: 1px solid var(--border2); border-radius: 20px; color: var(--text); padding: 12px 16px; outline: none; font-family: var(--font); }
 .mine-rock { font-size: 120px; display:flex; align-items:center; justify-content:center; width: 200px; height: 200px; margin: 40px auto; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.1), transparent); cursor: pointer; user-select: none; transition: transform 0.05s; position: relative; }
 .mine-rock:active { transform: scale(0.95); }
@@ -687,14 +688,19 @@ function DirectChatScreen({ targetUid, targetName, currentUid, onBack }) {
 function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
   const [tab, setTab] = useState('list'); const [clans, setClans] = useState([]); const [myClan, setMyClan] = useState(null); const [loading, setLoading] = useState(false);
   const [actionModal, setActionModal] = useState(null); const [chatMsgs, setChatMsgs] = useState([]); const [chatTxt, setChatTxt] = useState('');
-  
   const [showTreasury, setShowTreasury] = useState(false); const [treasuryData, setTreasuryData] = useState({ history: [], top: [] }); const [treasuryTab, setTreasuryTab] = useState('history');
+  const [warTargets, setWarTargets] = useState([]);
 
   useEffect(() => { loadAll(); }, [user.syndicate_id]);
   async function loadAll() {
       setLoading(true);
       try {
-          if (user.syndicate_id) { setTab('my'); setMyClan(await get('/api/syndicates/my')); get('/api/syndicates/chat/history').then(setChatMsgs); } 
+          if (user.syndicate_id) { 
+              setTab('my'); 
+              setMyClan(await get('/api/syndicates/my')); 
+              get('/api/syndicates/chat/history').then(setChatMsgs);
+              get('/api/syndicates/wars/targets').then(setWarTargets);
+          } 
           else { setTab('list'); setClans(await get('/api/syndicates')); }
       } catch(e) {}
       setLoading(false);
@@ -720,20 +726,26 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
     return (
       <div className="screen">
         <div className="hdr"><div className="hdr-title">🛡 Кланы</div></div>
-        <div className="content p16 gap12">
-          {clans.map(c => (
-            <div className="card" key={c.id} style={{margin:0}}>
-              <div className="row-sb mb8"><div className="fw8" style={{fontSize:18}}>{c.name}</div><div className="f12 fw7 text-gold">Ур. {c.level}</div></div>
-              <div className="f12 text-muted mb12">{c.description || 'Нет описания'}</div>
-              <div className="f11 text-muted mb12">Вход: {c.join_type==='open'?'Открытый':'По заявкам'} | От {c.min_price} RC | VIP {c.min_vip}</div>
-              <div className="row-sb"><div className="fw7">{parseFloat(c.treasury).toFixed(0)} RC Общак</div><button className="btn btn-primary btn-sm" onClick={async ()=>{ try{ await post('/api/syndicates/join',{syndicate_id:c.id}); showToast('✅ Заявка подана'); }catch(e){showToast('❌ '+e.message);}} }>Вступить</button></div>
-            </div>
-          ))}
-          <div className="card mt16 gap8">
-             <div className="fw8">Создать свой клан (20,000 RC)</div>
-             <input className="input" placeholder="Название" id="c_name"/>
-             <input className="input" placeholder="Описание" id="c_desc"/>
-             <button className="btn btn-danger" onClick={async ()=>{ try{ await post('/api/syndicates/create',{name:document.getElementById('c_name').value, description:document.getElementById('c_desc').value}); onRefresh(); }catch(e){showToast('❌ '+e.message);} }}>Создать</button>
+        <div className="content" style={{padding:0}}>
+          <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='list'?' active':''}`} onClick={()=>setTab('list')}>Список</button><button className={`tab${tab==='top'?' active':''}`} onClick={()=>setTab('top')}>🏆 Топ Кланов</button></div></div>
+          
+          <div className="p16 gap12">
+            {clans.map((c, idx) => (
+              <div className="card" key={c.id} style={{margin:0}}>
+                <div className="row-sb mb8"><div className="fw8" style={{fontSize:18}}>{tab==='top'?`#${idx+1} `:''}{c.name}</div><div className="f12 fw7 text-gold">Ур. {c.level}</div></div>
+                <div className="f12 text-muted mb12">{c.description || 'Нет описания'}</div>
+                <div className="f11 text-muted mb12">Вход: {c.join_type==='open'?'Открытый':'По заявкам'} | От {c.min_price} RC | VIP {c.min_vip}</div>
+                <div className="row-sb"><div className="fw7">{parseFloat(c.treasury).toFixed(0)} RC Общак</div><button className="btn btn-primary btn-sm" onClick={async ()=>{ try{ await post('/api/syndicates/join',{syndicate_id:c.id}); showToast('✅ Заявка подана'); }catch(e){showToast('❌ '+e.message);}} }>Вступить</button></div>
+              </div>
+            ))}
+            {tab === 'list' && (
+                <div className="card mt16 gap8" style={{borderColor: 'var(--gold)'}}>
+                   <div className="fw8 text-gold">Создать свой клан (20,000 RC)</div>
+                   <input className="input" placeholder="Название" id="c_name"/>
+                   <input className="input" placeholder="Описание" id="c_desc"/>
+                   <button className="btn btn-primary" onClick={async ()=>{ try{ await post('/api/syndicates/create',{name:document.getElementById('c_name').value, description:document.getElementById('c_desc').value}); onRefresh(); }catch(e){showToast('❌ '+e.message);} }}>Создать</button>
+                </div>
+            )}
           </div>
         </div>
       </div>
@@ -752,7 +764,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
         <button className="btn btn-ghost btn-sm" onClick={async ()=>{ if(confirm('Выйти из клана?')){ await post('/api/syndicates/leave'); onRefresh(); } }}>Выйти</button>
       </div>
       <div className="content" style={{padding:0}}>
-        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='my'?' active':''}`} onClick={()=>setTab('my')}>🏠 База</button><button className={`tab${tab==='chat'?' active':''}`} onClick={()=>setTab('chat')}>💬 Чат</button><button className={`tab${tab==='wars'?' active':''}`} onClick={()=>setTab('wars')}>⚔️ Войны</button>{['don','deputy'].includes(user.syndicate_role) && <button className={`tab${tab==='settings'?' active':''}`} onClick={()=>setTab('settings')}>⚙️ Настройки</button>}</div></div>
+        <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='my'?' active':''}`} onClick={()=>setTab('my')}>🏠 База</button><button className={`tab${tab==='chat'?' active':''}`} onClick={()=>setTab('chat')}>💬 Чат</button><button className={`tab${tab==='wars'?' active':''}`} onClick={()=>setTab('wars')}>⚔️ Войны</button><button className={`tab${tab==='upgrade'?' active':''}`} onClick={()=>setTab('upgrade')}>🚀 Прокачка</button>{['don','deputy'].includes(user.syndicate_role) && <button className={`tab${tab==='settings'?' active':''}`} onClick={()=>setTab('settings')}>⚙️</button>}</div></div>
 
         {tab === 'my' && <div className="p16 gap16">
           <div className="card gap8" style={{margin:0, borderColor:'var(--gold)'}}>
@@ -766,12 +778,6 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
              <button className="btn btn-ghost btn-sm mt8" onClick={async () => {
                  const data = await get('/api/syndicates/treasury'); setTreasuryData(data); setShowTreasury(true);
              }}>📊 Казна (История)</button>
-             {user.syndicate_role === 'don' && currentUpgradeCost && (
-                 <button className="btn btn-ghost mt8" style={{borderColor: 'var(--gold)', color: 'var(--gold)'}} onClick={async () => {
-                     if(!confirm(`Улучшить клан за ${currentUpgradeCost} RC?`)) return;
-                     try { await post('/api/syndicates/upgrade'); showToast('✅ Клан улучшен!'); loadAll(); onRefresh(); } catch(e){showToast('❌ '+e.message);}
-                 }}>🚀 Улучшить клан ({currentUpgradeCost >= 1000000 ? (currentUpgradeCost/1000000)+'M' : (currentUpgradeCost/1000)+'k'} RC)</button>
-             )}
           </div>
 
           <div className="section-title">Состав ({myClan.members.length})</div>
@@ -798,7 +804,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
           </div></div>}
         </div>}
 
-        {tab === 'chat' && <div style={{display:'flex', flexDirection:'column', height:'calc(100vh - 200px)'}}>
+        {tab === 'chat' && <div style={{display:'flex', flexDirection:'column', height:'calc(100vh - 130px)', position: 'relative'}}>
           <div className="content chat-area" style={{flex:1, overflowY:'auto'}}>
              {chatMsgs.map((m, i) => (
                <div key={i} className={`msg-wrap ${m.user_id===user.id ? 'me':'them'}`}>
@@ -807,8 +813,88 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
                </div>
              ))}
           </div>
-          <div className="chat-input-wrap" style={{position:'absolute', bottom:0, width:'100%'}}><input className="chat-input" placeholder="В чат..." value={chatTxt} onChange={e=>setChatTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doSendChat()}/><button className="btn btn-primary btn-sm" onClick={doSendChat}>➤</button></div>
+          <div className="chat-input-wrap"><input className="chat-input" placeholder="В чат..." value={chatTxt} onChange={e=>setChatTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doSendChat()}/><button className="btn btn-primary btn-sm" onClick={doSendChat}>➤</button></div>
         </div>}
+
+        {tab === 'upgrade' && (
+            <div className="p16 gap12">
+               <div className="card text-center">
+                 <div className="fw8 text-gold" style={{fontSize: 20}}>Уровень {myClan.clan.level}</div>
+                 <div className="f13 text-muted mt12 text-left" style={{lineHeight: 1.6}}>
+                    <div><b>Ур. 1:</b> До 5 участников.</div>
+                    <div className={myClan.clan.level >= 2 ? "text-green" : ""}><b>Ур. 2:</b> До 10 участников. +5% к доходу с работ.</div>
+                    <div className={myClan.clan.level >= 3 ? "text-green" : ""}><b>Ур. 3:</b> До 20 участников. Скидка 10% на покупку рабов.</div>
+                    <div className={myClan.clan.level >= 4 ? "text-green" : ""}><b>Ур. 4:</b> До 30 участников. Иммунитет к бунтам рабов!</div>
+                 </div>
+                 {user.syndicate_role === 'don' && myClan.clan.level < 4 && (
+                     <button className="btn btn-primary mt20" onClick={async () => {
+                         if(!confirm(`Улучшить клан за ${currentUpgradeCost} RC? Это спишется из Общака.`)) return;
+                         try { await post('/api/syndicates/upgrade'); showToast('✅ Клан улучшен!'); loadAll(); onRefresh(); } catch(e){showToast('❌ '+e.message);}
+                     }}>🚀 Улучшить за {currentUpgradeCost >= 1000000 ? (currentUpgradeCost/1000000)+'M' : (currentUpgradeCost/1000)+'k'} RC</button>
+                 )}
+               </div>
+            </div>
+        )}
+
+        {tab === 'wars' && (
+            <div className="p16 gap12">
+                {/* Входящие вызовы */}
+                {myClan.wars.pending.filter(w => w.defender_id === user.syndicate_id).map(w => (
+                    <div className="card" key={w.id} style={{borderColor: 'var(--red)', background: 'rgba(239,68,68,0.1)'}}>
+                       <div className="fw8 text-red mb8">⚔️ Вам бросили вызов!</div>
+                       <div className="f13 mb12">Клан <b>{w.attacker_name}</b> хочет начать войну кошельков на 24 часа. Победитель заберет фонд врага!</div>
+                       {['don','deputy'].includes(user.syndicate_role) && (
+                           <div className="row">
+                               <button className="btn btn-danger" onClick={async ()=>{ try{ await post('/api/syndicates/wars/resolve', {war_id: w.id, action: 'accept'}); showToast('🔥 Война началась!'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>Принять</button>
+                               <button className="btn btn-ghost" onClick={async ()=>{ try{ await post('/api/syndicates/wars/resolve', {war_id: w.id, action: 'reject'}); showToast('Отклонено'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>Отказаться</button>
+                           </div>
+                       )}
+                    </div>
+                ))}
+                
+                {/* Исходящие вызовы */}
+                {myClan.wars.pending.filter(w => w.attacker_id === user.syndicate_id).map(w => (
+                    <div className="card" key={w.id}>
+                       <div className="fw8 text-gold mb8">⏳ Ожидание ответа...</div>
+                       <div className="f12 text-muted">Вы бросили вызов клану <b>{w.defender_name}</b>. Ждем их решения (до 12 часов).</div>
+                    </div>
+                ))}
+
+                {/* Активные войны */}
+                {myClan.wars.active.map(w => {
+                    const myFund = w.attacker_id === user.syndicate_id ? w.fund_attacker : w.fund_defender;
+                    const enemyFund = w.attacker_id === user.syndicate_id ? w.fund_defender : w.fund_attacker;
+                    const enemyName = w.attacker_id === user.syndicate_id ? w.defender_name : w.attacker_name;
+                    return (
+                        <div className="card" key={w.id} style={{borderColor: 'var(--gold)', boxShadow: '0 0 15px rgba(232,197,71,0.2)'}}>
+                           <div className="fw8 text-gold text-center mb12">🔥 Война с {enemyName}</div>
+                           <div className="row-sb f12 mb4 fw7"><span>Наш фонд: {myFund}</span><span className="text-red">Враг: {enemyFund}</span></div>
+                           <div className="task-progress-wrap mb12" style={{height: 12}}>
+                               <div className="task-progress-bar" style={{width: `${(parseFloat(myFund) / (parseFloat(myFund) + parseFloat(enemyFund) || 1)) * 100}%`}}></div>
+                           </div>
+                           <div className="row">
+                              <input className="input" type="number" id={`war_don_${w.id}`} placeholder="Сумма RC"/>
+                              <button className="btn btn-primary" onClick={async ()=>{ try{ await post('/api/syndicates/wars/donate', {war_id: w.id, amount: parseFloat(document.getElementById(`war_don_${w.id}`).value)}); showToast('✅ Взнос в войну сделан'); loadAll(); onRefresh(); }catch(e){showToast('❌ '+e.message);} }}>Вкинуть</button>
+                           </div>
+                        </div>
+                    )
+                })}
+
+                {/* Список целей */}
+                {myClan.wars.active.length === 0 && myClan.wars.pending.length === 0 && (
+                    <>
+                        <div className="section-title mt16">Цели для нападения</div>
+                        {warTargets.length === 0 && <div className="text-muted text-center">Нет подходящих кланов</div>}
+                        {warTargets.map(t => (
+                            <div className="card row-sb" key={t.id} style={{margin:0, marginBottom:8}}>
+                               <div><div className="fw7">{t.name} (Ур. {t.level})</div><div className="f12 text-muted mt4">Казна: {parseFloat(t.treasury).toFixed(0)} RC</div></div>
+                               {['don','deputy'].includes(user.syndicate_role) && <button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm(`Объявить войну клану ${t.name}?`)) return; try{ await post('/api/syndicates/wars/declare', {target_id: t.id}); showToast('⚔️ Вызов отправлен!'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>Напасть</button>}
+                            </div>
+                        ))}
+                    </>
+                )}
+            </div>
+        )}
 
         {tab === 'settings' && <div className="p16 gap12">
            <div className="card gap8" style={{margin:0}}>
@@ -824,8 +910,6 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
            </div>
         </div>}
 
-        {tab === 'wars' && <div className="p16 gap12 text-center text-muted mt20">Система войн активна. Бросьте вызов другому клану через Рейтинги -> Топ Кланов!</div>}
-
         {actionModal?.type === 'member' && (
           <div className="overlay" onClick={()=>setActionModal(null)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-handle"/><div className="modal-title text-center">⚙️ Управление: {actionModal.item.first_name}</div>
             <div className="gap8 mt16">
@@ -840,9 +924,9 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
                <div className="tabs mb12"><button className={`tab ${treasuryTab==='history'?'active':''}`} onClick={()=>setTreasuryTab('history')}>История</button><button className={`tab ${treasuryTab==='top'?'active':''}`} onClick={()=>setTreasuryTab('top')}>Топ Донатеров</button></div>
                <div className="gap8 max-h-[300px] overflow-y-auto">
                    {treasuryTab === 'history' && treasuryData.history.length === 0 && <div className="text-muted text-center mt16">Нет истории</div>}
-                   {treasuryTab === 'history' && treasuryData.history.map((h, i) => <div className="row-sb bg-surface2 p12" style={{borderRadius: 12}} key={i}><div><div className="fw7">{h.first_name || h.username}</div><div className="f11 text-muted mt4">{new Date(h.created_at).toLocaleString('ru').slice(0, -3)}</div></div><div className="fw8 text-green">+{h.amount} RC</div></div>)}
+                   {treasuryTab === 'history' && treasuryData.history.map((h, i) => <div className="row-sb bg-surface2 p12" style={{borderRadius: 12, background: 'var(--surface2)'}} key={i}><div><div className="fw7">{h.first_name || h.username}</div><div className="f11 text-muted mt4">{new Date(h.created_at).toLocaleString('ru').slice(0, -3)}</div></div><div className="fw8 text-green">+{h.amount} RC</div></div>)}
                    {treasuryTab === 'top' && treasuryData.top.length === 0 && <div className="text-muted text-center mt16">Нет донатеров</div>}
-                   {treasuryTab === 'top' && treasuryData.top.map((t, i) => <div className="row-sb bg-surface2 p12" style={{borderRadius: 12}} key={i}><div className="row"><div className="fw8 text-gold" style={{width: 24}}>{i+1}</div><div className="fw7">{t.first_name || t.username}</div></div><div className="fw8 text-gold">{t.total} RC</div></div>)}
+                   {treasuryTab === 'top' && treasuryData.top.map((t, i) => <div className="row-sb bg-surface2 p12" style={{borderRadius: 12, background: 'var(--surface2)'}} key={i}><div className="row"><div className="fw8 text-gold" style={{width: 24}}>{i+1}</div><div className="fw7">{t.first_name || t.username}</div></div><div className="fw8 text-gold">{t.total} RC</div></div>)}
                </div>
             </div></div>
         )}
@@ -892,7 +976,7 @@ function TopScreen({ onViewProfile, showToast, user }) {
   const [tab, setTab] = useState('forbes'); const [rows, setRows] = useState([]); const [loading, setLoading] = useState(false);
   async function load(cat) { setTab(cat); setLoading(true); try { setRows(await get(`/api/top?cat=${cat}`)); } catch {} setLoading(false); }
   useEffect(() => { load('forbes'); }, []);
-  const tabInfo = { forbes: { label:'💰 ФОРБС', suffix:' RC' }, owners: { label:'👑 ХОЗЯЕВА', suffix:' раб.' }, legends: { label:'⚡ ЛЕГЕНДЫ', suffix:' RC' }, clans: { label:'🛡 КЛАНЫ', suffix:' Очков' } };
+  const tabInfo = { forbes: { label:'💰 ФОРБС', suffix:' RC' }, owners: { label:'👑 ХОЗЯЕВА', suffix:' раб.' }, legends: { label:'⚡ ЛЕГЕНДЫ', suffix:' RC' } };
   
   async function doWar(targetId) {
      if(!confirm('Объявить войну клану? Это начнет гонку кошельков на 24ч!')) return;
@@ -904,7 +988,7 @@ function TopScreen({ onViewProfile, showToast, user }) {
       <div className="hdr"><div className="hdr-title">🏆 Рейтинги</div></div>
       <div className="content" style={{padding:0}}>
         <div className="tabs-wrap"><div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div></div>
-        {loading ? <div className="spinner mt40"/> : (<div className="p16"><div className="card p0 m0">{rows.map((r, i) => { const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null; return (<div className="list-item p16" key={r.id} style={{cursor:'pointer', borderBottom: i === rows.length-1 ? 'none' : '1px solid var(--border)'}} onClick={() => {if(tab!=='clans') onViewProfile(r.id)}}><div className="fw8 text-muted" style={{width:28, textAlign:'center', color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div>{tab!=='clans' && <Avatar user={r} size={40}/>}<div className="li-info"><div className="li-name">{r.first_name || 'Игрок'}</div>{tab==='clans' ? <div className="f11 text-gold mt4">Ур. {r.vip_level}</div> : <div className="f11 text-muted mt4">#{r.uid}</div>}</div>{tab==='clans' && ['don','deputy'].includes(user.syndicate_role) && r.id !== user.syndicate_id ? <button className="btn btn-danger btn-sm mr8" onClick={(e)=>{e.stopPropagation(); doWar(r.id);}}>⚔️ Напасть</button> : null}<div className="fw8 text-gold">{parseFloat(r.value||0).toFixed(0)} <span className="f10 text-muted">{tabInfo[tab].suffix}</span></div></div>); })}</div></div>)}
+        {loading ? <div className="spinner mt40"/> : (<div className="p16"><div className="card p0 m0">{rows.map((r, i) => { const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null; return (<div className="list-item p16" key={r.id} style={{cursor:'pointer', borderBottom: i === rows.length-1 ? 'none' : '1px solid var(--border)'}} onClick={() => {if(tab!=='clans') onViewProfile(r.id)}}><div className="fw8 text-muted" style={{width:28, textAlign:'center', color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:undefined}}>{medal || i+1}</div>{tab!=='clans' && <Avatar user={r} size={40}/>}<div className="li-info"><div className="pc-name"><PlayerName user={r}/></div>{tab==='clans' ? <div className="f11 text-gold mt4">Ур. {r.vip_level}</div> : <div className="f11 text-muted mt4">#{r.uid}</div>}</div>{tab==='clans' && ['don','deputy'].includes(user.syndicate_role) && r.id !== user.syndicate_id ? <button className="btn btn-danger btn-sm mr8" onClick={(e)=>{e.stopPropagation(); doWar(r.id);}}>⚔️ Напасть</button> : null}<div className="fw8 text-gold">{parseFloat(r.value||0).toFixed(0)} <span className="f10 text-muted">{tabInfo[tab].suffix}</span></div></div>); })}</div></div>)}
       </div>
     </div>
   );
