@@ -129,14 +129,27 @@ CREATE TABLE IF NOT EXISTS inventory (user_id BIGINT, item_id TEXT, quantity INT
 INSERT INTO global_settings (key, value) VALUES ('maintenance', '0') ON CONFLICT DO NOTHING;
 
 -- ПРИМЕНЕНИЕ MIGRATIONS
+-- ПРИМЕНЕНИЕ MIGRATIONS (БЕЗОПАСНЫЕ ОБНОВЛЕНИЯ БАЗЫ)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS rent_price DECIMAL DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS rent_duration INT DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS rented_by BIGINT DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS rented_until TIMESTAMP DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_wallet DECIMAL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS max_slaves_override INT DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS syndicate_id INT DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS syndicate_role TEXT DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_tax_date TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_prefs TEXT DEFAULT '{"all": true, "trade": true, "jobs": true, "messages": true, "support": true, "clan": true}';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_god_mode BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_vip_boost_claim TIMESTAMP;
+
 ALTER TABLE syndicate_wars ADD COLUMN IF NOT EXISTS territory_id INT DEFAULT NULL;
 ALTER TABLE syndicate_wars ADD COLUMN IF NOT EXISTS winner_id INT DEFAULT NULL;
+
+ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS level INT DEFAULT 1;
+ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS wars_won INT DEFAULT 0;
+ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS last_gathering TIMESTAMP;
 
 INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES ('Подметать полы', 0.15, 0.20, 70, '🧹'), ('Раздавать листовки', 0.175, 0.225, 70, '📄'), ('Майнить крипту', 0.225, 0.275, 25, '⛏'), ('Петь на улице', 0.20, 0.25, 25, '🎤'), ('Тапать хомяка', 0.30, 0.35, 5, '🐹'), ('Просить милостыню', 0.275, 0.325, 5, '🙏') ON CONFLICT (title) DO UPDATE SET min_yield=EXCLUDED.min_yield, max_yield=EXCLUDED.max_yield, drop_chance=EXCLUDED.drop_chance, emoji=EXCLUDED.emoji;
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
@@ -838,13 +851,20 @@ async def send_to_work(req: SendWorkReq, user: dict = Depends(get_current_user))
     if not s or (s['owner_id'] != user['id'] and s['rented_by'] != user['id']): raise HTTPException(403)
     if s['job_assigned_at'] and (datetime.utcnow() - s['job_assigned_at']).total_seconds() < 7200: raise HTTPException(400, "Уже работает")
     if s['is_injured_until'] and s['is_injured_until'] > datetime.utcnow(): raise HTTPException(400, "Раб травмирован")
-    new_job = random.choice([{"id":1, "title":"Подметать полы", "min_yield":0.15, "max_yield":0.20, "emoji":"🧹"}, {"id":2, "title":"Раздавать листовки", "min_yield":0.175, "max_yield":0.225, "emoji":"📄"}])
+    
+    # Берем список работ из базы данных
+    jobs = await db.fetch("SELECT * FROM jobs")
+    if not jobs: raise HTTPException(500, "Нет доступных работ в базе")
+    
+    # Случайный выбор работы
+    new_job = dict(random.choice(jobs))
+    
     await db.execute("UPDATE users SET job_id=$1, job_assigned_at=$2 WHERE id=$3", new_job['id'], datetime.utcnow(), req.slave_id)
     asyncio.create_task(push(req.slave_id, f"💼 Вам назначена работа: {new_job['emoji']} <b>{new_job['title']}</b> на 2 часа!", notif_type="jobs"))
     await add_task_progress(user['id'], 'send_work')
     await invalidate_profile_cache(req.slave_id); await invalidate_profile_cache(user['id'])
     await global_ws.send_to_user(req.slave_id, {"type": "action", "action": "refresh"})
-    return {"ok": True, "job": dict(new_job)}
+    return {"ok": True, "job": new_job}
 
 @app.post("/api/slaves/release")
 async def release_slave(req: SendWorkReq, user: dict = Depends(get_current_user)):
