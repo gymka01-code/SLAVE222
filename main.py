@@ -153,6 +153,16 @@ ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS last_gathering TIMESTAMP;
 
 INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES ('Подметать полы', 0.15, 0.20, 70, '🧹'), ('Раздавать листовки', 0.175, 0.225, 70, '📄'), ('Майнить крипту', 0.225, 0.275, 25, '⛏'), ('Петь на улице', 0.20, 0.25, 25, '🎤'), ('Тапать хомяка', 0.30, 0.35, 5, '🐹'), ('Просить милостыню', 0.275, 0.325, 5, '🙏') ON CONFLICT (title) DO UPDATE SET min_yield=EXCLUDED.min_yield, max_yield=EXCLUDED.max_yield, drop_chance=EXCLUDED.drop_chance, emoji=EXCLUDED.emoji;
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
+-- Индексы на горячих колонках (critical for performance)
+CREATE INDEX IF NOT EXISTS idx_users_owner_id        ON users(owner_id) WHERE owner_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_rented_by       ON users(rented_by) WHERE rented_by IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_job_assigned_at ON users(job_assigned_at) WHERE job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_syndicate_id    ON users(syndicate_id) WHERE syndicate_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_balance         ON users(balance DESC) WHERE is_banned = FALSE;
+CREATE INDEX IF NOT EXISTS idx_transactions_user     ON transactions(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_support_messages_user ON support_messages(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_chats_receiver   ON user_chats(receiver_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_syn_wars_status       ON syndicate_wars(status) WHERE status IN ('pending','active');
 INSERT INTO cosmetics (type, name, value, price_stars, css_class, price_rc) VALUES ('color', 'Рубиновый', 'ruby', 10, 'clr-ruby', 0), ('color', 'Золотой', 'gold', 15, 'clr-gold', 0), ('color', 'Неоновый', 'neon', 20, 'clr-neon', 0), ('frame', 'Пламя', 'fire', 25, 'frame-fire', 0), ('frame', 'Алмаз', 'diamond', 30, 'frame-diamond', 0), ('frame', 'Радуга 🌈', 'rainbow', 40, 'frame-rainbow', 0), ('emoji', 'Корона', '👑', 40, '', 0), ('emoji', 'Бриллиант', '💎', 25, '', 0), ('emoji', 'Молния', '⚡', 15, '', 0), ('emoji', 'Цветочек 🌸', '🌸', 15, '', 0) ON CONFLICT (name) DO UPDATE SET price_stars=EXCLUDED.price_stars, price_rc=0;
 
 -- Инициализация территорий
@@ -361,7 +371,21 @@ async def collect_income(owner_id: int) -> float:
     now = datetime.utcnow()
     owner_info = await db.fetchrow("SELECT vip_level, syndicate_id FROM users WHERE id=$1", owner_id)
     if not owner_info: return 0.0
-    slaves = await db.fetch("SELECT u.id, u.current_price, u.booster_mult, u.booster_until, u.owner_id, u.rented_by, j.min_yield, j.max_yield FROM users u JOIN jobs j ON u.job_id = j.id WHERE (u.owner_id=$1 OR u.rented_by=$1) AND u.job_id IS NOT NULL AND u.job_assigned_at <= $2", owner_id, now - timedelta(hours=2))
+    # Атомарно снимаем job_id у рабов через RETURNING — гарантирует что каждую работу
+    # обработает только один вызов collect_income, даже при гонке крон vs /api/profile
+    slaves = await db.fetch(
+        """
+        UPDATE users SET job_id=NULL, job_assigned_at=NULL
+        WHERE (owner_id=$1 OR rented_by=$1)
+          AND job_id IS NOT NULL
+          AND job_assigned_at <= $2
+        RETURNING id, current_price, booster_mult, booster_until,
+                  owner_id, rented_by,
+                  (SELECT min_yield FROM jobs WHERE jobs.id = users.job_id) as min_yield,
+                  (SELECT max_yield FROM jobs WHERE jobs.id = users.job_id) as max_yield
+        """,
+        owner_id, now - timedelta(hours=2)
+    )
     if not slaves: return 0.0
     ev_data = await db.fetchval("SELECT value FROM global_settings WHERE key='event_data'")
     event = json.loads(ev_data) if ev_data else {"type": "normal"}
@@ -375,7 +399,10 @@ async def collect_income(owner_id: int) -> float:
 
     total = 0.0
     for s in slaves:
-        base_reward = float(s['current_price']) * random.uniform(float(s['min_yield']), float(s['max_yield']))
+        min_y = float(s['min_yield'] or 0)
+        max_y = float(s['max_yield'] or 0)
+        if min_y == 0 and max_y == 0: continue  # работа была удалена из справочника
+        base_reward = float(s['current_price']) * random.uniform(min_y, max_y)
         if event.get("type") == "crisis": base_reward *= 0.8
         if clan_level >= 3: base_reward *= 1.10
         elif clan_level >= 2: base_reward *= 1.05
@@ -383,7 +410,6 @@ async def collect_income(owner_id: int) -> float:
         
         mult = float(s['booster_mult']) if s['booster_until'] and s['booster_until'] > now else 1.0
         total += base_reward * mult
-        await db.execute("UPDATE users SET job_id=NULL, job_assigned_at=NULL WHERE id=$1", s['id'])
         await add_task_progress(owner_id, 'collect')
         asyncio.create_task(push(owner_id, f"💼 Ваш раб завершил работу! Прибыль ждет вас.", notif_type="jobs"))
         
@@ -1027,7 +1053,13 @@ async def escape_cashout(user: dict = Depends(get_current_user)):
 async def resolve_robbery(req: RobberyReq, user: dict = Depends(get_current_user)):
     uid = user['id']
     await rate_limit(f"rl:robbery:{uid}", 5, 60)
-    if user['robberies_left'] <= 0: raise HTTPException(400, "Лимит исчерпан")
+    # Поле robberies_left не хранится в БД — вычисляем здесь, аналогично _full_profile
+    _now = datetime.utcnow()
+    _reset_at = user.get('robbery_reset_at') or _now
+    if isinstance(_reset_at, str):
+        _reset_at = datetime.fromisoformat(_reset_at.replace("Z", "+00:00")).replace(tzinfo=None)
+    _robberies_left = 3 if _now >= _reset_at else max(0, 3 - (user.get('robberies_count') or 0))
+    if _robberies_left <= 0: raise HTTPException(400, "Лимит ограблений исчерпан. Попробуйте позже.")
     target = await db.fetchrow("SELECT id, balance, shield_until FROM users WHERE id=$1", req.target_id)
     if not target: raise HTTPException(404, "Игрок не найден")
     if target['shield_until'] and target['shield_until'] > datetime.utcnow(): raise HTTPException(400, "Щит активен")
@@ -1261,10 +1293,19 @@ async def leave_syndicate(user: dict = Depends(get_current_user)):
     if not user['syndicate_id']: raise HTTPException(400, "Вы не в клане.")
     if await db.fetchrow("SELECT 1 FROM syndicate_wars WHERE (attacker_id=$1 OR defender_id=$1) AND status='active'", user['syndicate_id']): raise HTTPException(400, "Нельзя покинуть клан во время активной войны!")
     if user['syndicate_role'] == 'don':
-        await db.execute("UPDATE territories SET owner_id=NULL WHERE owner_id=$1", user['syndicate_id'])
-        await db.execute("DELETE FROM syndicates WHERE id=$1", user['syndicate_id'])
-        await db.execute("UPDATE users SET syndicate_id=NULL, syndicate_role=NULL WHERE syndicate_id=$1", user['syndicate_id'])
-    else: await db.execute("UPDATE users SET syndicate_id=NULL, syndicate_role=NULL WHERE id=$1", user['id'])
+        syn_id = user['syndicate_id']
+        # Сначала снимаем клан у всех участников, потом удаляем запись клана
+        members = await db.fetch("SELECT id FROM users WHERE syndicate_id=$1 AND id != $2", syn_id, user['id'])
+        await db.execute("UPDATE users SET syndicate_id=NULL, syndicate_role=NULL WHERE syndicate_id=$1", syn_id)
+        await db.execute("UPDATE territories SET owner_id=NULL WHERE owner_id=$1", syn_id)
+        await db.execute("DELETE FROM syndicate_wars WHERE attacker_id=$1 OR defender_id=$1", syn_id)
+        await db.execute("DELETE FROM syndicate_requests WHERE syndicate_id=$1", syn_id)
+        await db.execute("DELETE FROM syndicates WHERE id=$1", syn_id)
+        for m in members:
+            await invalidate_profile_cache(m['id'])
+            asyncio.create_task(push(m['id'], "🛡 Дон покинул клан. Клан расформирован.", notif_type="clan"))
+    else:
+        await db.execute("UPDATE users SET syndicate_id=NULL, syndicate_role=NULL WHERE id=$1", user['id'])
     await invalidate_profile_cache(user['id']); await global_ws.send_to_user(user['id'], {"type": "action", "action": "refresh"})
     return {"ok": True}
 
@@ -1349,7 +1390,14 @@ async def donate_war(req: SyndicateWarDonateReq, user: dict = Depends(get_curren
     if not w or user['syndicate_id'] not in (w['attacker_id'], w['defender_id']): raise HTTPException(403)
     if req.amount <= 0 or await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2 AND balance >= $1::numeric", req.amount, user['id']) == "UPDATE 0": raise HTTPException(400, "Недостаточно средств")
     col = 'fund_attacker' if user['syndicate_id'] == w['attacker_id'] else 'fund_defender'
-    await db.execute(f"UPDATE syndicate_wars SET {col}={col}+$1::numeric WHERE id=$2", req.amount, req.war_id)
+    # Используем CASE вместо f-string для безопасности и читаемости
+    await db.execute(
+        """UPDATE syndicate_wars
+           SET fund_attacker = fund_attacker + CASE WHEN $3 = 'fund_attacker' THEN $1::numeric ELSE 0 END,
+               fund_defender  = fund_defender  + CASE WHEN $3 = 'fund_defender'  THEN $1::numeric ELSE 0 END
+           WHERE id=$2""",
+        req.amount, req.war_id, col
+    )
     await invalidate_profile_cache(user['id']); await global_ws.send_to_user(user['id'], {"type": "action", "action": "refresh"})
     return {"ok": True}
 
@@ -1481,14 +1529,21 @@ async def use_inventory_item(req: InventoryUseReq, user: dict = Depends(get_curr
 async def equip_cosmetic(req: EquipCosmeticReq, user: dict = Depends(get_current_user)):
     uid = user['id']
     if req.field not in ['name_color', 'avatar_frame', 'emoji_status']: raise HTTPException(400, "Неверное поле")
+    # Безопасный маппинг поля → SQL без f-string
+    _COSMETIC_FIELD_SQL = {
+        'name_color':    "UPDATE users SET name_color=$1    WHERE id=$2",
+        'avatar_frame':  "UPDATE users SET avatar_frame=$1  WHERE id=$2",
+        'emoji_status':  "UPDATE users SET emoji_status=$1  WHERE id=$2",
+    }
+    sql = _COSMETIC_FIELD_SQL[req.field]
     if req.value in ['none', 'default', '']:
         val = 'default' if req.field == 'name_color' else ('none' if req.field == 'avatar_frame' else '')
-        await db.execute(f"UPDATE users SET {req.field}=$1 WHERE id=$2", val, uid)
+        await db.execute(sql, val, uid)
         await invalidate_profile_cache(uid); await global_ws.send_to_user(uid, {"type": "action", "action": "refresh"})
         return {"ok": True}
     ctype = req.field.replace('name_', '').replace('avatar_', '').replace('_status', '')
     if not await db.fetchrow("SELECT c.id FROM cosmetics c JOIN user_cosmetics uc ON c.id = uc.cosmetic_id WHERE uc.user_id=$1 AND c.value=$2 AND c.type=$3", uid, req.value, ctype): raise HTTPException(403, "Косметика не приобретена")
-    await db.execute(f"UPDATE users SET {req.field}=$1 WHERE id=$2", req.value, uid)
+    await db.execute(sql, req.value, uid)
     await invalidate_profile_cache(uid); await global_ws.send_to_user(uid, {"type": "action", "action": "refresh"})
     return {"ok": True}
 
@@ -1575,10 +1630,14 @@ async def check_sponsor(req: CheckSponsorReq, u: dict = Depends(get_current_user
     if not s: raise HTTPException(404, "Спонсор не найден")
     if await db.fetchrow("SELECT 1 FROM user_sponsors WHERE user_id=$1 AND sponsor_id=$2", u['id'], s['id']): raise HTTPException(400, "Награда уже получена")
     try:
-        if not bot: raise Exception("No bot")
+        if not bot: raise HTTPException(400, "Бот недоступен, попробуйте позже.")
         member = await bot.get_chat_member(chat_id=s['channel_id'], user_id=u['id'])
-        if member.status not in ['member', 'administrator', 'creator']: raise HTTPException(400, "Вы не подписаны на канал.")
-    except Exception: raise HTTPException(400, "Не удалось проверить подписку.")
+        if member.status not in ['member', 'administrator', 'creator']:
+            raise HTTPException(400, "Вы не подписаны на канал.")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(400, "Не удалось проверить подписку. Попробуйте позже.")
     await db.execute("INSERT INTO user_sponsors(user_id, sponsor_id) VALUES($1,$2)", u['id'], s['id'])
     await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", s['reward_rc'], u['id'])
     await invalidate_profile_cache(u['id'])
@@ -1650,8 +1709,13 @@ async def admin_users(q: Optional[str] = None, _: dict = Depends(get_admin_user)
 
 @app.post("/api/admin/users/edit")
 async def admin_edit(req: AdminEditReq, _: dict = Depends(get_admin_user)):
+    # Строго перечисляем допустимые имена колонок во избежание SQL-инъекции через parts
+    _ALLOWED_COLS = {"balance", "current_price", "is_banned", "ban_reason",
+                     "vip_level", "max_slaves_override", "custom_name"}
     parts, vals = [], []
-    def add(col, v): vals.append(v); parts.append(f"{col}=${len(vals)}")
+    def add(col: str, v):
+        assert col in _ALLOWED_COLS, f"Недопустимая колонка: {col}"
+        vals.append(v); parts.append(f"{col}=${len(vals)}")
     if req.balance is not None: add("balance", req.balance)
     if req.price is not None: add("current_price", req.price)
     if req.is_banned is not None: add("is_banned", req.is_banned)
@@ -1677,7 +1741,13 @@ async def admin_grant_cosmetic(req: AdminGrantCosmeticReq, _: dict = Depends(get
         uid = row['id']
     c = await db.fetchrow("SELECT id FROM cosmetics WHERE type=$1 AND value=$2", {"name_color": "color", "avatar_frame": "frame", "emoji_status": "emoji"}.get(req.field), req.value)
     if c: await db.execute("INSERT INTO user_cosmetics(user_id, cosmetic_id) VALUES($1,$2) ON CONFLICT DO NOTHING", uid, c['id'])
-    await db.execute(f"UPDATE users SET {req.field}=$1 WHERE id=$2", req.value, uid)
+    # Безопасный маппинг без f-string
+    _ADMIN_FIELD_SQL = {
+        'name_color':   "UPDATE users SET name_color=$1   WHERE id=$2",
+        'avatar_frame': "UPDATE users SET avatar_frame=$1 WHERE id=$2",
+        'emoji_status': "UPDATE users SET emoji_status=$1 WHERE id=$2",
+    }
+    await db.execute(_ADMIN_FIELD_SQL[req.field], req.value, uid)
     await invalidate_profile_cache(uid)
     await global_ws.send_to_user(uid, {"type": "action", "action": "refresh"})
     return {"ok": True}
