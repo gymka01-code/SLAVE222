@@ -499,6 +499,8 @@ async def lifespan(app: FastAPI):
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS reply_to_id INT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE",
         "ALTER TABLE user_chats ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE syndicate_messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE syndicate_messages ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '{}'::jsonb",
         # Все индексы — отдельно, после ALTER TABLE
         "CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name)",
         "CREATE INDEX IF NOT EXISTS idx_users_owner_id ON users(owner_id) WHERE owner_id IS NOT NULL",
@@ -1067,6 +1069,28 @@ async def escape_cashout(user: dict = Depends(get_current_user)):
     await global_ws.send_to_user(uid, {"type": "action", "action": "refresh"})
     return {"ok": True, "win": win, "mult": current_mult}
 
+@app.get("/api/robbery/targets")
+async def get_robbery_targets(user: dict = Depends(get_current_user)):
+    uid = user['id']
+    now = datetime.utcnow()
+    # Исключаем себя, своего хозяина, своих рабов, забаненных, тех у кого щит
+    targets = await db.fetch(
+        """SELECT id, uid, username, first_name, balance, current_price, photo_url, vip_level, name_color, avatar_frame, emoji_status
+           FROM users
+           WHERE id != $1
+             AND (owner_id IS NULL OR owner_id != $1)
+             AND id != COALESCE($2, 0)
+             AND is_banned = FALSE
+             AND (admin_hidden = FALSE OR admin_hidden IS NULL)
+             AND (stealth_until IS NULL OR stealth_until < $3)
+             AND (shield_until IS NULL OR shield_until < $3)
+             AND balance > 10
+           ORDER BY RANDOM()
+           LIMIT 5""",
+        uid, user.get('owner_id'), now
+    )
+    return {"targets": [dict(t) for t in targets]}
+
 @app.post("/api/robbery/resolve")
 async def resolve_robbery(req: RobberyReq, user: dict = Depends(get_current_user)):
     uid = user['id']
@@ -1225,6 +1249,11 @@ async def update_clan_settings(req: SyndicateSettingsReq, user: dict = Depends(g
     await db.execute("UPDATE syndicates SET description=$1, join_type=$2, min_price=$3, min_vip=$4, min_slaves=$5 WHERE id=$6", req.description.strip()[:200], req.join_type, req.min_price, req.min_vip, req.min_slaves, user['syndicate_id'])
     return {"ok": True}
 
+@app.get("/api/syndicates/list")
+async def get_syndicates_list_admin(admin: dict = Depends(get_admin_user)):
+    rows = await db.fetch("SELECT s.id, s.name, s.level, s.treasury, (SELECT COUNT(*) FROM users WHERE syndicate_id=s.id) as members_count FROM syndicates s ORDER BY s.treasury DESC")
+    return [dict(r) for r in rows]
+
 @app.get("/api/syndicates")
 async def get_syndicates(user: dict = Depends(get_current_user)):
     rows = await db.fetch("SELECT s.*, u.username as owner_username, u.first_name as owner_name, (SELECT COUNT(*) FROM users WHERE syndicate_id=s.id) as members_count, (SELECT COUNT(*) FROM territories WHERE owner_id=s.id) as terr_count FROM syndicates s LEFT JOIN users u ON u.id = s.owner_id ORDER BY s.treasury DESC LIMIT 50")
@@ -1306,6 +1335,50 @@ async def resolve_request(req: SyndicateResolveReq, user: dict = Depends(get_cur
     await db.execute("DELETE FROM syndicate_requests WHERE id=$1", req.request_id)
     return {"ok": True}
 
+@app.post("/api/syndicates/disband")
+async def disband_syndicate(user: dict = Depends(get_current_user)):
+    """Удалить клан — доступно Дону или Администратору."""
+    is_admin = await is_admin_user(user['id'])
+    if not is_admin and user.get('syndicate_role') != 'don':
+        raise HTTPException(403, "Только Дон или Администратор может удалить клан")
+    
+    # Если админ удаляет чужой клан — можно передать syndicate_id через query (ниже), 
+    # иначе — свой клан
+    syn_id = user['syndicate_id']
+    if not syn_id and not is_admin:
+        raise HTTPException(400, "Вы не состоите в клане")
+    if not syn_id:
+        raise HTTPException(400, "Укажите клан для удаления")
+
+    members = await db.fetch("SELECT id FROM users WHERE syndicate_id=$1", syn_id)
+    await db.execute("UPDATE users SET syndicate_id=NULL, syndicate_role=NULL WHERE syndicate_id=$1", syn_id)
+    await db.execute("UPDATE territories SET owner_id=NULL WHERE owner_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicate_wars WHERE attacker_id=$1 OR defender_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicate_requests WHERE syndicate_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicate_messages WHERE syndicate_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicates WHERE id=$1", syn_id)
+    for m in members:
+        await invalidate_profile_cache(m['id'])
+        asyncio.create_task(push(m['id'], "🛡 Клан был расформирован.", notif_type="clan"))
+    return {"ok": True}
+
+@app.post("/api/admin/syndicates/{syn_id}/disband")
+async def admin_disband_syndicate(syn_id: int, admin: dict = Depends(get_admin_user)):
+    """Удалить любой клан от лица администратора."""
+    clan = await db.fetchrow("SELECT id, name FROM syndicates WHERE id=$1", syn_id)
+    if not clan: raise HTTPException(404, "Клан не найден")
+    members = await db.fetch("SELECT id FROM users WHERE syndicate_id=$1", syn_id)
+    await db.execute("UPDATE users SET syndicate_id=NULL, syndicate_role=NULL WHERE syndicate_id=$1", syn_id)
+    await db.execute("UPDATE territories SET owner_id=NULL WHERE owner_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicate_wars WHERE attacker_id=$1 OR defender_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicate_requests WHERE syndicate_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicate_messages WHERE syndicate_id=$1", syn_id)
+    await db.execute("DELETE FROM syndicates WHERE id=$1", syn_id)
+    for m in members:
+        await invalidate_profile_cache(m['id'])
+        asyncio.create_task(push(m['id'], f"🛡 Администратор расформировал клан «{clan['name']}».", notif_type="clan"))
+    return {"ok": True, "msg": f"Клан «{clan['name']}» удалён"}
+
 @app.post("/api/syndicates/leave")
 async def leave_syndicate(user: dict = Depends(get_current_user)):
     if not user['syndicate_id']: raise HTTPException(400, "Вы не в клане.")
@@ -1374,7 +1447,21 @@ async def get_war_targets(user: dict = Depends(get_current_user)):
 
 @app.post("/api/syndicates/wars/declare")
 async def declare_war(req: SyndicateWarDeclareReq, user: dict = Depends(get_current_user)):
-    if user['syndicate_role'] not in ('don', 'deputy') or req.target_id == user['syndicate_id']: raise HTTPException(403)
+    if user['syndicate_role'] not in ('don', 'deputy'): raise HTTPException(403)
+    
+    # Захват бесхозной территории — без войны, за 100к из общака
+    if req.territory_id and req.target_id is None:
+        terr = await db.fetchrow("SELECT id, owner_id, name FROM territories WHERE id=$1", req.territory_id)
+        if not terr: raise HTTPException(404, "Территория не найдена")
+        if terr['owner_id']: raise HTTPException(400, "Территория уже занята")
+        clan = await db.fetchrow("SELECT id, treasury FROM syndicates WHERE id=$1", user['syndicate_id'])
+        if not clan: raise HTTPException(404)
+        if float(clan['treasury']) < 100000: raise HTTPException(400, "Недостаточно средств в Общаке (нужно 100,000 RC)")
+        await db.execute("UPDATE syndicates SET treasury=treasury-100000 WHERE id=$1", user['syndicate_id'])
+        await db.execute("UPDATE territories SET owner_id=$1 WHERE id=$2", user['syndicate_id'], req.territory_id)
+        return {"ok": True, "msg": f"Территория {terr['name']} захвачена за 100,000 RC из Общака!"}
+    
+    if req.target_id == user['syndicate_id']: raise HTTPException(403)
     if await db.fetchrow("SELECT 1 FROM syndicate_wars WHERE (attacker_id=$1 OR defender_id=$1) AND status IN ('pending','active')", user['syndicate_id']): raise HTTPException(400, "Уже в войне")
     if await db.fetchrow("SELECT 1 FROM syndicate_wars WHERE (attacker_id=$1 OR defender_id=$1) AND status IN ('pending','active')", req.target_id): raise HTTPException(400, "Цель занята")
     
