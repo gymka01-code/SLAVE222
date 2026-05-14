@@ -1050,7 +1050,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
 
                         {/* КЛАНОВЫЕ ВОЙНЫ */}
                         <div className="section-title">⚔️ Войны</div>
-                        {user.syndicate_role in ('don', 'deputy') && myClan.wars.active.length === 0 && myClan.wars.pending.length === 0 && (
+                        {['don', 'deputy'].includes(user.syndicate_role) && myClan.wars.active.length === 0 && myClan.wars.pending.length === 0 && (
                             <button className="btn btn-danger mb12" style={{width:'100%'}} onClick={openWarTargets}>🔪 ОБЪЯВИТЬ ВОЙНУ</button>
                         )}
                         <div className="gap8 mb16">
@@ -1061,7 +1061,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
                                     <div className="card" key={w.id} style={{borderColor:'var(--red)', margin:0}}>
                                         <div className="fw8 text-red mb8">⏳ Ожидание ответа...</div>
                                         <div className="f13">Враг: <span className="fw7">{enemyName}</span></div>
-                                        {!isAttacker && user.syndicate_role in ('don', 'deputy') && (
+                                        {!isAttacker && ['don', 'deputy'].includes(user.syndicate_role) && (
                                             <div className="row mt12">
                                                 <button className="btn btn-danger" style={{flex:1}} onClick={()=>doResolveWar(w.id, 'accept')}>Принять бой</button>
                                                 <button className="btn btn-ghost" style={{flex:1}} onClick={()=>doResolveWar(w.id, 'reject')}>Струсить</button>
