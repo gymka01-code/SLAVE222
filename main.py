@@ -785,7 +785,7 @@ async def init_user(req: InitReq):
         except: pass
     if not await db.fetchrow("SELECT id FROM users WHERE id=$1", uid):
         owner_id = req.ref_id if (req.ref_id and req.ref_id != uid) else None
-        await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,$4,50,100,$5,$6) ON CONFLICT DO NOTHING", uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id, ref_id)
+       await db.execute("INSERT INTO users(id,username,first_name,photo_url,balance,current_price,owner_id,referrer_id) VALUES($1,$2,$3,$4,50,100,$5,$6) ON CONFLICT DO NOTHING", uid, tg.get('username'), tg.get('first_name'), photo_url, owner_id, req.ref_id)
         if owner_id: asyncio.create_task(push(owner_id, f"🎣 По вашей ссылке перешёл @{tg.get('username') or uid}! Вы будете получать 5% с его доходов.", notif_type="trade"))
     else: await db.execute("UPDATE users SET username=$1,first_name=$2,photo_url=$3 WHERE id=$4", tg.get('username'), tg.get('first_name'), photo_url, uid)
     return await _full_profile(uid)
@@ -1228,9 +1228,13 @@ async def promote_member(req: SyndicatePromoteReq, user: dict = Depends(get_curr
 @app.post("/api/syndicates/donate")
 async def donate_syndicate(req: SyndicateDonateReq, user: dict = Depends(get_current_user)):
     if not user['syndicate_id']: raise HTTPException(400)
-    if req.amount <= 0 or req.amount > float(user['balance']): raise HTTPException(400, "Неверная сумма.")
+    if req.amount <= 0: raise HTTPException(400, "Неверная сумма.")
     
-    await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", req.amount, user['id'])
+    # Атомарное списание (не даст уйти в минус)
+    res = await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2 AND balance >= $1::numeric", req.amount, user['id'])
+    if res == "UPDATE 0":
+        raise HTTPException(400, "Недостаточно средств.")
+        
     await db.execute("UPDATE syndicates SET treasury=treasury+$1::numeric WHERE id=$2", req.amount, user['syndicate_id'])
     return {"ok": True}
 
@@ -1297,7 +1301,9 @@ async def donate_war(req: SyndicateWarDonateReq, user: dict = Depends(get_curren
     is_attacker = user['syndicate_id'] == w['attacker_id']
     col = 'fund_attacker' if is_attacker else 'fund_defender'
     
-    await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", req.amount, user['id'])
+    res = await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2 AND balance >= $1::numeric", req.amount, user['id'])
+    if res == "UPDATE 0":
+        raise HTTPException(400, "Недостаточно средств.")
     await db.execute(f"UPDATE syndicate_wars SET {col}={col}+$1::numeric WHERE id=$2", req.amount, req.war_id)
     return {"ok": True}
 
