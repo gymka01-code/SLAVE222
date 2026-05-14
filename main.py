@@ -135,6 +135,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS rented_by BIGINT DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS rented_until TIMESTAMP DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_wallet DECIMAL DEFAULT 0;
+ALTER TABLE syndicate_wars ADD COLUMN IF NOT EXISTS territory_id INT DEFAULT NULL;
+ALTER TABLE syndicate_wars ADD COLUMN IF NOT EXISTS winner_id INT DEFAULT NULL;
 
 INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES ('Подметать полы', 0.15, 0.20, 70, '🧹'), ('Раздавать листовки', 0.175, 0.225, 70, '📄'), ('Майнить крипту', 0.225, 0.275, 25, '⛏'), ('Петь на улице', 0.20, 0.25, 25, '🎤'), ('Тапать хомяка', 0.30, 0.35, 5, '🐹'), ('Просить милостыню', 0.275, 0.325, 5, '🙏') ON CONFLICT (title) DO UPDATE SET min_yield=EXCLUDED.min_yield, max_yield=EXCLUDED.max_yield, drop_chance=EXCLUDED.drop_chance, emoji=EXCLUDED.emoji;
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
