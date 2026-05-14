@@ -151,6 +151,14 @@ ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS level INT DEFAULT 1;
 ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS wars_won INT DEFAULT 0;
 ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS last_gathering TIMESTAMP;
 
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS user_id BIGINT;
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS photo_b64 TEXT;
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS direction TEXT;
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS reply_to_id INT;
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE user_chats ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+
 INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES ('Подметать полы', 0.15, 0.20, 70, '🧹'), ('Раздавать листовки', 0.175, 0.225, 70, '📄'), ('Майнить крипту', 0.225, 0.275, 25, '⛏'), ('Петь на улице', 0.20, 0.25, 25, '🎤'), ('Тапать хомяка', 0.30, 0.35, 5, '🐹'), ('Просить милостыню', 0.275, 0.325, 5, '🙏') ON CONFLICT (title) DO UPDATE SET min_yield=EXCLUDED.min_yield, max_yield=EXCLUDED.max_yield, drop_chance=EXCLUDED.drop_chance, emoji=EXCLUDED.emoji;
 CREATE UNIQUE INDEX IF NOT EXISTS cosmetics_name_idx ON cosmetics(name);
 -- Индексы на горячих колонках (critical for performance)
