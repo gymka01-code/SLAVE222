@@ -155,7 +155,9 @@ ALTER TABLE syndicates ADD COLUMN IF NOT EXISTS last_gathering TIMESTAMP;
 
 INSERT INTO jobs (title, min_yield, max_yield, drop_chance, emoji) VALUES ('Подметать полы', 0.15, 0.20, 70, '🧹'), ('Раздавать листовки', 0.175, 0.225, 70, '📄'), ('Майнить крипту', 0.225, 0.275, 25, '⛏'), ('Петь на улице', 0.20, 0.25, 25, '🎤'), ('Тапать хомяка', 0.30, 0.35, 5, '🐹'), ('Просить милостыню', 0.275, 0.325, 5, '🙏') ON CONFLICT (title) DO UPDATE SET min_yield=EXCLUDED.min_yield, max_yield=EXCLUDED.max_yield, drop_chance=EXCLUDED.drop_chance, emoji=EXCLUDED.emoji;
 -- Индексы на горячих колонках (critical for performance)
-INSERT INTO cosmetics (type, name, value, price_stars, css_class, price_rc) VALUES ('color', 'Рубиновый', 'ruby', 10, 'clr-ruby', 0), ('color', 'Золотой', 'gold', 15, 'clr-gold', 0), ('color', 'Неоновый', 'neon', 20, 'clr-neon', 0), ('frame', 'Пламя', 'fire', 25, 'frame-fire', 0), ('frame', 'Алмаз', 'diamond', 30, 'frame-diamond', 0), ('frame', 'Радуга 🌈', 'rainbow', 40, 'frame-rainbow', 0), ('emoji', 'Корона', '👑', 40, '', 0), ('emoji', 'Бриллиант', '💎', 25, '', 0), ('emoji', 'Молния', '⚡', 15, '', 0), ('emoji', 'Цветочек 🌸', '🌸', 15, '', 0) ON CONFLICT (name) DO UPDATE SET price_stars=EXCLUDED.price_stars, price_rc=0;
+INSERT INTO cosmetics (type, name, value, price_stars, css_class, price_rc) VALUES ('color', 'Рубиновый', 'ruby', 10, 'clr-ruby', 0), ('color', 'Золотой', 'gold', 15, 'clr-gold', 0), ('color', 'Неоновый', 'neon', 20, 'clr-neon', 0), ('frame', 'Огонь 🔥', 'fire', 25, 'frame-fire', 0), ('frame', 'Цветы 🌸', 'flowers', 20, 'frame-flowers', 0), ('frame', 'Алмаз', 'diamond', 30, 'frame-diamond', 0), ('frame', 'Радуга 🌈', 'rainbow', 40, 'frame-rainbow', 0), ('emoji', 'Корона', '👑', 40, '', 0), ('emoji', 'Бриллиант', '💎', 25, '', 0), ('emoji', 'Молния', '⚡', 15, '', 0), ('emoji', 'Цветочек 🌸', '🌸', 15, '', 0) ON CONFLICT (name) DO UPDATE SET price_stars=EXCLUDED.price_stars, price_rc=0;
+-- Удаляем дубли рамок (Киберпанк и старое название Пламя)
+DELETE FROM cosmetics WHERE name IN ('Киберпанк', 'Пламя');
 
 -- Инициализация территорий
 INSERT INTO territories (name, income_bonus) VALUES 
@@ -976,23 +978,54 @@ async def list_for_rent(req: RentListReq, user: dict = Depends(get_current_user)
 
 @app.post("/api/rent/buy")
 async def buy_rent(req: RentBuyReq, user: dict = Depends(get_current_user)):
-    target = await db.fetchrow("SELECT * FROM users WHERE id=$1", req.slave_id)
-    if not target or not target['rent_price'] or target['rented_by']: raise HTTPException(400, "Недоступен для аренды")
-    if float(user['balance']) < float(target['rent_price']): raise HTTPException(400, "Недостаточно RC")
-    if target['owner_id'] == user['id']: raise HTTPException(400)
-    
-    await db.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", target['rent_price'], user['id'])
-    await db.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", target['rent_price'], target['owner_id'])
-    await db.execute("UPDATE users SET rented_by=$1, rented_until=$2 WHERE id=$3", user['id'], datetime.utcnow() + timedelta(hours=target['rent_duration']), req.slave_id)
-    
-    asyncio.create_task(push(target['owner_id'], f"🤝 Вашего раба арендовали! Вы получили {target['rent_price']} RC.", notif_type="trade"))
-    await invalidate_profile_cache(user['id']); await invalidate_profile_cache(target['owner_id']); await invalidate_profile_cache(req.slave_id)
-    await global_ws.send_to_user(user['id'], {"type": "action", "action": "refresh"})
+    renter_id = user['id']
+    async with db.acquire() as conn:
+        async with conn.transaction():
+            # Блокируем строки в фиксированном порядке во избежание дедлока
+            for locked_id in sorted([renter_id, req.slave_id]):
+                await conn.execute("SELECT 1 FROM users WHERE id=$1 FOR UPDATE", locked_id)
+
+            target = await conn.fetchrow("SELECT * FROM users WHERE id=$1", req.slave_id)
+            if not target or not target['rent_price'] or target['rented_by']:
+                raise HTTPException(400, "Недоступен для аренды")
+            if target['owner_id'] == renter_id:
+                raise HTTPException(400, "Нельзя арендовать собственного раба")
+
+            # Читаем актуальный баланс арендатора после блокировки
+            renter_balance = await conn.fetchval("SELECT balance FROM users WHERE id=$1", renter_id)
+            rent_price = float(target['rent_price'])
+            if float(renter_balance) < rent_price:
+                raise HTTPException(400, "Недостаточно RC")
+
+            rent_hours = target['rent_duration'] or 2
+            rented_until = datetime.utcnow() + timedelta(hours=rent_hours)
+
+            await conn.execute("UPDATE users SET balance=balance-$1::numeric WHERE id=$2", rent_price, renter_id)
+            await conn.execute("UPDATE users SET balance=balance+$1::numeric WHERE id=$2", rent_price, target['owner_id'])
+            await conn.execute(
+                "UPDATE users SET rented_by=$1, rented_until=$2 WHERE id=$3",
+                renter_id, rented_until, req.slave_id
+            )
+            await conn.execute(
+                "INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, 'rent', $2, 'Аренда раба')",
+                renter_id, -rent_price
+            )
+
+    asyncio.create_task(push(target['owner_id'], f"🤝 Вашего раба арендовали! Вы получили {rent_price:.0f} RC.", notif_type="trade"))
+    await invalidate_profile_cache(renter_id)
+    await invalidate_profile_cache(target['owner_id'])
+    await invalidate_profile_cache(req.slave_id)
+    await global_ws.send_to_user(renter_id, {"type": "action", "action": "refresh"})
+    await global_ws.send_to_user(target['owner_id'], {"type": "action", "action": "refresh"})
     return {"ok": True}
 
 @app.get("/api/rent/market")
 async def get_rent_market():
-    rows = await db.fetch("SELECT id, uid, username, first_name, photo_url, current_price, rent_price, rent_duration FROM users WHERE rent_price IS NOT NULL AND rented_by IS NULL LIMIT 50")
+    rows = await db.fetch(
+        "SELECT id, uid, username, first_name, photo_url, current_price, rent_price, rent_duration, "
+        "name_color, avatar_frame, emoji_status, vip_level, is_admin_flag "
+        "FROM users WHERE rent_price IS NOT NULL AND rented_by IS NULL LIMIT 50"
+    )
     return [dict(r) for r in rows]
 
 # === ПОИСК И ТОП ===
