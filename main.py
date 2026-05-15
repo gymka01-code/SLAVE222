@@ -744,6 +744,8 @@ class SyndicateSettingsReq(BaseModel): name: str; description: str; join_type: s
 class SyndicateChatSendReq(BaseModel): text: str
 class RentListReq(BaseModel): slave_id: int; price: float; hours: int
 class RentBuyReq(BaseModel): slave_id: int
+class RentCancelReq(BaseModel): slave_id: int
+class RobFailReq(BaseModel): target_id: int
 class ClanReactionReq(BaseModel): message_id: int; reaction: str
 class ClanPinReq(BaseModel): message_id: int
 
@@ -940,25 +942,22 @@ async def heal_slave(req: HealReq, user: dict = Depends(get_current_user)):
 
 # === АРЕНДА ===
 @app.post("/api/rent/cancel")
-async def cancel_rent_listing(req: dict = Body(...), user: dict = Depends(get_current_user)):
-    slave_id = req.get('slave_id')
-    slave = await db.fetchrow("SELECT * FROM users WHERE id=$1 AND owner_id=$2", slave_id, user['id'])
+async def cancel_rent_listing(req: RentCancelReq, user: dict = Depends(get_current_user)):
+    slave = await db.fetchrow("SELECT * FROM users WHERE id=$1 AND owner_id=$2", req.slave_id, user['id'])
     if not slave: raise HTTPException(403, "Не ваш раб")
     if slave['rented_by']: raise HTTPException(400, "Раб сейчас в аренде, снять нельзя до окончания")
-    await db.execute("UPDATE users SET rent_price=NULL, rent_duration=NULL WHERE id=$1", slave_id)
+    await db.execute("UPDATE users SET rent_price=NULL, rent_duration=NULL WHERE id=$1", req.slave_id)
     await invalidate_profile_cache(user['id'])
     return {"ok": True, "msg": "Раб снят с биржи аренды"}
 
 @app.post("/api/robbery/fail")
-async def robbery_fail(req: dict = Body(...), user: dict = Depends(get_current_user)):
-    """Вызывается при провале мини-игры — просто сжигаем попытку."""
+async def robbery_fail(req: RobFailReq, user: dict = Depends(get_current_user)):
     now = datetime.utcnow()
-    _now = now
-    _reset_at = user.get('robbery_reset_at') or _now
+    _reset_at = user.get('robbery_reset_at') or now
     if isinstance(_reset_at, str):
         _reset_at = datetime.fromisoformat(_reset_at.replace("Z", "+00:00")).replace(tzinfo=None)
-    if (_now - _reset_at).total_seconds() > 86400:
-        await db.execute("UPDATE users SET robberies_count=0, robbery_reset_at=$1 WHERE id=$2", _now, user['id'])
+    if (now - _reset_at).total_seconds() > 86400:
+        await db.execute("UPDATE users SET robberies_count=0, robbery_reset_at=$1 WHERE id=$2", now, user['id'])
     count = await db.fetchval("SELECT robberies_count FROM users WHERE id=$1", user['id'])
     if count >= 3: raise HTTPException(400, "Лимит исчерпан")
     await db.execute("UPDATE users SET robberies_count=robberies_count+1 WHERE id=$1", user['id'])
