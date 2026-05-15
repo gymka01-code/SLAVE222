@@ -497,6 +497,9 @@ async def lifespan(app: FastAPI):
     _migrations = [
         # Колонки которых может не быть в старых БД
         "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS user_id BIGINT",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS type TEXT",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS amount DECIMAL",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS user_id BIGINT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS photo_b64 TEXT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS direction TEXT",
