@@ -297,7 +297,7 @@ async def _full_profile(uid: int) -> dict:
     now = datetime.utcnow()
     owner = dict(await db.fetchrow("SELECT id,username,first_name,photo_url FROM users WHERE id=$1", u['owner_id'])) if u['owner_id'] else None
     
-    slaves_raw = await db.fetch("SELECT u.id,u.username,u.first_name,u.custom_name,u.current_price,u.photo_url,u.job_id, u.job_assigned_at, j.title as job_title, j.emoji as job_emoji, j.min_yield, j.max_yield, u.purchase_protection_until, u.is_injured_until, u.rented_until, u.rented_by FROM users u LEFT JOIN jobs j ON u.job_id=j.id WHERE u.owner_id=$1 OR u.rented_by=$1", uid)
+    slaves_raw = await db.fetch("SELECT u.id,u.username,u.first_name,u.custom_name,u.current_price,u.photo_url,u.job_id, u.job_assigned_at, j.title as job_title, j.emoji as job_emoji, j.min_yield, j.max_yield, u.purchase_protection_until, u.is_injured_until, u.rented_until, u.rented_by, u.rent_price FROM users u LEFT JOIN jobs j ON u.job_id=j.id WHERE u.owner_id=$1 OR u.rented_by=$1", uid)
     slaves = []
     rc_per_hour = 0.0
     for s in slaves_raw:
@@ -311,6 +311,7 @@ async def _full_profile(uid: int) -> dict:
             "purchase_protection_until": s['purchase_protection_until'].isoformat() + "Z" if s['purchase_protection_until'] else None,
             "is_injured": bool(s['is_injured_until'] and s['is_injured_until'] > now),
             "is_rented": is_rented,
+            "is_listed_for_rent": bool(s['rent_price'] and not s['rented_by']),
             "rented_until": s['rented_until'].isoformat() + "Z" if s['rented_until'] else None
         })
         if s['job_id']:
@@ -938,6 +939,31 @@ async def heal_slave(req: HealReq, user: dict = Depends(get_current_user)):
     return {"ok": True, "cost": 500}
 
 # === АРЕНДА ===
+@app.post("/api/rent/cancel")
+async def cancel_rent_listing(req: dict = Body(...), user: dict = Depends(get_current_user)):
+    slave_id = req.get('slave_id')
+    slave = await db.fetchrow("SELECT * FROM users WHERE id=$1 AND owner_id=$2", slave_id, user['id'])
+    if not slave: raise HTTPException(403, "Не ваш раб")
+    if slave['rented_by']: raise HTTPException(400, "Раб сейчас в аренде, снять нельзя до окончания")
+    await db.execute("UPDATE users SET rent_price=NULL, rent_duration=NULL WHERE id=$1", slave_id)
+    await invalidate_profile_cache(user['id'])
+    return {"ok": True, "msg": "Раб снят с биржи аренды"}
+
+@app.post("/api/robbery/fail")
+async def robbery_fail(req: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Вызывается при провале мини-игры — просто сжигаем попытку."""
+    now = datetime.utcnow()
+    _now = now
+    _reset_at = user.get('robbery_reset_at') or _now
+    if isinstance(_reset_at, str):
+        _reset_at = datetime.fromisoformat(_reset_at.replace("Z", "+00:00")).replace(tzinfo=None)
+    if (_now - _reset_at).total_seconds() > 86400:
+        await db.execute("UPDATE users SET robberies_count=0, robbery_reset_at=$1 WHERE id=$2", _now, user['id'])
+    count = await db.fetchval("SELECT robberies_count FROM users WHERE id=$1", user['id'])
+    if count >= 3: raise HTTPException(400, "Лимит исчерпан")
+    await db.execute("UPDATE users SET robberies_count=robberies_count+1 WHERE id=$1", user['id'])
+    return {"ok": True}
+
 @app.post("/api/rent/list")
 async def list_for_rent(req: RentListReq, user: dict = Depends(get_current_user)):
     slave = await db.fetchrow("SELECT * FROM users WHERE id=$1 AND owner_id=$2", req.slave_id, user['id'])
