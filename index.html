@@ -15,13 +15,13 @@
 html, body, #root { height:100%; width:100%; overflow:hidden; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
 input, textarea, select { font-size: 16px !important; }
 .app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; background: var(--bg); overflow: hidden; position: relative; }
-.screen { flex:1; overflow:hidden; display:flex; flex-direction:column; background: var(--bg); z-index: 1; width: 100%; }
-.content { flex:1; overflow-y:auto; padding-bottom: calc(80px + env(safe-area-inset-bottom)); scrollbar-width: none; }
+.screen { flex:1; min-height: 0; overflow:hidden; display:flex; flex-direction:column; background: var(--bg); z-index: 1; width: 100%; }
+.content { flex:1; overflow-y:auto; padding-bottom: 16px; scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 .hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
 .hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
 .hdr-sub { font-size: 10px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
-.bottom-nav { flex-shrink: 0; height: calc(65px + env(safe-area-inset-bottom)); background: rgba(10,10,10,1); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); width: 100%; z-index: 10; position: absolute; bottom: 0; }
+.bottom-nav { flex-shrink: 0; height: calc(65px + env(safe-area-inset-bottom)); background: rgba(10,10,10,1); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); width: 100%; z-index: 10; }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--text-3); font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; background: transparent; cursor: pointer; transition: 0.2s; letter-spacing: 0.05em; position: relative; }
 .nav-item.active { color: var(--gold); }
 .nav-item-ico { font-size: 22px; margin-bottom: 2px; transition: 0.2s; }
@@ -93,7 +93,7 @@ input, textarea, select { font-size: 16px !important; }
 .pc-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
 .protection-badge { font-size: 10px; font-weight: 600; color: var(--blue); background: var(--blue-dim); border: 1px solid rgba(59,130,246,0.3); border-radius: 6px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100000; display: flex; align-items: flex-end; justify-content: center; backdrop-filter: blur(8px); }
-.modal { background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(calc(65px + env(safe-area-inset-bottom) + 16px), env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp .3s ease; }
+.modal { background: var(--bg2); border-top-left-radius: 24px; border-top-right-radius: 24px; border-top: 1px solid rgba(232,197,71,0.15); padding: 24px 20px max(24px, env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp .3s ease; }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
 .modal-handle { width:40px; height:4px; border-radius:2px; background:var(--border2); margin:0 auto 20px; }
 .modal-title { font-size:20px; font-weight:800; margin-bottom:16px; letter-spacing: -0.5px; }
@@ -671,7 +671,7 @@ function MarketScreen({ user, onBuy, onViewProfile, showToast }) {
   return (
     <div className="screen">
       <div className="hdr"><div className="hdr-title">🛒 Рынок рабов</div></div>
-      <div className="content p0">
+      <div className="content" style={{paddingTop:0, paddingLeft:0, paddingRight:0}}>
         <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='buy'?' active':''}`} onClick={()=>setTab('buy')}>Покупка</button><button className={`tab${tab==='rent'?' active':''}`} onClick={()=>setTab('rent')}>Биржа Аренды</button></div></div>
         
         {tab === 'buy' && (
@@ -764,7 +764,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
     return (
       <div className="screen">
         <div className="hdr"><div className="hdr-title">🛡 Кланы</div></div>
-        <div className="content" style={{padding:0}}>
+        <div className="content" style={{paddingTop:0, paddingLeft:0, paddingRight:0}}>
           <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='list'?' active':''}`} onClick={()=>setTab('list')}>Список</button><button className={`tab${tab==='top'?' active':''}`} onClick={()=>setTab('top')}>🏆 Топ Кланов</button></div></div>
           
           <div className="p16 gap12">
@@ -803,7 +803,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
         <button className="btn btn-ghost btn-sm" onClick={async ()=>{ if(confirm('Выйти из клана?')){ await post('/api/syndicates/leave'); onRefresh(); } }}>Выйти</button>
         {user.syndicate_role === 'don' && <button className="btn btn-danger btn-sm" onClick={async ()=>{ if(confirm('❗ Удалить клан навсегда? Все участники будут исключены.')){ try{ await post('/api/syndicates/disband'); showToast('🗑 Клан удалён'); onRefresh(); }catch(e){showToast('❌ '+e.message);} } }}>🗑 Удалить</button>}
       </div>
-      <div className="content" style={{padding:0}}>
+      <div className="content" style={{padding:0, display:"flex", flexDirection:"column", overflow:"hidden"}}>
         <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='my'?' active':''}`} onClick={()=>setTab('my')}>🏠 База</button><button className={`tab${tab==='chat'?' active':''}`} onClick={()=>setTab('chat')}>💬 Чат</button><button className={`tab${tab==='wars'?' active':''}`} onClick={()=>setTab('wars')}>⚔️ Войны</button><button className={`tab${tab==='map'?' active':''}`} onClick={()=>setTab('map')}>🗺 Карта</button><button className={`tab${tab==='upgrade'?' active':''}`} onClick={()=>setTab('upgrade')}>🚀 Прокачка</button>{['don','deputy'].includes(user.syndicate_role) && <button className={`tab${tab==='settings'?' active':''}`} onClick={()=>setTab('settings')}>⚙️</button>}</div></div>
 
         {tab === 'my' && <div className="p16 gap16">
@@ -851,14 +851,14 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
           </div></div>}
         </div>}
 
-        {tab === 'chat' && <div style={{display:'flex', flexDirection:'column', height:'calc(100vh - 130px - 65px - env(safe-area-inset-bottom))', position: 'relative'}}>
+        {tab === 'chat' && <div style={{display:'flex', flexDirection:'column', flex:1, minHeight:0, position: 'relative'}}>
           {chatMsgs.find(m => m.is_pinned) && (
               <div className="px16 py8 bg-surface2 border-b border-border2 row-sb" style={{borderBottom:'1px solid var(--border)'}}>
                   <div style={{flex:1, minWidth:0}}><div className="f10 text-gold fw7 mb4">📌 Закрепленное сообщение</div><div className="f12 text-muted" style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{chatMsgs.find(m => m.is_pinned).text}</div></div>
                   {['don','deputy'].includes(user.syndicate_role) && <button className="btn btn-ghost btn-sm ml8" onClick={async ()=>{ try{ await post('/api/syndicates/chat/pin', {message_id: 0}); }catch(e){} }}>✕</button>}
               </div>
           )}
-          <div className="content chat-area" style={{flex:1, overflowY:'auto', display:'flex', flexDirection:'column-reverse'}}>
+          <div className="chat-area" style={{flex:1, overflowY:'auto', display:'flex', flexDirection:'column-reverse'}}>
              {chatMsgs.map((m, i) => {
                  const reacts = m.reactions ? (typeof m.reactions === 'string' ? JSON.parse(m.reactions) : m.reactions) : {};
                  const hasReacts = Object.keys(reacts).length > 0;
@@ -1152,7 +1152,7 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
   return (
     <div className="screen">
       <div className="hdr"><div className="hdr-title">🎮 Активности</div></div>
-      <div className="content p0">
+      <div className="content" style={{paddingTop:0, paddingLeft:0, paddingRight:0}}>
         <div className="tabs-wrap"><div className="tabs">
           <button className={`tab${tab==='tasks'?' active':''}`} onClick={() => setTab('tasks')}>📋 Задания</button>
           <button className={`tab${tab==='mine'?' active':''}`} onClick={() => setTab('mine')}>⛏ Шахта</button>
@@ -1349,7 +1349,7 @@ function TopScreen({ onViewProfile, showToast, user }) {
   return (
     <div className="screen">
       <div className="hdr"><div className="hdr-title">🏆 Рейтинги</div></div>
-      <div className="content" style={{padding:0}}>
+      <div className="content" style={{paddingTop:0, paddingLeft:0, paddingRight:0}}>
         <div className="tabs-wrap"><div className="tabs">{Object.entries(tabInfo).map(([key, info]) => <button key={key} className={`tab${tab===key?' active':''}`} onClick={() => load(key)}>{info.label}</button>)}</div></div>
         {loading ? <div className="spinner mt40"/> : (<div className="p16"><div className="card p0 m0">{rows.map((r, i) => { 
             const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null; 
@@ -1439,7 +1439,7 @@ function ShopInventoryScreen({ user, onRefresh, showToast, onBack }) {
         <div className="hdr-title">Склад и Магазин</div>
         <div style={{width: 60}}></div>
       </div>
-      <div className="content p0">
+      <div className="content" style={{paddingTop:0, paddingLeft:0, paddingRight:0}}>
         <div className="tabs-wrap">
           <div className="tabs">
             <button className={`tab${tab==='shop'?' active':''}`} onClick={()=>setTab('shop')}>🛒 Магазин</button>
@@ -1633,7 +1633,7 @@ function MessagesScreen({ user, onBack, onOpenChat, onViewProfile }) {
         <div className="hdr-title">Сообщения</div>
         <div style={{width: 60}}></div>
       </div>
-      <div className="content p0">
+      <div className="content" style={{paddingTop:0, paddingLeft:0, paddingRight:0}}>
         {loading ? <div className="spinner mt40"/> : chats.length === 0 ? <div className="text-center text-muted p20 mt20">У вас пока нет диалогов. Начните общаться через профиль игрока.</div> : (
           <div className="card p0 m0" style={{borderRadius: 0, border: 'none', borderTop: '1px solid var(--border)'}}>
             {chats.map(c => (
