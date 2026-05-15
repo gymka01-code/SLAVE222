@@ -16,7 +16,7 @@ html, body, #root { height:100%; width:100%; overflow:hidden; background: var(--
 input, textarea, select { font-size: 16px !important; }
 .app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width: 480px; margin: 0 auto; background: var(--bg); overflow: hidden; position: relative; }
 .screen { flex:1; min-height: 0; overflow:hidden; display:flex; flex-direction:column; background: var(--bg); z-index: 1; width: 100%; }
-.content { flex:1; overflow-y:auto; padding-bottom: 16px; scrollbar-width: none; }
+.content { flex:1; overflow-y:auto; padding-bottom: calc(80px + env(safe-area-inset-bottom)); scrollbar-width: none; }
 .content::-webkit-scrollbar { width: 0; }
 .hdr { padding: 12px 16px 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10; position: relative; }
 .hdr-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); display: flex; align-items: center; gap: 8px;}
@@ -806,7 +806,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
       <div className="content" style={{padding:0, display:"flex", flexDirection:"column", overflow:"hidden"}}>
         <div className="tabs-wrap"><div className="tabs"><button className={`tab${tab==='my'?' active':''}`} onClick={()=>setTab('my')}>🏠 База</button><button className={`tab${tab==='chat'?' active':''}`} onClick={()=>setTab('chat')}>💬 Чат</button><button className={`tab${tab==='wars'?' active':''}`} onClick={()=>setTab('wars')}>⚔️ Войны</button><button className={`tab${tab==='map'?' active':''}`} onClick={()=>setTab('map')}>🗺 Карта</button><button className={`tab${tab==='upgrade'?' active':''}`} onClick={()=>setTab('upgrade')}>🚀 Прокачка</button>{['don','deputy'].includes(user.syndicate_role) && <button className={`tab${tab==='settings'?' active':''}`} onClick={()=>setTab('settings')}>⚙️</button>}</div></div>
 
-        {tab === 'my' && <div className="p16 gap16">
+        {tab === 'my' && <div style={{flex:1, overflowY:'auto', padding:'16px', paddingBottom:'calc(80px + env(safe-area-inset-bottom))'}} className="gap16">
           <div className="card gap8" style={{margin:0, borderColor:'var(--gold)'}}>
              <div className="f12 text-muted text-center text-uppercase">Общак Клана</div>
              <div className="fw8 text-gold text-center" style={{fontSize:28}}>{parseFloat(myClan.clan.treasury).toFixed(0)} RC</div>
@@ -888,83 +888,107 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
         </div>}
 
         {tab === 'map' && (
-            <div className="p16 gap12">
+            <div style={{flex:1, overflowY:'auto', padding:'16px', paddingBottom:'calc(80px + env(safe-area-inset-bottom))'}} className="gap12">
                 <div className="card row-sb" style={{margin:0, marginBottom:12, borderColor:'var(--blue)', background:'rgba(59,130,246,0.1)'}}>
-                    <div><div className="fw8 text-blue mb4">🗺 Карта России</div><div className="f12 text-muted">Захватывайте города и получайте бонус к доходу клана!</div></div>
+                    <div><div className="fw8 text-blue mb4">🗺 Карта России</div><div className="f12 text-muted">Захватывайте территории и получайте бонус к доходу клана!</div></div>
                 </div>
                 <div style={{width:'100%', background:'linear-gradient(180deg, #0a1628 0%, #0d1f3c 100%)', borderRadius:16, border:'1px solid rgba(59,130,246,0.3)', overflow:'hidden', position:'relative'}}>
                   <svg viewBox="0 0 500 320" width="100%" style={{display:'block'}}>
-                    {/* Фон — океан */}
-                    <rect width="500" height="320" fill="url(#oceanGrad)"/>
+                    <rect width="500" height="320" fill="url(#oceanGrad3)"/>
                     <defs>
-                      <radialGradient id="oceanGrad" cx="50%" cy="50%"><stop offset="0%" stopColor="#0d2240"/><stop offset="100%" stopColor="#060e1a"/></radialGradient>
-                      <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                      <filter id="softGlow"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                      <radialGradient id="oceanGrad3" cx="50%" cy="50%"><stop offset="0%" stopColor="#0d2240"/><stop offset="100%" stopColor="#060e1a"/></radialGradient>
+                      <filter id="tGlow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                      <clipPath id="russiaClip">
+                        <path d="M55,95 L70,72 L90,62 L118,52 L148,46 L175,40 L205,37 L238,34 L272,30 L308,27 L345,26 L378,28 L405,34 L425,44 L440,58 L448,74 L452,92 L448,108 L440,122 L430,136 L418,150 L405,162 L390,172 L372,180 L355,186 L338,190 L318,194 L298,198 L278,204 L258,212 L240,220 L222,228 L204,233 L184,235 L162,232 L144,228 L128,232 L112,236 L96,232 L80,226 L66,216 L52,202 L42,184 L37,164 L38,140 L44,118 Z"/>
+                      </clipPath>
                     </defs>
 
                     {/* Сетка */}
-                    {[50,100,150,200,250,300].map(y=><line key={y} x1="0" y1={y} x2="500" y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>)}
-                    {[50,100,150,200,250,300,350,400,450].map(x=><line key={x} x1={x} y1="0" x2={x} y2="320" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>)}
+                    {[50,100,150,200,250,300].map(y=><line key={y} x1="0" y1={y} x2="500" y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1"/>)}
+                    {[100,200,300,400].map(x=><line key={x} x1={x} y1="0" x2={x} y2="320" stroke="rgba(255,255,255,0.025)" strokeWidth="1"/>)}
 
-                    {/* Континент России — упрощённый силуэт */}
-                    <path d="M55,95 L70,72 L90,62 L118,52 L148,46 L175,40 L205,37 L238,34 L272,30 L308,27 L345,26 L378,28 L405,34 L425,44 L440,58 L448,74 L452,92 L448,108 L440,122 L430,136 L418,150 L405,162 L390,172 L372,180 L355,186 L338,190 L318,194 L298,198 L278,204 L258,212 L240,220 L222,228 L204,233 L184,235 L162,232 L144,228 L128,232 L112,236 L96,232 L80,226 L66,216 L52,202 L42,184 L37,164 L38,140 L44,118 Z" fill="url(#russiaGrad)" stroke="rgba(59,130,246,0.4)" strokeWidth="1.5"/>
-                    <defs><linearGradient id="russiaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#1a2f4a"/><stop offset="100%" stopColor="#0f1f35"/></linearGradient></defs>
-
-                    {/* Острова */}
-                    <ellipse cx="460" cy="110" rx="8" ry="18" fill="#1a2f4a" stroke="rgba(59,130,246,0.3)" strokeWidth="1"/>
-                    <path d="M440,42 L458,34 L470,46 L472,62 L462,70 L450,64 L442,54 Z" fill="#1a2f4a" stroke="rgba(59,130,246,0.3)" strokeWidth="1"/>
-
-                    {/* Города — зоны */}
-                    {territories.map((t, idx) => {
-                      const cityData = {
-                        'Москва':          {x:195,y:138, r:22},
-                        'Санкт-Петербург': {x:158,y:84,  r:16},
-                        'Новосибирск':     {x:295,y:132, r:16},
-                        'Екатеринбург':    {x:258,y:116, r:14},
-                        'Казань':          {x:220,y:128, r:13},
-                        'Краснодар':       {x:178,y:192, r:14},
-                        'Владивосток':     {x:408,y:170, r:13},
-                        'Омск':            {x:272,y:128, r:12},
-                        'Красноярск':      {x:322,y:118, r:14},
-                        'Иркутск':         {x:348,y:136, r:13},
-                        'Волгоград':       {x:210,y:162, r:13},
-                        'Нижний Новгород': {x:210,y:122, r:12},
-                        'Уфа':             {x:244,y:126, r:12},
-                        'Ростов-на-Дону':  {x:190,y:178, r:12},
-                        'Пермь':           {x:252,y:108, r:11},
-                        'Воронеж':         {x:200,y:148, r:11},
-                        'Самара':          {x:232,y:132, r:11},
-                        'Хабаровск':       {x:418,y:150, r:12},
-                        'Якутск':          {x:368,y:88,  r:12},
-                        'Мурманск':        {x:172,y:56,  r:11},
+                    {/* Территории — полигоны, обрезанные силуэтом России */}
+                    {(() => {
+                      const SHAPES = {
+                        'Мурманск':          'M37,25 L210,25 L210,62 L185,73 L162,74 L145,65 L118,52 L90,62 L70,72 L50,95 L37,95 Z',
+                        'Санкт-Петербург':   'M37,95 L50,95 L70,72 L145,65 L162,74 L165,102 L148,117 L118,117 L78,117 L55,108 Z',
+                        'Москва':            'M148,117 L165,102 L215,90 L228,108 L220,160 L200,165 L175,160 L158,148 Z',
+                        'Нижний Новгород':   'M215,90 L252,88 L258,110 L240,122 L228,108 Z',
+                        'Казань':            'M228,108 L240,122 L250,135 L236,150 L220,150 L220,132 Z',
+                        'Пермь':             'M252,88 L288,75 L298,95 L280,114 L260,114 L258,110 Z',
+                        'Екатеринбург':      'M260,114 L280,114 L292,135 L270,145 L252,135 L250,122 L240,122 L258,110 Z',
+                        'Уфа':               'M236,150 L252,135 L270,145 L268,162 L250,167 L236,158 Z',
+                        'Самара':            'M220,150 L236,158 L250,167 L247,183 L226,185 L216,170 Z',
+                        'Воронеж':           'M158,148 L220,132 L220,150 L216,170 L200,175 L178,175 L165,162 Z',
+                        'Волгоград':         'M216,170 L250,167 L260,188 L242,200 L220,197 L216,182 Z',
+                        'Ростов-на-Дону':    'M165,162 L200,175 L216,182 L220,197 L200,210 L178,210 L158,200 L155,180 Z',
+                        'Краснодар':         'M128,202 L158,200 L178,210 L175,240 L145,242 L128,234 L110,238 L108,218 Z',
+                        'Омск':              'M288,75 L368,68 L372,110 L332,124 L298,120 L280,114 Z',
+                        'Новосибирск':       'M298,120 L332,124 L344,150 L310,158 L292,150 L270,145 L292,135 Z',
+                        'Красноярск':        'M332,124 L368,68 L388,68 L398,128 L378,152 L355,160 L344,150 Z',
+                        'Иркутск':           'M344,150 L378,152 L400,172 L392,198 L364,200 L340,190 L312,175 L310,158 Z',
+                        'Якутск':            'M368,68 L480,25 L480,132 L440,130 L412,132 L382,122 L372,110 Z',
+                        'Хабаровск':         'M412,132 L440,130 L480,132 L480,172 L442,175 L422,162 L410,144 Z',
+                        'Владивосток':       'M400,172 L422,162 L442,175 L480,172 L480,218 L436,208 L402,202 L392,185 Z',
                       };
-                      const nm = t.name || `Г.${idx+1}`;
-                      const cd = cityData[nm] || {x:80+(idx%9)*40, y:100+Math.floor(idx/9)*30, r:10};
-                      const owned = t.owner_id === user.syndicate_id;
-                      const taken = !!t.owner_id;
-                      const col = owned ? '#22c55e' : taken ? '#ef4444' : '#4b8ab8';
-                      const glowCol = owned ? 'rgba(34,197,94,0.6)' : taken ? 'rgba(239,68,68,0.5)' : 'rgba(75,138,184,0.4)';
-                      const fillCol = owned ? 'rgba(34,197,94,0.2)' : taken ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.12)';
-                      return (
-                        <g key={t.id} filter="url(#glow)">
-                          {/* Зона-круг */}
-                          <circle cx={cd.x} cy={cd.y} r={cd.r+4} fill={fillCol} opacity="0.6"/>
-                          <circle cx={cd.x} cy={cd.y} r={cd.r} fill={fillCol} stroke={col} strokeWidth="1.5" opacity="0.9"/>
-                          {/* Пульсирующий центр */}
-                          <circle cx={cd.x} cy={cd.y} r={4} fill={col} opacity="0.95"/>
-                          {/* Название */}
-                          <text x={cd.x} y={cd.y+cd.r+10} textAnchor="middle" fontSize="6.5" fill={col} fontWeight="700" opacity="0.95">{nm.length>10?nm.slice(0,9)+'…':nm}</text>
-                          {/* Бонус */}
-                          {t.income_bonus > 0 && <text x={cd.x} y={cd.y+1} textAnchor="middle" dominantBaseline="middle" fontSize="6" fill="#fff" fontWeight="800" opacity="0.9">+{t.income_bonus}%</text>}
-                        </g>
-                      );
-                    })}
+                      const CITY_LABELS = {
+                        'Москва':          {x:190, y:132},
+                        'Санкт-Петербург': {x:128, y:102},
+                        'Новосибирск':     {x:310, y:140},
+                        'Екатеринбург':    {x:268, y:126},
+                        'Казань':          {x:234, y:132},
+                        'Краснодар':       {x:152, y:218},
+                        'Владивосток':     {x:432, y:190},
+                        'Омск':            {x:322, y:102},
+                        'Красноярск':      {x:362, y:112},
+                        'Иркутск':         {x:362, y:175},
+                        'Волгоград':       {x:234, y:182},
+                        'Нижний Новгород': {x:238, y:106},
+                        'Уфа':             {x:255, y:152},
+                        'Ростов-на-Дону':  {x:185, y:188},
+                        'Пермь':           {x:274, y:98},
+                        'Воронеж':         {x:192, y:160},
+                        'Самара':          {x:230, y:168},
+                        'Хабаровск':       {x:442, y:150},
+                        'Якутск':          {x:422, y:92},
+                        'Мурманск':        {x:155, y:62},
+                      };
+                      return territories.map((t) => {
+                        const nm = t.name;
+                        const shape = SHAPES[nm];
+                        const lbl = CITY_LABELS[nm];
+                        if (!shape) return null;
+                        const owned = t.owner_id === user.syndicate_id;
+                        const taken = !!t.owner_id;
+                        const fillCol = owned ? 'rgba(34,197,94,0.38)' : taken ? 'rgba(239,68,68,0.32)' : 'rgba(59,130,246,0.14)';
+                        const strokeCol = owned ? '#22c55e' : taken ? '#ef4444' : 'rgba(75,138,184,0.6)';
+                        const textCol = owned ? '#4ade80' : taken ? '#f87171' : '#7ab3d4';
+                        return (
+                          <g key={t.id}>
+                            <g clipPath="url(#russiaClip)">
+                              <path d={shape} fill={fillCol} stroke={strokeCol} strokeWidth="1.2" opacity="0.95"/>
+                            </g>
+                            {lbl && <>
+                              <circle cx={lbl.x} cy={lbl.y} r="2.5" fill={strokeCol} opacity="0.9" style={{pointerEvents:'none'}}/>
+                              <text x={lbl.x} y={lbl.y + 9} textAnchor="middle" fontSize="6" fill={textCol} fontWeight="700" opacity="0.95" style={{pointerEvents:'none'}}>{nm.length>11?nm.slice(0,10)+'…':nm}</text>
+                              {t.income_bonus > 0 && <text x={lbl.x} y={lbl.y - 5} textAnchor="middle" fontSize="5.5" fill="#fff" fontWeight="800" opacity="0.85" style={{pointerEvents:'none'}}>+{t.income_bonus}%</text>}
+                            </>}
+                          </g>
+                        );
+                      });
+                    })()}
+
+                    {/* Контур России поверх */}
+                    <path d="M55,95 L70,72 L90,62 L118,52 L148,46 L175,40 L205,37 L238,34 L272,30 L308,27 L345,26 L378,28 L405,34 L425,44 L440,58 L448,74 L452,92 L448,108 L440,122 L430,136 L418,150 L405,162 L390,172 L372,180 L355,186 L338,190 L318,194 L298,198 L278,204 L258,212 L240,220 L222,228 L204,233 L184,235 L162,232 L144,228 L128,232 L112,236 L96,232 L80,226 L66,216 L52,202 L42,184 L37,164 L38,140 L44,118 Z" fill="none" stroke="rgba(100,160,220,0.7)" strokeWidth="1.5"/>
 
                     {/* Легенда */}
-                    <rect x="8" y="290" width="150" height="24" rx="6" fill="rgba(0,0,0,0.5)"/>
-                    <circle cx="22" cy="302" r="5" fill="rgba(34,197,94,0.8)"/><text x="32" y="306" fontSize="8" fill="#aaa" fontWeight="600">Ваш клан</text>
-                    <circle cx="74" cy="302" r="5" fill="rgba(239,68,68,0.8)"/><text x="84" y="306" fontSize="8" fill="#aaa" fontWeight="600">Занят</text>
-                    <circle cx="116" cy="302" r="5" fill="rgba(75,138,184,0.8)"/><text x="126" y="306" fontSize="8" fill="#aaa" fontWeight="600">Свободен</text>
+                    <rect x="6" y="288" width="168" height="26" rx="7" fill="rgba(0,0,0,0.6)"/>
+                    <rect x="13" y="296" width="12" height="12" rx="2" fill="rgba(34,197,94,0.5)" stroke="#22c55e" strokeWidth="1"/>
+                    <text x="30" y="306" fontSize="8" fill="#aaa" fontWeight="600">Ваш клан</text>
+                    <rect x="82" y="296" width="12" height="12" rx="2" fill="rgba(239,68,68,0.45)" stroke="#ef4444" strokeWidth="1"/>
+                    <text x="99" y="306" fontSize="8" fill="#aaa" fontWeight="600">Занят</text>
+                    <rect x="133" y="296" width="12" height="12" rx="2" fill="rgba(59,130,246,0.25)" stroke="#4b8ab4" strokeWidth="1"/>
+                    <text x="150" y="306" fontSize="8" fill="#aaa" fontWeight="600">Своб.</text>
                   </svg>
                 </div>
 
@@ -988,7 +1012,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
         )}
 
         {tab === 'upgrade' && (
-            <div className="p16 gap12">
+            <div style={{flex:1, overflowY:'auto', padding:'16px', paddingBottom:'calc(80px + env(safe-area-inset-bottom))'}} className="gap12">
                <div className="card text-center">
                  <div className="fw8 text-gold" style={{fontSize: 20}}>Уровень {myClan.clan.level}</div>
                  <div className="f13 text-muted mt12 text-left" style={{lineHeight: 1.6}}>
@@ -1008,7 +1032,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
         )}
 
         {tab === 'wars' && (
-            <div className="p16 gap12">
+            <div style={{flex:1, overflowY:'auto', padding:'16px', paddingBottom:'calc(80px + env(safe-area-inset-bottom))'}} className="gap12">
                 {/* Входящие вызовы */}
                 {myClan.wars.pending.filter(w => w.defender_id === user.syndicate_id).map(w => (
                     <div className="card" key={w.id} style={{borderColor: 'var(--red)', background: 'rgba(239,68,68,0.1)'}}>
@@ -1068,7 +1092,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
             </div>
         )}
 
-        {tab === 'settings' && <div className="p16 gap12">
+        {tab === 'settings' && <div style={{flex:1, overflowY:'auto', padding:'16px', paddingBottom:'calc(80px + env(safe-area-inset-bottom))'}} className="gap12">
            <div className="card gap8" style={{margin:0}}>
               <div className="fw8">Настройки Клана</div>
               <div className="f11 text-red fw6 mb8">⚠️ Внимание: Смена названия стоит 5,000 RC из казны</div>
