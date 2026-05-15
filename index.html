@@ -471,12 +471,12 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
             </div>
           </div>
           {user.syndicate_id && <div className="mt12 f12 text-muted fw6" style={{textAlign:'center', background:'var(--surface2)', padding:4, borderRadius:8}}>🛡 Клан: {user.syndicate_name}</div>}
-          {user.owner && (
+          {user.owner && user.price != null && (
             <div className="mt12">
               <button className="btn btn-ghost" style={{color:'var(--green)', borderColor:'rgba(34,197,94,0.4)', fontSize:13}} onClick={async ()=>{
-                if(!confirm(`Выкупить себя у ${user.owner.first_name || 'хозяина'} за ${user.price.toFixed(0)} RC?`)) return;
-                try { const r = await post('/api/selfbuy'); showToast(`✅ ${r.msg || 'Вы свободны!'}`); onRefresh(); } catch(e){ showToast('❌ '+e.message); }
-              }}>🕊️ Выкупить себя — {user.price.toFixed(0)} RC</button>
+                if(!confirm(`Выкупить себя за ${(user.price||0).toFixed(0)} RC?`)) return;
+                try { const r = await post('/api/selfbuy'); showToast(`✅ ${r.msg||'Вы свободны!'}`); onRefresh(); } catch(e){ showToast('❌ '+e.message); }
+              }}>🕊️ Выкупить себя — {(user.price||0).toFixed(0)} RC</button>
             </div>
           )}
           <div className="row mt16 pt16" style={{borderTop:'1px solid var(--border)'}}>
@@ -585,8 +585,7 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
                             <button className="btn btn-danger mt4" onClick={async () => {
                               try { await post('/api/rent/cancel', {slave_id: actionModal.item.id}); showToast('✅ Аренда отменена!'); setActionModal(null); onRefresh(); } catch(e){ showToast('❌ '+e.message); }
                             }}>❌ Снять с биржи аренды</button>
-                          ) : (
-                            <>
+                          ) : (<>
                           <div className="row">
                               <input className="input" type="number" id="rent_price" placeholder="Цена RC (50-50000)" style={{flex:2}}/>
                               <select className="input" id="rent_hours" style={{flex:1}}><option value="2">2 ч</option><option value="4">4 ч</option><option value="8">8 ч</option><option value="12">12 ч</option><option value="24">24 ч</option></select>
@@ -597,8 +596,7 @@ function ProfileScreen({ user, tasksData, onRefresh, onViewProfile, onNavSub, sh
                               if(isNaN(p) || p<50 || p>50000) return showToast('Цена должна быть от 50 до 50000 RC');
                               try { await post('/api/rent/list', {slave_id: actionModal.item.id, price: p, hours: h}); showToast('✅ Выставлен на биржу аренды!'); setActionModal(null); onRefresh(); } catch(e){ showToast('❌ '+e.message); }
                           }}>Выставить на биржу</button>
-                            </>
-                          )}
+                          </>)}
                       </div>
                   </>
               )}
@@ -850,64 +848,30 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
                 <div className="card row-sb" style={{margin:0, marginBottom:12, borderColor:'var(--blue)', background:'rgba(59,130,246,0.1)'}}>
                     <div><div className="fw8 text-blue mb4">🗺 Карта России</div><div className="f12 text-muted">Захватывайте города через войны и получайте бонус к доходу клана!</div></div>
                 </div>
-                {/* SVG-карта России с городами */}
                 <div style={{width:'100%', overflowX:'auto', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', padding:12}}>
-                  <svg viewBox="0 0 420 260" width="100%" style={{display:'block', minWidth:320}}>
-                    {/* Упрощённый силуэт России */}
+                  <svg viewBox="0 0 420 260" width="100%" style={{display:'block', minWidth:300}}>
                     <path d="M30,80 L50,60 L80,55 L110,45 L150,40 L180,35 L220,38 L260,32 L300,28 L340,30 L380,35 L400,50 L410,70 L405,95 L395,110 L385,130 L375,150 L360,165 L345,170 L330,175 L310,180 L290,185 L275,195 L260,205 L240,210 L220,215 L200,218 L175,215 L155,210 L135,215 L115,220 L95,215 L75,210 L55,200 L40,185 L25,165 L18,140 L20,110 L25,90 Z" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5"/>
-                    {/* Камчатка */}
                     <path d="M380,35 L400,28 L415,40 L418,60 L410,70 L400,65 L390,55 Z" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5"/>
-                    {/* Сахалин */}
                     <ellipse cx="408" cy="100" rx="6" ry="14" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" strokeWidth="1"/>
-
-                    {/* Города — точки и подписи */}
                     {territories.map((t, idx) => {
-                      // Координаты городов на SVG-карте
-                      const cityCoords = {
-                        'Москва':       {x:185, y:120},
-                        'Санкт-Петербург': {x:155, y:75},
-                        'Новосибирск':  {x:290, y:120},
-                        'Екатеринбург': {x:255, y:105},
-                        'Казань':       {x:215, y:115},
-                        'Краснодар':    {x:175, y:175},
-                        'Владивосток':  {x:385, y:155},
-                        'Омск':         {x:270, y:118},
-                        'Красноярск':   {x:315, y:108},
-                        'Иркутск':      {x:340, y:125},
-                        'Волгоград':    {x:205, y:148},
-                        'Нижний Новгород': {x:205, y:112},
-                        'Уфа':          {x:240, y:115},
-                        'Ростов-на-Дону':{x:185, y:162},
-                        'Пермь':        {x:248, y:98},
-                        'Воронеж':      {x:195, y:135},
-                        'Самара':       {x:228, y:122},
-                        'Хабаровск':    {x:380, y:138},
-                        'Якутск':       {x:355, y:78},
-                        'Мурманск':     {x:170, y:50},
-                      };
-                      const name = t.name || `Город ${idx+1}`;
-                      const pos = cityCoords[name] || {x: 100 + (idx % 8)*35, y: 90 + Math.floor(idx/8)*30};
-                      const owned = t.owner_id === user.syndicate_id;
-                      const hasOwner = !!t.owner_id;
-                      const color = owned ? '#22c55e' : hasOwner ? '#ef4444' : '#6b7280';
-                      const fill = owned ? 'rgba(34,197,94,0.25)' : hasOwner ? 'rgba(239,68,68,0.18)' : 'rgba(107,114,128,0.15)';
-                      return (
-                        <g key={t.id}>
-                          <circle cx={pos.x} cy={pos.y} r={11} fill={fill} stroke={color} strokeWidth={owned ? 2 : 1.5}/>
-                          <text x={pos.x} y={pos.y+1} textAnchor="middle" dominantBaseline="middle" fontSize="8" fontWeight="700" fill={color}>{t.income_bonus ? `+${t.income_bonus}%` : '?'}</text>
-                          <text x={pos.x} y={pos.y+16} textAnchor="middle" fontSize="7" fill="var(--text-2)" fontWeight="600">{name.length > 8 ? name.slice(0,7)+'…' : name}</text>
-                        </g>
-                      );
+                      const coords = {'Москва':{x:185,y:120},'Санкт-Петербург':{x:155,y:75},'Новосибирск':{x:290,y:120},'Екатеринбург':{x:255,y:105},'Казань':{x:215,y:115},'Краснодар':{x:175,y:175},'Владивосток':{x:385,y:155},'Омск':{x:270,y:118},'Красноярск':{x:315,y:108},'Иркутск':{x:340,y:125},'Волгоград':{x:205,y:148},'Нижний Новгород':{x:205,y:112},'Уфа':{x:240,y:115},'Ростов-на-Дону':{x:185,y:162},'Пермь':{x:248,y:98},'Воронеж':{x:195,y:135},'Самара':{x:228,y:122},'Хабаровск':{x:380,y:138},'Якутск':{x:355,y:78},'Мурманск':{x:170,y:50}};
+                      const nm = t.name||`Г.${idx+1}`;
+                      const pos = coords[nm]||{x:100+(idx%8)*38,y:90+Math.floor(idx/8)*28};
+                      const owned = t.owner_id===user.syndicate_id;
+                      const col = owned?'#22c55e':t.owner_id?'#ef4444':'#6b7280';
+                      return (<g key={t.id}>
+                        <circle cx={pos.x} cy={pos.y} r={11} fill={owned?'rgba(34,197,94,0.25)':t.owner_id?'rgba(239,68,68,0.18)':'rgba(107,114,128,0.15)'} stroke={col} strokeWidth={owned?2:1.5}/>
+                        <text x={pos.x} y={pos.y+1} textAnchor="middle" dominantBaseline="middle" fontSize="7" fontWeight="700" fill={col}>{t.income_bonus?`+${t.income_bonus}%`:'?'}</text>
+                        <text x={pos.x} y={pos.y+16} textAnchor="middle" fontSize="6.5" fill="var(--text-2)" fontWeight="600">{nm.length>8?nm.slice(0,7)+'…':nm}</text>
+                      </g>);
                     })}
                   </svg>
-                  <div className="row mt8" style={{flexWrap:'wrap', gap:8}}>
+                  <div className="row mt8" style={{flexWrap:'wrap',gap:8}}>
                     <div className="row gap4"><div style={{width:10,height:10,borderRadius:'50%',background:'#22c55e'}}/><span className="f11 text-muted">Ваш клан</span></div>
                     <div className="row gap4"><div style={{width:10,height:10,borderRadius:'50%',background:'#ef4444'}}/><span className="f11 text-muted">Занят</span></div>
                     <div className="row gap4"><div style={{width:10,height:10,borderRadius:'50%',background:'#6b7280'}}/><span className="f11 text-muted">Свободен</span></div>
                   </div>
                 </div>
-
-                {/* Список городов */}
                 <div className="section-title mt16">Города ({territories.length})</div>
                 {territories.map(t => (
                     <div className="card row-sb" key={t.id} style={{margin:0, marginBottom:8, borderColor: t.owner_id === user.syndicate_id ? 'var(--green)' : 'var(--border)'}}>
@@ -920,7 +884,7 @@ function SyndicatesScreen({ user, onRefresh, showToast, onViewProfile }) {
                             <button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm(`Напасть на ${t.owner_name} за территорию ${t.name}?`)) return; try{ await post('/api/syndicates/wars/declare', {target_id: t.owner_id, territory_id: t.id}); showToast('⚔️ Вызов отправлен!'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>Захватить</button>
                         )}
                         {['don','deputy'].includes(user.syndicate_role) && !t.owner_id && (
-                            <button className="btn btn-primary btn-sm" onClick={async ()=>{ if(!confirm(`Захватить территорию ${t.name} для клана?`)) return; try{ await post('/api/syndicates/wars/declare', {target_id: null, territory_id: t.id}); showToast('✅ Территория захвачена!'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>⚡ Занять</button>
+                            <button className="btn btn-primary btn-sm" onClick={async ()=>{ if(!confirm(`Захватить ${t.name}? Стоит 100,000 RC из Общака.`)) return; try{ await post('/api/syndicates/wars/declare', {target_id: null, territory_id: t.id}); showToast('✅ Захвачено!'); loadAll(); }catch(e){showToast('❌ '+e.message);} }}>⚡ Занять</button>
                         )}
                     </div>
                 ))}
@@ -1052,6 +1016,7 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
   const [localEnergy, setLocalEnergy] = useState(parseFloat(user.energy) || 0); const [unsyncedClicks, setUnsyncedClicks] = useState(0); const [floats, setFloats] = useState([]);
   const [promoCode, setPromoCode] = useState('');
   const [robberyData, setRobberyData] = useState(null);
+  const [robberyResult, setRobberyResult] = useState(null);
   const [arenaData, setArenaData] = useState(null);
   
   useEffect(() => { if (tab !== 'mine') return; const regenPerSec = user.max_energy / 7200; const int = setInterval(() => setLocalEnergy(e => Math.min(user.max_energy, e + regenPerSec)), 1000); return () => clearInterval(int); }, [tab, user.max_energy]);
@@ -1068,8 +1033,6 @@ function GamesScreen({ user, tasksData, onRefresh, showToast }) {
     try { const r = await post('/api/promo', { code: promoCode.trim().toUpperCase() }); showToast(`🎁 ${r.msg || 'Промокод активирован!'}`); setPromoCode(''); onRefresh(); }
     catch(e) { showToast('❌ ' + e.message); }
   };
-
-  const [robberyResult, setRobberyResult] = useState(null);
 
   const doRobbery = async (targetId) => {
     try { const r = await post('/api/robbery/resolve', { target_id: targetId }); setRobberyResult(r.msg || 'Ограбление выполнено!'); setRobberyData(null); onRefresh(); }
@@ -1355,23 +1318,18 @@ function ShopInventoryScreen({ user, onRefresh, showToast, onBack }) {
               {shopData.items.map(i => (
                 <div className="card" key={i.id} style={{margin:0}}>
                   <div className="row-sb">
-                    <div>
-                      <div className="fw7">{i.name}</div>
-                      <div className="f11 text-muted mt4">{i.desc}</div>
-                    </div>
+                    <div><div className="fw7">{i.name}</div><div className="f11 text-muted mt4">{i.desc}</div></div>
                     <button className="btn btn-ghost btn-sm" style={{color: i.price_rc ? 'var(--text)' : 'var(--gold)', borderColor: i.price_rc ? 'var(--border2)' : 'var(--gold)'}} onClick={()=>buyItem(i.id)}>
                       {i.price_rc ? `${i.price_rc} RC` : `${i.price_stars} ⭐️`}
                     </button>
                   </div>
-                  {/* Превью эффекта */}
                   <div className="mt8 px12 py6" style={{background:'var(--surface2)', borderRadius:10, border:'1px solid var(--border2)'}}>
                     <div className="f11 text-muted mb4">Пример:</div>
                     {i.id === 'shield' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--gold)', background:'var(--gold-dim)', borderColor:'rgba(232,197,71,0.3)'}}>🛡 Щит активен</span><span className="f11 text-muted">Вас не смогут купить</span></div>}
                     {i.id === 'stealth' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--text)', background:'var(--surface2)', borderColor:'var(--border2)'}}>👻 Стелс</span><span className="f11 text-muted">Вы скрыты из поиска</span></div>}
                     {i.id === 'booster' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--green)', background:'var(--green-dim)', borderColor:'rgba(34,197,94,0.3)'}}>🚀 Буст ×2</span><span className="f11 text-muted">Двойной доход с работ</span></div>}
                     {i.id === 'chains' && <div className="row gap8 f12"><span className="protection-badge" style={{color:'var(--red)', background:'var(--red-dim)', borderColor:'rgba(239,68,68,0.3)'}}>⛓ Оковы</span><span className="f11 text-muted">Раб не может сбежать</span></div>}
-                    {i.id === 'vip' && <div className="row gap8 f12"><span style={{color:'var(--gold)', fontWeight:700}}>👑 VIP</span><span className="f11 text-muted">+бонусы, эксклюзивные функции</span></div>}
-                    {!['shield','stealth','booster','chains','vip'].includes(i.id) && <div className="f11 text-muted">Активируется в инвентаре</div>}
+                    {!['shield','stealth','booster','chains'].includes(i.id) && <div className="f11 text-muted">Активируется в инвентаре</div>}
                   </div>
                 </div>
               ))}
@@ -1379,20 +1337,17 @@ function ShopInventoryScreen({ user, onRefresh, showToast, onBack }) {
               {shopData.cosmetics.map(c => (
                 <div className="card" key={c.id} style={{margin:0}}>
                   <div className="row-sb">
-                    <div>
-                      <div className="fw7">{c.name}</div>
-                      <div className="f11 text-muted mt4">Тип: {c.type}</div>
-                    </div>
-                    {c.owned ? <span className="f12 fw7 text-green">Куплено</span> : 
+                    <div><div className="fw7">{c.name}</div><div className="f11 text-muted mt4">Тип: {c.type}</div></div>
+                    {c.owned ? <span className="f12 fw7 text-green">Куплено</span> :
                     <button className="btn btn-ghost btn-sm" style={{color: 'var(--gold)', borderColor: 'var(--gold)'}} onClick={()=>buyItem('cosmetic', true, c.id)}>
                       {c.price_stars} ⭐️
                     </button>}
                   </div>
                   <div className="mt8 px12 py6 row-sb" style={{background:'var(--surface2)', borderRadius:10, border:'1px solid var(--border2)'}}>
                     <div className="f11 text-muted">Пример:</div>
-                    {c.type === 'color' && <span className="fw7 f13" style={{color: c.value === 'gold' ? 'var(--gold)' : c.value === 'ruby' ? '#ef4444' : c.value === 'neon' ? '#39ff14' : c.value === 'blue' ? 'var(--blue)' : c.value === 'purple' ? '#a855f7' : 'var(--text)'}}>Иван Иванов</span>}
-                    {c.type === 'frame' && <div className={`avatar-wrap ${c.value === 'rainbow' ? 'frame-rainbow' : c.value === 'gold' ? 'frame-gold' : c.value === 'fire' ? 'frame-fire' : c.value === 'diamond' ? 'frame-diamond' : ''}`} style={{width:32, height:32, borderRadius:'50%', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16}}>👤</div>}
-                    {c.type === 'emoji' && <span className="f20">{c.value}</span>}
+                    {c.type === 'color' && <span className="fw7 f13" style={{color: c.value==='gold'?'var(--gold)':c.value==='ruby'?'#ef4444':c.value==='neon'?'#39ff14':c.value==='blue'?'var(--blue)':c.value==='purple'?'#a855f7':'var(--text)'}}>Иван Иванов</span>}
+                    {c.type === 'frame' && <div style={{width:32,height:32,borderRadius:'50%',background:'var(--surface)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,border:`2px solid ${c.value==='gold'?'#E8C547':c.value==='diamond'?'#a8edea':c.value==='fire'?'#ff6b35':'#8b5cf6'}`}}>👤</div>}
+                    {c.type === 'emoji' && <span style={{fontSize:20}}>{c.value}</span>}
                   </div>
                 </div>
               ))}
@@ -1724,7 +1679,8 @@ function App() {
               {adminTab==='tickets' && (<div className="gap8">{tickets.length===0 && <div className="text-center text-muted p20">Нет тикетов</div>}{tickets.map(t => (<div className="card row-sb" key={t.user_id} onClick={()=>setOpenConv(t)} style={{cursor:'pointer', margin:0}}><div><div className="fw7">{t.first_name} {t.unread > 0 && <span className="text-red">({t.unread})</span>}</div><div className="f12 text-muted mt4">{t.last_msg?.substring(0,30)||'Фото...'}</div></div><div className="fw7 text-muted" style={{fontSize:20}}>›</div></div>))}</div>)}
               {adminTab==='stories' && (<div className="gap8">{stories.length===0 && <div className="text-center text-muted p20">Нет заявок</div>}{stories.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">@{s.username||s.first_name||s.user_id}</div><div className="f12 text-muted mt4">{new Date(s.created_at).toLocaleString('ru')}</div></div><div className="row"><button className="btn btn-green btn-sm" onClick={async ()=>{ try{ await post(`/api/admin/stories/approve?claim_id=${s.id}`,''); showToast('✅ Одобрено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>✅</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Отклонить заявку?'))return; try{ await post(`/api/admin/stories/reject?claim_id=${s.id}`,''); showToast('🗑 Отклонено'); loadAdminTab('stories'); }catch(e){showToast('❌ '+e.message);} }}>❌</button></div></div>))}</div>)}
               {adminTab==='sponsors' && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Спонсора</div><div className="f12 text-muted mb8">Бот должен быть админом в канале!</div><input className="input" placeholder="ID Канала (-100123...)" id="spId"/><input className="input" placeholder="Название (Для кнопки)" id="spTitle"/><input className="input" placeholder="Ссылка (https://t.me/...)" id="spUrl"/><input className="input" type="number" placeholder="Награда RC" id="spRc" defaultValue="250"/><button className="btn btn-primary mt8" onClick={async ()=>{ const id=document.getElementById('spId').value, t=document.getElementById('spTitle').value, u=document.getElementById('spUrl').value, r=document.getElementById('spRc').value; if(!id||!t||!u||!r) return showToast('Заполните все поля'); try{ await post('/api/admin/sponsors/add',{channel_id:id,channel_title:t,channel_url:u,reward_rc:parseFloat(r),is_main:false}); showToast('✅ Добавлен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>Добавить</button></div>{sponsors.map(s => (<div className="card row-sb" key={s.id} style={{margin:0}}><div><div className="fw7">{s.is_main ? '👑 Генеральный' : '📢 Обычный'}</div><div className="fw8 mt4" style={{fontSize:15}}>{s.channel_title}</div><div className="f12 text-muted mt4">{s.channel_id} • {s.reward_rc} RC</div></div><div className="gap6"><button className="btn btn-ghost btn-sm" style={{borderColor: s.is_main ? 'var(--gold)' : 'var(--border2)'}} onClick={async ()=>{ try{ await post('/api/admin/sponsors/toggle_main',{sponsor_id:s.id}); showToast('✅ Статус изменен'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>{s.is_main ? 'Сделать обычным' : 'Сделать генеральным'}</button><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm('Удалить спонсора?'))return; try{ await post('/api/admin/sponsors/delete',{sponsor_id:s.id}); showToast('✅ Удален'); loadAdminTab('sponsors'); }catch(e){showToast('❌ '+e.message);} }}>🗑 Удалить</button></div></div>))}</div>)}
-              {adminTab==='clans' && (<div className="gap8"><div className="fw8 mb8" style={{fontSize:16}}>🛡 Список кланов</div><button className="btn btn-ghost btn-sm mb8" onClick={()=>loadAdminTab('clans')}>🔄 Обновить</button>{adminClans.length===0 && <div className="text-center text-muted p20">Нет кланов</div>}{adminClans.map(c => (<div className="card row-sb" key={c.id} style={{margin:0}}><div><div className="fw7">{c.name} <span className="f11 text-muted">Ур.{c.level}</span></div><div className="f12 text-muted mt4">Участников: {c.members_count || '?'} | Общак: {parseFloat(c.treasury||0).toFixed(0)} RC</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm(`Удалить клан «${c.name}»? Все участники будут исключены.`)) return; try{ await post(`/api/admin/syndicates/${c.id}/disband`,''); showToast('🗑 Клан удалён'); loadAdminTab('clans'); }catch(e){showToast('❌ '+e.message);} }}>🗑</button></div>))}</div>)}<div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Админа</div><input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button></div><div className="gap8">{adminsData.db_admins.map(a => (<div className="card row-sb" key={a.user_id} style={{margin:0}}><div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button></div>))}</div></div>)}
+              {adminTab==='clans' && (<div className="gap8"><div className="section-title">🛡 Кланы</div><button className="btn btn-ghost btn-sm mb8" onClick={()=>loadAdminTab('clans')}>🔄 Обновить</button>{adminClans.length===0 && <div className="text-center text-muted p20">Нет кланов</div>}{adminClans.map(c => (<div className="card row-sb" key={c.id} style={{margin:0}}><div><div className="fw7">{c.name} <span className="f11 text-muted">Ур.{c.level}</span></div><div className="f12 text-muted mt4">Участников: {c.members_count||'?'} · Общак: {parseFloat(c.treasury||0).toFixed(0)} RC</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ if(!confirm(`Удалить клан «${c.name}»?`)) return; try{ await post(`/api/admin/syndicates/${c.id}/disband`,''); showToast('🗑 Клан удалён'); loadAdminTab('clans'); }catch(e){showToast('❌ '+e.message);} }}>🗑</button></div>))}</div>)}
+              {adminTab==='admins' && adminsData && (<div className="gap16"><div className="card gap8"><div className="fw8" style={{fontSize:16}}>Добавить Админа</div><input className="input" placeholder="Telegram ID пользователя" value={newAdminId} onChange={e=>setNewAdminId(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ await post('/api/admin/admins_list/add',{user_id:parseInt(newAdminId)}); showToast('✅ Назначен'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Назначить</button></div><div className="gap8">{adminsData.db_admins.map(a => (<div className="card row-sb" key={a.user_id} style={{margin:0}}><div><div className="fw7">{a.first_name||a.username||a.user_id}</div><div className="f12 text-muted mt4">ID: {a.user_id}</div></div><button className="btn btn-danger btn-sm" onClick={async ()=>{ try{ await post('/api/admin/admins_list/remove',{user_id:a.user_id}); showToast('✅ Снят'); loadAdminTab('admins'); }catch(e){showToast('❌ '+e.message);} }}>Снять</button></div>))}</div></div>)}
               {adminTab==='system' && (<div className="gap16"><div className="card gap8"><div className="fw8 text-amber" style={{fontSize:16}}>🛠 Технические работы</div><div className="f13 text-muted">Закрывает доступ всем игрокам кроме админов.</div><div className="row mt8"><button className={`btn ${sysMaint ? 'btn-danger' : 'btn-ghost'}`} onClick={async ()=>{ try{ await post('/api/admin/maintenance', { state:true }); setSysMaint(true); showToast('ВКЛЮЧЕНЫ'); }catch(e){} }}>ВКЛЮЧИТЬ</button><button className={`btn ${!sysMaint ? 'btn-green' : 'btn-ghost'}`} onClick={async ()=>{ try{ await post('/api/admin/maintenance', { state:false }); setSysMaint(false); showToast('ВЫКЛЮЧЕНЫ'); }catch(e){} }}>ВЫКЛЮЧИТЬ</button></div></div><div className="card gap8"><div className="fw8" style={{fontSize:16}}>📢 Рассылка всем</div><textarea className="input" rows={3} placeholder="Текст (HTML)..." value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button className="btn btn-primary mt8" onClick={async ()=>{ try{ const r = await post('/api/admin/broadcast',{text:broadcast}); showToast(`📤 Разослано ${r.count} чел`); setBroadcast(''); }catch(e){showToast('❌ '+e.message);} }}>Разослать</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Новый сезон</div><div className="f13 text-muted">Сброс балансов, рабов, цен. VIP и косметика остаются.</div><input className="input" type="password" id="s_pass" placeholder="Пароль"/><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('Точно начать новый сезон?'))return; try{ await post('/api/admin/season/start',{password:document.getElementById('s_pass').value}); showToast('🔥 Сезон начат'); }catch(e){showToast('❌ '+e.message);} }}>Начать сезон</button></div><div className="card gap8"><div className="fw8 text-red" style={{fontSize:16}}>💀 Полный Wipe</div><div className="f13 text-muted">Полное удаление базы данных. (Только для Супер-Админа)</div><button className="btn btn-danger mt8" onClick={async ()=>{ if(!confirm('УДАЛИТЬ ВСЮ БАЗУ ДАННЫХ? Безвозвратно.'))return; try{ await post('/api/admin/db/clear'); showToast('💀 Очищено'); }catch(e){showToast('❌ '+e.message);} }}>Очистить базу</button></div></div>)}
             </div>
           </div>
