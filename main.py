@@ -496,6 +496,7 @@ async def lifespan(app: FastAPI):
     # Миграции выполняются отдельно - ALTER TABLE должен примениться до CREATE INDEX
     _migrations = [
         # Колонки которых может не быть в старых БД
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS user_id BIGINT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS user_id BIGINT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS photo_b64 TEXT",
         "ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS direction TEXT",
